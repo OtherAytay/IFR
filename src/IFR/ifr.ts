@@ -409,6 +409,8 @@ class IFRState {
 }
 
 class StageState {
+    // TODO: add logic for detecting if stage is complete
+    // TODO: add logic to process progression
     stage: Stage;
     eventSpaceStates: Array<EventState|EventGroupState> = [];
     isComplete: boolean = false;
