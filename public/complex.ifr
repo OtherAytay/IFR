@@ -1,0 +1,33 @@
+{
+    "name": "ST Lab",
+    "variables": {
+        "mark": "0"
+    },
+    "stages": {
+        "1": {
+            "title": "Body",
+            "subtitle": "",
+            "description": "",
+            "eventspace": {
+                "1": {
+                    "type": "event",
+                    "tasks": [
+                        {
+                            "min": 7,
+                            "max": 7,
+                            "task": {
+                                "title": "Accessory",
+                                "flavor": "",
+                                "description": "",
+                                "outcomes": []
+                            }
+                        }
+                    ]
+                }
+            },
+            "progress": [
+                {}
+            ]
+        }
+    }
+}
