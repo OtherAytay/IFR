@@ -38,7 +38,7 @@ class Stage {
     description: string;
     minComplete: number = 0;
     maxComplete: number = this.eventSpaces.length;
-    progress: Map<Condition | "Default", Stage> = new Map();
+    progress: Map<Condition|ConditionGroup|"Default", Stage> = new Map();
 
     constructor(title: string, subtitle: string = "", description: string = "", minComplete: number, maxComplete: number) {
         this.title = title;
@@ -410,8 +410,9 @@ class IFRState {
 
 class StageState {
     stage: Stage;
-    eventSpaceStates: Array<EventState | EventGroupState> = [];
+    eventSpaceStates: Array<EventState|EventGroupState> = [];
     isComplete: boolean = false;
+    progressStates: Array<ConditionState|ConditionGroupState> = [];
 
     timesCompleted: number = 0;
 
@@ -426,6 +427,14 @@ class StageState {
                 this.eventSpaceStates.push(new EventState(es, variableStates));
             } else {
                 this.eventSpaceStates.push(new EventGroupState(es, variableStates));
+            }
+        }
+
+        for (const c of this.stage.progress.keys()) {
+            if (c instanceof Condition) {
+                this.progressStates.push(new ConditionState(c, variableStates))
+            } else {
+                this.progressStates.push(new ConditionGroupState(c, variableStates))
             }
         }
 
@@ -502,15 +511,28 @@ class EventGroupState {
             }
         }
     }
+
+    isAvailable = function() {
+        var available = true;
+        for (const d of this.dependencyStates) {
+            if (d instanceof EventState || d instanceof EventGroupState) {
+                available = available && d.isComplete
+            } else {
+                available = available && d.check()
+            }
+        }
+        return available;
+    }
 }
 
 
 class EventState {
     event: Event;
+    activeTaskState: TaskState;
     taskStates: Map<Task, TaskState> = new Map();
     dependencyStates: Array<EventState | EventGroupState | ConditionState> = [];
     currentRoll: number = null;
-
+    isComplete: boolean = false;
     timesRolled: number = 0;
 
     constructor(event: Event, variableStates) {
@@ -530,9 +552,26 @@ class EventState {
         }
     }
 
+    isAvailable = function() {
+        var available = true;
+        for (const d of this.dependencyStates) {
+            if (d instanceof EventState || d instanceof EventGroupState) {
+                available = available && d.isComplete
+            } else {
+                available = available && d.check()
+            }
+        }
+        return available;
+    }
+
     roll = function () {
-        this.currentRoll = randRange(Event.minRoll, this.event.maxRoll, true)
-        this.taskStates.get(this.event.roll(this.currentRoll))
+        this.currentRoll = randRange(Event.minRoll, this.event.maxRoll, true);
+        this.activeTaskState = this.taskStates.get(this.event.roll(this.currentRoll));
+        this.timesRolled += 1;
+    }
+
+    complete = function() {
+        this.isComplete = true;
     }
 }
 
@@ -550,8 +589,8 @@ class TaskState {
     complete = function (pass) {
         this.complete = true;
         this.pass = pass;
-        this.task.getOutcome(pass).process()
-        this.timesCompleted += 1
+        this.task.getOutcome(pass).process();
+        this.timesCompleted += 1;
     }
 }
 
