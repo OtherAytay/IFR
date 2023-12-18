@@ -1,11 +1,11 @@
 /**
  * Represents an Interactive FapRoulette game including the structure of the event space and necessary game logic.
  */
-class IFR {
+export class IFR {
     title: string;
     description: string;
     variables: Array<Variable> = [];
-    stages: Set<Stage> = new Set();
+    stages: Array<Stage> = new Array();
 
     constructor(title: string) {
         this.title = title;
@@ -25,13 +25,13 @@ class IFR {
             if (s.title == stage.title) { return false }
         }
 
-        this.stages.add(stage);
+        this.stages.push(stage);
         return true;
     }
 
 }
 
-class Stage {
+export class Stage {
     private eventSpaces: Array<Event | EventGroup> = [];
     title: string;
     subtitle: string;
@@ -62,17 +62,17 @@ class Stage {
     }
 
     checkDependencies = function (eventSpace: Event | EventGroup) {
+        if (eventSpace.dependencies.size == 0) { return true }
         for (const d of eventSpace.dependencies) {
             if (d instanceof Event || d instanceof EventGroup) {
-                return this.event.includes(d)
+                return this.eventSpaces.includes(d)
             }
         }
     }
 
 }
 
-
-class EventGroup {
+export class EventGroup {
     events: Array<Event> = [];
     title: string;
     minComplete: number = 0;
@@ -107,9 +107,8 @@ class EventGroup {
     }
 
 }
-
-class Event {
-    static readonly minRoll: number = 0
+export class Event {
+    static readonly minRoll: number = 1
 
     title: string;
     subtitle: string;
@@ -118,13 +117,11 @@ class Event {
     required = true;
     dependencies: Set<Event | EventGroup | Condition> = new Set();
 
-    constructor(title: string, subtitle: string, maxRoll: number, tasks: Array<{ min: number, max: number, task: Task }>, required: boolean, dependencies: Set<Event | EventGroup> = new Set()) {
+    constructor(title: string, subtitle: string, maxRoll: number, required: boolean) {
         this.title = title;
         this.subtitle = subtitle;
         this.maxRoll = maxRoll
-        this.tasks = tasks;
         this.required = required;
-        this.dependencies = dependencies;
     }
 
     addDependency = function (eventSpace: Event | EventGroup) {
@@ -164,7 +161,7 @@ class Event {
 }
 
 
-class Task {
+export class Task {
     static readonly PASS = true
     static readonly FAIL = false
 
@@ -174,7 +171,7 @@ class Task {
     passOutcome: Outcome;
     failOutcome: Outcome;
 
-    constructor(title: string, flavor: string, description: string, passOutcome: Outcome, failOutcome?: Outcome) {
+    constructor(title: string, flavor: string, description: string, passOutcome?: Outcome, failOutcome?: Outcome) {
         this.title = title;
         this.flavor = flavor;
         this.description = description;
@@ -192,7 +189,7 @@ class Task {
     }
 }
 
-class Outcome {
+export class Outcome {
     static readonly SET = "set"
     static readonly ADD = "add"
     static readonly SUBTRACT = "sub"
@@ -262,7 +259,10 @@ class Outcome {
  * For numbers, bounds are a min and max inclusive.
  * For strings, bounds are a list of valid strings.
  */
-class Variable {
+export class Variable {
+    static readonly BOOL = "boolean"
+    static readonly NUM = "number"
+    static readonly STRING = "string"
     static readonly TYPES = ["boolean", "number", "string"]
 
     name: string;
@@ -281,7 +281,7 @@ class Variable {
     }
 
     addBounds = function (bounds: Array<any>) {
-        if (this.type == "number") {
+        if (this.type == Variable.NUM) {
             var valid = true
             valid = valid && bounds.length == 2
             valid = valid && typeof bounds[0] == "number"
@@ -293,7 +293,7 @@ class Variable {
                 this.bounds = bounds
                 return true
             }
-        } else if (this.type == "string") {
+        } else if (this.type == Variable.STRING) {
             var valid = true
             for (const b of bounds) {
                 valid = valid && typeof b == "string"
@@ -325,7 +325,7 @@ class Variable {
 /**
  * A group of conditions that must all be fulfilled simultaneously (Logical AND)
  */
-class ConditionGroup {
+export class ConditionGroup {
     conditions: Array<Condition> = [];
 
     addCondition = function (condition: Condition) {
@@ -338,7 +338,7 @@ class ConditionGroup {
  * A pre-configured comparison operation between a target value and an input.
  * Used to determine task outcomes and stage progression.
  */
-class Condition {
+export class Condition {
     static readonly EQUALS = "eq"
     static readonly NOT_EQUALS = "neq"
     static readonly LESS = "lt"
@@ -378,12 +378,12 @@ class Condition {
 }
 
 /* ----- GAME STATE -----*/
-/* The following classes and methods represent and manage the state of an IFR while it's being played */
+/* The following export classes and methods represent and manage the state of an IFR while it's being played */
 
-class IFRState {
+export class IFRState {
     ifr: IFR;
     stageStates: Array<StageState> = [];
-    currentStage: Stage;
+    currentStage: StageState;
 
     /** Maps variables to variableStates */
     variableStates = new Map<Variable, VariableState>();
@@ -401,6 +401,7 @@ class IFRState {
         for (const s of this.ifr.stages) {
             this.stageStates.push(new StageState(s, this.variableStates))
         }
+        this.currentStage = this.stageStates[0]
     }
 
     getVariableState = function (variable: Variable) {
@@ -408,7 +409,7 @@ class IFRState {
     }
 }
 
-class StageState {
+export class StageState {
     // TODO: add logic for detecting if stage is complete
     // TODO: add logic to process progression
     stage: Stage;
@@ -482,7 +483,7 @@ class StageState {
     }
 }
 
-class EventGroupState {
+export class EventGroupState {
     eventGroup: EventGroup;
     eventStates: Array<EventState> = [];
     dependencyStates: Array<EventState | EventGroupState | ConditionState> = [];
@@ -528,7 +529,7 @@ class EventGroupState {
 }
 
 
-class EventState {
+export class EventState {
     event: Event;
     activeTaskState: TaskState;
     taskStates: Map<Task, TaskState> = new Map();
@@ -577,7 +578,7 @@ class EventState {
     }
 }
 
-class TaskState {
+export class TaskState {
     task: Task;
     isComplete: boolean = false;
     pass: boolean;
@@ -596,7 +597,7 @@ class TaskState {
     }
 }
 
-class VariableState {
+export class VariableState {
     variable: Variable;
     value;
 
@@ -621,7 +622,7 @@ class VariableState {
     }
 }
 
-class ConditionGroupState {
+export class ConditionGroupState {
     conditionGroup: ConditionGroup;
     conditionStates: Array<ConditionState> = []
 
@@ -645,7 +646,7 @@ class ConditionGroupState {
     }
 }
 
-class ConditionState {
+export class ConditionState {
     condition: Condition;
     variableState: Variable;
 
