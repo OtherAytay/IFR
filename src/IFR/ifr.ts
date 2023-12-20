@@ -4,11 +4,13 @@
 export class IFR {
     title: string;
     description: string;
+    fr_link: string;
     variables: Array<Variable> = [];
     stages: Array<Stage> = new Array();
 
-    constructor(title: string) {
+    constructor(title: string, fr_link: string = "") {
         this.title = title;
+        this.fr_link = fr_link;
     }
 
     addVariable = function (variable: Variable) {
@@ -32,7 +34,7 @@ export class IFR {
 }
 
 export class Stage {
-    private eventSpaces: Array<Event | EventGroup> = [];
+    eventSpaces: Array<Event | EventGroup> = [];
     title: string;
     subtitle: string;
     description: string;
@@ -93,12 +95,13 @@ export class EventGroup {
         return false;
     }
 
-    addDependency = function (eventSpace: Event | EventGroup) {
+    addDependency = function (eventSpace: Event | EventGroup | Condition) {
         this.dependencies.add(eventSpace)
         return true;
     }
 
     checkDependencies = function (eventSpace: Event) {
+        if (eventSpace.dependencies.size == 0) { return true }
         for (const d of eventSpace.dependencies) {
             if (d instanceof Event || d instanceof EventGroup) {
                 return this.events.includes(d)
@@ -115,7 +118,7 @@ export class Event {
     maxRoll: number = 10;
     tasks: Array<{ min: number, max: number, task: Task }> = []
     required = true;
-    dependencies: Set<Event | EventGroup | Condition> = new Set();
+    dependencies: Set<Event | EventGroup | Condition > = new Set();
 
     constructor(title: string, subtitle: string, maxRoll: number, required: boolean) {
         this.title = title;
@@ -124,7 +127,7 @@ export class Event {
         this.required = required;
     }
 
-    addDependency = function (eventSpace: Event | EventGroup) {
+    addDependency = function (eventSpace: Event | EventGroup | Condition ) {
         this.dependencies.add(eventSpace)
         return true;
     }
@@ -171,7 +174,7 @@ export class Task {
     passOutcome: Outcome;
     failOutcome: Outcome;
 
-    constructor(title: string, flavor: string, description: string, passOutcome?: Outcome, failOutcome?: Outcome) {
+    constructor(title: string, flavor: string = "", description: string, passOutcome?: Outcome, failOutcome?: Outcome) {
         this.title = title;
         this.flavor = flavor;
         this.description = description;
@@ -197,6 +200,15 @@ export class Outcome {
     static readonly DIVIDE = "div"
     static readonly FLIP = "neg"
 
+    static readonly opReadable = {
+        [Outcome.SET]: " \u2192 ",
+        [Outcome.ADD]: " + ",
+        [Outcome.SUBTRACT]: " \u2212 ",
+        [Outcome.MULTIPLY]: " \u00D7 ",
+        [Outcome.DIVIDE]: " \u00F7 ",
+        [Outcome.FLIP]: " \u00AC "
+    }
+
     static readonly allowedOperations = {
         "boolean": [Outcome.SET, Outcome.FLIP],
         "number": [Outcome.SET, Outcome.ADD, Outcome.SUBTRACT, Outcome.MULTIPLY, Outcome.DIVIDE],
@@ -215,6 +227,13 @@ export class Outcome {
 
         if (!variable.checkValid(target)) { throw "Invalid target value for given variable" }
         this.target = target
+    }
+
+    readOutcome = function() {
+        if (this.operation == Outcome.FLIP) {
+            return Outcome.opReadable[this.operation] + this.variable.name;
+        }
+        return this.variable.name + Outcome.opReadable[this.operation] + this.target;
     }
 
     process = function (variableState: VariableState) {
@@ -345,11 +364,22 @@ export class Condition {
     static readonly LESS_EQUALS = "le"
     static readonly GREATER = "ge"
     static readonly GREATER_THAN = "gt"
+    static readonly ANY = "any"
+
+    static readonly opReadable = {
+        [Condition.EQUALS]: " = ",
+        [Condition.NOT_EQUALS]: " \u2260 ",
+        [Condition.LESS]: " < ",
+        [Condition.LESS_EQUALS]: " \u2264 ",
+        [Condition.GREATER]: " > ",
+        [Condition.GREATER_THAN]: " \u2265 ",
+        [Condition.ANY]: " one of: "
+    }
 
     static readonly allowedOperations = {
         "boolean": [Condition.EQUALS],
-        "number": [Condition.LESS, Condition.LESS_EQUALS, Condition.EQUALS, Condition.GREATER, Condition.GREATER_THAN, Condition.NOT_EQUALS],
-        "string": [Condition.EQUALS, Condition.NOT_EQUALS]
+        "number": [Condition.LESS, Condition.LESS_EQUALS, Condition.EQUALS, Condition.GREATER, Condition.GREATER_THAN, Condition.ANY, Condition.NOT_EQUALS],
+        "string": [Condition.EQUALS, Condition.NOT_EQUALS, Condition.ANY]
     }
 
     variable: Variable;
@@ -365,6 +395,10 @@ export class Condition {
         this.target = target;
     }
 
+    readCondition = function() {
+        return this.variable.name + Condition.opReadable[this.operation] + this.target.join(', ')
+    }
+
     check = function (value) {
         switch (this.operation) {
             case Condition.EQUALS: return value == this.target
@@ -373,6 +407,7 @@ export class Condition {
             case Condition.LESS_EQUALS: return value <= this.target
             case Condition.GREATER: return value >= this.target
             case Condition.GREATER_THAN: return value > this.target
+            case Condition.ANY: return this.target.includes(value)
         }
     }
 }
@@ -407,15 +442,17 @@ export class IFRState {
     getVariableState = function (variable: Variable) {
         return this.variableStates.get(variable)
     }
+
+    progress = function() {
+        this.currentStage = this.currentStage.progress()
+    }
 }
 
 export class StageState {
-    // TODO: add logic for detecting if stage is complete
     // TODO: add logic to process progression
     stage: Stage;
     eventSpaceStates: Array<EventState|EventGroupState> = [];
-    isComplete: boolean = false;
-    progressStates: Array<ConditionState|ConditionGroupState> = [];
+    progressStates: Array<ConditionState|ConditionGroupState> = []; // don't forget default state
 
     timesCompleted: number = 0;
 
@@ -436,7 +473,7 @@ export class StageState {
         for (const c of this.stage.progress.keys()) {
             if (c instanceof Condition) {
                 this.progressStates.push(new ConditionState(c, variableStates))
-            } else {
+            } else if (c instanceof ConditionGroup) {
                 this.progressStates.push(new ConditionGroupState(c, variableStates))
             }
         }
@@ -447,17 +484,17 @@ export class StageState {
                     if (d instanceof Event) {
                         for (const ess of this.eventSpaceStates) {
                             if (ess instanceof EventState && ess.event == d) {
-                                es.dependencyStates.push(ess)
+                                es.dependencyStates.add(ess)
                             }
                         }
                     } else if (d instanceof EventGroup) {
                         for (const ess of this.eventSpaceStates) {
                             if (ess instanceof EventGroupState && ess.eventGroup == d) {
-                                es.dependencyStates.push(ess)
+                                es.dependencyStates.add(ess)
                             }
                         }
                     } else {
-                        es.dependencyStates.push(new ConditionState(d, variableStates))
+                        es.dependencyStates.add(new ConditionState(d, variableStates))
                     }
                 }
             } else if (es instanceof EventGroupState) {
@@ -465,19 +502,45 @@ export class StageState {
                     if (d instanceof Event) {
                         for (const ess of this.eventSpaceStates) {
                             if (ess instanceof EventState && ess.event == d) {
-                                es.dependencyStates.push(ess)
+                                es.dependencyStates.add(ess)
                             }
                         }
                     } else if (d instanceof EventGroup) {
                         for (const ess of this.eventSpaceStates) {
                             if (ess instanceof EventGroupState && ess.eventGroup == d) {
-                                es.dependencyStates.push(ess)
+                                es.dependencyStates.add(ess)
                             }
                         }
                     } else {
-                        es.dependencyStates.push(new ConditionState(d, variableStates))
+                        es.dependencyStates.add(new ConditionState(d, variableStates))
                     }
                 }
+            }
+        }
+    }
+
+    isComplete = function() {
+        var complete = true
+        for (const e of this.eventSpaceStates) {
+            complete = complete && e.isComplete()
+        }
+        return complete
+    }
+
+    progress = function() {
+        if (!this.isComplete()) { this.stage } // If stage is not complete, stay on current stage
+
+        for (const p of this.progressStates) {
+            if (p instanceof ConditionState)  {
+                if (p.check()) {
+                    return this.stage.progress.get(p.condition)
+                }
+            } else if (p instanceof ConditionGroupState) {
+                if (p.check()) {
+                    return this.stage.progress.get(p.conditionGroup)
+                }
+            } else {
+                return this.stage.progress.get("Default")
             }
         }
     }
@@ -486,8 +549,7 @@ export class StageState {
 export class EventGroupState {
     eventGroup: EventGroup;
     eventStates: Array<EventState> = [];
-    dependencyStates: Array<EventState | EventGroupState | ConditionState> = [];
-    isComplete: boolean = false;
+    dependencyStates: Set<EventState | EventGroupState | ConditionState> = new Set();
     timesCompleted: number = 0;
 
     constructor(eventGroup: EventGroup, variableStates) {
@@ -503,13 +565,13 @@ export class EventGroupState {
         for (const es of this.eventStates) {
             for (const d of es.event.dependencies) {
                 if (d instanceof Event) {
-                    for (const ess of this.eventSpaceStates) {
-                        if (ess instanceof EventState && ess.event == d) {
-                            es.dependencyStates.push(ess)
+                    for (const ess of this.eventStates) {
+                        if (ess.event == d) {
+                            es.dependencyStates.add(ess)
                         }
                     }
                 } else {
-                    es.dependencyStates.push(new ConditionState(d, variableStates))
+                    this.dependencyStates.add(new ConditionState(d, variableStates))
                 }
             }
         }
@@ -519,12 +581,20 @@ export class EventGroupState {
         var available = true;
         for (const d of this.dependencyStates) {
             if (d instanceof EventState || d instanceof EventGroupState) {
-                available = available && d.isComplete
+                available = available && d.isComplete()
             } else {
                 available = available && d.check()
             }
         }
         return available;
+    }
+
+    isComplete = function() {
+        var complete = true
+        for (const e of this.eventStates) {
+            complete = complete && e.isComplete()
+        }
+        return complete
     }
 }
 
@@ -533,9 +603,9 @@ export class EventState {
     event: Event;
     activeTaskState: TaskState;
     taskStates: Map<Task, TaskState> = new Map();
-    dependencyStates: Array<EventState | EventGroupState | ConditionState> = [];
+    dependencyStates: Set<EventState | EventGroupState | ConditionState> = new Set();
     currentRoll: number = null;
-    isComplete: boolean = false;
+    completed: boolean = false;
     timesRolled: number = 0;
 
     constructor(event: Event, variableStates) {
@@ -550,7 +620,7 @@ export class EventState {
 
         for (const d of this.event.dependencies) {
             if (d instanceof Condition) {
-                this.dependencyStates.push(new ConditionState(d, variableStates))
+                this.dependencyStates.add(new ConditionState(d, variableStates))
             }
         }
     }
@@ -559,7 +629,7 @@ export class EventState {
         var available = true;
         for (const d of this.dependencyStates) {
             if (d instanceof EventState || d instanceof EventGroupState) {
-                available = available && d.isComplete
+                available = available && d.isComplete()
             } else {
                 available = available && d.check()
             }
@@ -573,8 +643,12 @@ export class EventState {
         this.timesRolled += 1;
     }
 
+    isComplete = function() {
+        return this.completed
+    }
+
     complete = function() {
-        this.isComplete = true;
+        this.completed = true;
     }
 }
 
@@ -661,6 +735,37 @@ export class ConditionState {
 }
 
 /* ----- UTILITIES ---- */
+class biMap<T, V> {
+    map: Map<T, V>;
+    revMap: Map<V, T>;
+
+    constructor(map: Map<T, V> = new Map()) {
+        this.map = map
+        this.revMap = new Map<V, T>()
+        for (const [k, v] of map.entries()) {
+            this.revMap.set(v, k)
+        } 
+    }
+
+    set = function(key: T, value: V) {
+        this.map.set(key, value)
+        this.revMap.set(value, key)
+    } 
+
+    delete = function(key: T) {
+        this.revMap.delete(this.map.get(key));
+        this.map.delete(key);
+    }
+
+    get = function(key: T) {
+        return this.map.get(key);
+    }
+
+    revGet = function(value: V) {
+        return this.revMap.get(value)
+    }
+}
+
 function randRange(min: number, max: number, integer: boolean) {
     if (integer) {
         return Math.floor(Math.random() * ((max - min) + 1) + min);
