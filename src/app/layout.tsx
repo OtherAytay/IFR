@@ -13,6 +13,7 @@ const themeOverride = createTheme({
     to: 'violet',
     deg: 45,
   },
+  defaultRadius: "md"
 });
 
 export const theme = mergeMantineTheme(DEFAULT_THEME, themeOverride)

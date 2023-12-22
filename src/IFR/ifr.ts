@@ -5,12 +5,14 @@ export class IFR {
     title: string;
     description: string;
     fr_link: string;
+    fr_img: string;
     variables: Array<Variable> = [];
     stages: Array<Stage> = new Array();
 
-    constructor(title: string, fr_link: string = "") {
+    constructor(title: string, fr_link: string = "", fr_img: string = "") {
         this.title = title;
         this.fr_link = fr_link;
+        this.fr_img = fr_img;
     }
 
     addVariable = function (variable: Variable) {
@@ -40,7 +42,7 @@ export class Stage {
     description: string;
     minComplete: number = 0;
     maxComplete: number = this.eventSpaces.length;
-    progress: Map<Condition|ConditionGroup|"Default", Stage> = new Map();
+    progress: Map<Condition | ConditionGroup | "Default", Stage> = new Map();
 
     constructor(title: string, subtitle: string = "", description: string = "", minComplete: number, maxComplete: number) {
         this.title = title;
@@ -117,17 +119,17 @@ export class Event {
     subtitle: string;
     maxRoll: number = 10;
     tasks: Array<{ min: number, max: number, task: Task }> = []
-    required = true;
-    dependencies: Set<Event | EventGroup | Condition > = new Set();
+    required: boolean = true;
+    dependencies: Set<Event | EventGroup | Condition> = new Set();
 
-    constructor(title: string, subtitle: string, maxRoll: number, required: boolean) {
+    constructor(title: string, subtitle: string, maxRoll: number, required: boolean = true) {
         this.title = title;
         this.subtitle = subtitle;
         this.maxRoll = maxRoll
         this.required = required;
     }
 
-    addDependency = function (eventSpace: Event | EventGroup | Condition ) {
+    addDependency = function (eventSpace: Event | EventGroup | Condition) {
         this.dependencies.add(eventSpace)
         return true;
     }
@@ -167,14 +169,15 @@ export class Event {
 export class Task {
     static readonly PASS = true
     static readonly FAIL = false
+    static readonly REROLL = "REROLL"
 
     title: string;
     flavor: string;
     description: string;
-    passOutcome: Outcome;
-    failOutcome: Outcome;
+    passOutcome: Outcome | "REROLL";
+    failOutcome: Outcome | "REROLL";
 
-    constructor(title: string, flavor: string = "", description: string, passOutcome?: Outcome, failOutcome?: Outcome) {
+    constructor(title: string, flavor: string = "", description: string, passOutcome?: Outcome | "REROLL", failOutcome?: Outcome | "REROLL") {
         this.title = title;
         this.flavor = flavor;
         this.description = description;
@@ -229,7 +232,7 @@ export class Outcome {
         this.target = target
     }
 
-    readOutcome = function() {
+    readOutcome = function () {
         if (this.operation == Outcome.FLIP) {
             return Outcome.opReadable[this.operation] + this.variable.name;
         }
@@ -395,7 +398,7 @@ export class Condition {
         this.target = target;
     }
 
-    readCondition = function() {
+    readCondition = function () {
         return this.variable.name + Condition.opReadable[this.operation] + this.target.join(', ')
     }
 
@@ -443,7 +446,7 @@ export class IFRState {
         return this.variableStates.get(variable)
     }
 
-    progress = function() {
+    progress = function () {
         this.currentStage = this.currentStage.progress()
     }
 }
@@ -451,8 +454,8 @@ export class IFRState {
 export class StageState {
     // TODO: add logic to process progression
     stage: Stage;
-    eventSpaceStates: Array<EventState|EventGroupState> = [];
-    progressStates: Array<ConditionState|ConditionGroupState> = []; // don't forget default state
+    eventSpaceStates: Array<EventState | EventGroupState> = [];
+    progressStates: Array<ConditionState | ConditionGroupState> = []; // don't forget default state
 
     timesCompleted: number = 0;
 
@@ -519,7 +522,7 @@ export class StageState {
         }
     }
 
-    isComplete = function() {
+    isComplete = function () {
         var complete = true
         for (const e of this.eventSpaceStates) {
             complete = complete && e.isComplete()
@@ -527,11 +530,11 @@ export class StageState {
         return complete
     }
 
-    progress = function() {
+    progress = function () {
         if (!this.isComplete()) { this.stage } // If stage is not complete, stay on current stage
 
         for (const p of this.progressStates) {
-            if (p instanceof ConditionState)  {
+            if (p instanceof ConditionState) {
                 if (p.check()) {
                     return this.stage.progress.get(p.condition)
                 }
@@ -577,7 +580,7 @@ export class EventGroupState {
         }
     }
 
-    isAvailable = function() {
+    isAvailable = function () {
         var available = true;
         for (const d of this.dependencyStates) {
             if (d instanceof EventState || d instanceof EventGroupState) {
@@ -589,12 +592,14 @@ export class EventGroupState {
         return available;
     }
 
-    isComplete = function() {
+    isComplete = function () {
         var complete = true
         for (const e of this.eventStates) {
-            complete = complete && e.isComplete()
+            if (e.isAvailable()) {
+                complete = complete && e.isComplete()
+            }
         }
-        return complete
+        return complete;
     }
 }
 
@@ -625,7 +630,7 @@ export class EventState {
         }
     }
 
-    isAvailable = function() {
+    isAvailable = function () {
         var available = true;
         for (const d of this.dependencyStates) {
             if (d instanceof EventState || d instanceof EventGroupState) {
@@ -640,43 +645,143 @@ export class EventState {
     roll = function () {
         this.currentRoll = randRange(Event.minRoll, this.event.maxRoll, true);
         this.activeTaskState = this.taskStates.get(this.event.roll(this.currentRoll));
+        this.activeTaskState.currentRoll = this.currentRoll;
         this.timesRolled += 1;
     }
 
-    isComplete = function() {
+    isComplete = function () {
         return this.completed
     }
 
-    complete = function() {
+    complete = function (pass = true) {
         this.completed = true;
+        this.activeTaskState.complete(pass)
+        if (this.activeTaskState.reroll) {
+            this.currentRoll = null;
+            this.completed = false;
+        }
     }
 }
 
 export class TaskState {
     task: Task;
+    currentRoll: number = null;
+    reroll: boolean = false;
     isComplete: boolean = false;
     pass: boolean;
+    passVarState: VariableState;
+    failVarState: VariableState;
+    variableStates: Map<Variable, VariableState>
 
     timesCompleted: number = 0;
 
-    constructor(task: Task, variableStates) {
+    constructor(task: Task, variableStates: Map<Variable, VariableState>) {
         this.task = task
+        if (task.passOutcome && task.passOutcome instanceof Outcome) {
+            this.passVarState = variableStates.get(task.passOutcome.variable);
+        }
+        if (task.failOutcome && task.failOutcome instanceof Outcome) {
+            this.failVarState = variableStates.get(task.failOutcome.variable);
+        }
+        this.variableStates = variableStates
     }
 
-    complete = function (pass) {
-        this.complete = true;
+    complete = function (pass: boolean) {
+        this.reroll = false;
+        this.currentRoll = null;
         this.pass = pass;
-        this.task.getOutcome(pass).process();
+        if (this.task.getOutcome(pass) && pass == true) {
+            if (this.task.getOutcome(pass) == "REROLL") {
+                this.isComplete = false;
+                this.reroll = true;
+            } else {
+                this.isComplete = true;
+                this.task.getOutcome(pass).process(this.passVarState);
+            }
+        } else if (this.task.getOutcome(pass) && pass == false) {
+            if (this.task.getOutcome(pass) == "REROLL") {
+                this.isComplete = false;
+                this.reroll = true;
+            } else {
+                this.isComplete = true;
+                this.task.getOutcome(pass).process(this.failVarState);
+            }
+        }
         this.timesCompleted += 1;
+    }
+
+    getDescription = function () {
+        var resultDescription: string = this.task.description
+        var varRegex = /{{\s*(\w*)\s*}}/
+        var varWOpRegex = /{{\s*(\w*)\s*([+\-*/])\s*(\d*)\s*}}/
+
+        var varsMatch = resultDescription.match(varRegex)
+        while (varsMatch) {
+            var varValue = null;
+            if (varsMatch[1] == "_roll") {
+                if (this.currentRoll) {
+                    varValue = this.currentRoll
+                } else {
+                    varValue = "ROLL"
+                }
+            } else {
+                for (const variable of this.variableStates.keys()) {
+                    if (variable.name == varsMatch[1]) {
+                        varValue = this.variableStates.get(variable).value
+                        break;
+                    }
+                }
+            }
+
+            resultDescription = resultDescription.replace(varsMatch[0], varValue)
+            varsMatch = resultDescription.match(varRegex)
+        }
+
+        var varsOpMatch = resultDescription.match(varWOpRegex)
+        while (varsOpMatch) {
+            var varValue = null;
+            var operator = varsOpMatch[2]
+            var operand = parseFloat(varsOpMatch[3])
+            if (varsOpMatch[1] == "_roll") {
+                if (this.currentRoll) {
+                    switch (operator) {
+                        case "+": varValue = this.currentRoll + operand; break;
+                        case "-": varValue = this.currentRoll - operand; break;
+                        case "*": varValue = this.currentRoll * operand; break;
+                        case "/": varValue = this.currentRoll / operand; break;
+                    }
+                } else {
+                    varValue = "ROLL " + operator + " " + operand
+                }
+            } else {
+                for (const variable of this.variableStates.keys()) {
+                    if (variable.name = varsOpMatch[1] && variable.type == Variable.NUM) {
+                        switch (operator) {
+                            case "+": varValue = this.variableStates.get(variable).value + operand; break;
+                            case "-": varValue = this.variableStates.get(variable).value - operand; break;
+                            case "*": varValue = this.variableStates.get(variable).value * operand; break;
+                            case "/": varValue = this.variableStates.get(variable).value / operand; break;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            resultDescription = resultDescription.replace(varsOpMatch[0], varValue)
+            varsOpMatch = resultDescription.match(varWOpRegex)
+        }
+
+        return resultDescription
     }
 }
 
 export class VariableState {
     variable: Variable;
-    value;
+    value: any;
 
     constructor(variable: Variable) {
-        this.variable = variable
+        this.variable = variable;
+        this.value = variable.defaultValue;
     }
 
     setValue = function (value) {
@@ -722,9 +827,9 @@ export class ConditionGroupState {
 
 export class ConditionState {
     condition: Condition;
-    variableState: Variable;
+    variableState: VariableState;
 
-    constructor(condition: Condition, variableStates) {
+    constructor(condition: Condition, variableStates: Map<Variable, VariableState>) {
         this.condition = condition
         this.variableState = variableStates.get(this.condition.variable)
     }
@@ -744,24 +849,24 @@ class biMap<T, V> {
         this.revMap = new Map<V, T>()
         for (const [k, v] of map.entries()) {
             this.revMap.set(v, k)
-        } 
+        }
     }
 
-    set = function(key: T, value: V) {
+    set = function (key: T, value: V) {
         this.map.set(key, value)
         this.revMap.set(value, key)
-    } 
+    }
 
-    delete = function(key: T) {
+    delete = function (key: T) {
         this.revMap.delete(this.map.get(key));
         this.map.delete(key);
     }
 
-    get = function(key: T) {
+    get = function (key: T) {
         return this.map.get(key);
     }
 
-    revGet = function(value: V) {
+    revGet = function (value: V) {
         return this.revMap.get(value)
     }
 }
