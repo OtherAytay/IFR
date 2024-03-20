@@ -1,5 +1,6 @@
 'use client'
 import '@mantine/core/styles.css';
+import '@mantine/carousel/styles.css';
 import { useState } from 'react';
 import { ColorSchemeScript, MantineProvider, createTheme, Container, Group, Burger, mergeMantineTheme, DEFAULT_THEME, Badge, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';

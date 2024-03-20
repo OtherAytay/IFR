@@ -25,6 +25,7 @@
     "@tiptap/react": "^2.1.13",
     "@tiptap/starter-kit": "^2.1.13",
     "dayjs": "^1.11.10",
+    "embla-carousel-auto-height": "^8.0.0-rc15",
     "embla-carousel-react": "^7.1.0",
     "next": "14.0.4",
     "react": "^18",

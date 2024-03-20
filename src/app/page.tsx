@@ -1,12 +1,16 @@
 'use client'
-import { useState } from 'react';
-import { Stepper, Group, Container, Title, Text, Anchor, Card, Table, Badge, HoverCard, Center, Button, Divider, rem, ScrollArea, Grid, SimpleGrid, Image, Transition } from '@mantine/core';
+import { useRef, useState } from 'react';
+import { Stepper, Group, Container, Title, Text, Anchor, Card, Table, Badge, HoverCard, Center, Button, Divider, rem, ScrollArea, Grid, SimpleGrid, Image, Transition, Paper, SegmentedControl } from '@mantine/core';
 import { IFR, Stage, Event, Task, Outcome, Variable, IFRState, StageState, EventState, EventGroupState, EventGroup, Condition, TaskState } from '../IFR/ifr';
-import { IconPhoto, IconSquareCheck, IconSquareX } from '@tabler/icons-react';
+import { STL, Simple, SP } from '../IFR/examples'
+import { IconCarouselHorizontal, IconEdit, IconLayoutGrid, IconPhoto, IconSquareCheck, IconSquareX } from '@tabler/icons-react';
+import { Carousel } from '@mantine/carousel'
+import AutoHeight from 'embla-carousel-auto-height'
+import './page.module.css'
 
 export default function Home() {
   return (
-    <InteractiveFR ifrState={Simple()} />
+    <InteractiveFR ifrState={STL()} />
   );
 }
 
@@ -14,15 +18,24 @@ export function InteractiveFR(props: { ifrState: IFRState }) {
   const ifrState = props.ifrState
   const ifr = ifrState.ifr
   const [showImage, setShowImage] = useState(false);
+  const [depCheck, setDepCheck] = useState(1)
   const [active, setActive] = useState(0);
+  const [view, setView] = useState("carousel")
 
-  const handleStepChange = (nextStep) => {
+  const changeStage = (nextStep) => {
     const isOutOfBounds = nextStep < 0 || ifr.stages.length < nextStep;
     if (isOutOfBounds) {
       return;
     }
     setActive(nextStep);
   };
+
+  function progress() {
+    console.log(ifrState.currentStage.progressStates)
+    ifrState.progress()
+    console.log(ifrState.currentStage.progressStates)
+    setDepCheck(depCheck + 1);
+  }
 
   if (ifr.fr_link) {
     if (ifr.fr_img) {
@@ -54,7 +67,19 @@ export function InteractiveFR(props: { ifrState: IFRState }) {
   }
 
   return (
-    <Container fluid>
+    <Container>
+      <Center>
+        <Paper w="100%" p="sm" mb="md" shadow="md" bg="dark.6" withBorder>
+          <Group align="center">
+            <Button variant="filled" color="blue" rightSection={<IconEdit />}>Edit</Button>
+            <SegmentedControl size="sm" value={view} onChange={setView} color="violet"
+              data={[
+                { label: <Center><IconCarouselHorizontal /></Center>, value: "carousel" },
+                { label: <Center><IconLayoutGrid /></Center>, value: "grid" }
+              ]} />
+          </Group>
+        </Paper>
+      </Center>
       <Center>
         <Transition mounted={showImage} transition="pop">
           {(styles) => <div style={styles}>{image}</div>}
@@ -64,20 +89,25 @@ export function InteractiveFR(props: { ifrState: IFRState }) {
         {title}
       </Center>
       <Text>{ifr.description}</Text>
-      <Stepper active={active} onStepClick={setActive} allowNextStepsSelect={false}>
-        {ifrState.stageStates.map((stageState, idx) => (
-          <Stepper.Step key={idx} label={stageState.stage.title} description={stageState.stage.subtitle}>
-            <StagePanel stageState={stageState} />
+      <Stepper active={active} onStepClick={setActive}>
+        {[...ifrState.stageStates.values()].map((stageState, idx) => (
+          <Stepper.Step key={idx} label={stageState.stage.title} description={stageState.stage.subtitle} allowStepSelect={false}>
+            <StagePanel stageState={stageState} view={view} progressFn={progress}/>
           </Stepper.Step>
         ))}
       </Stepper>
+      <Center>
+        <Button variant="filled" disabled={!ifrState.currentStage.isComplete()} onClick={() => changeStage([...ifrState.stageStates.values()].indexOf(ifrState.currentStage))}>Continue</Button>
+      </Center>
     </Container>
   )
 }
 
-export function StagePanel(props: { stageState: StageState }) {
+export function StagePanel(props: { stageState: StageState, view: string, progressFn }) {
   const stageState = props.stageState
   const stage = stageState.stage
+  const view = props.view
+
 
   var dependencyPassMap = new Map<EventState | EventGroupState, Array<boolean>>();
   const [depCheck, setDepCheck] = useState(1)
@@ -90,7 +120,6 @@ export function StagePanel(props: { stageState: StageState }) {
           dependencyPassed.push(d.isComplete())
         } else {
           dependencyPassed.push(d.check())
-          console.log(d.variableState)
         }
       }
       dependencyPassMap.set(es, dependencyPassed);
@@ -104,32 +133,58 @@ export function StagePanel(props: { stageState: StageState }) {
     return { base: 12 * groupSpan, sm: 6 * groupSpan, lg: 4 * groupSpan, xl: 3 * groupSpan }
   }
 
+  if (view == "carousel") {
+    var essUnpacked = []
+    for (const ess of stageState.eventSpaceStates) {
+      if (ess instanceof EventGroupState) {
+        for (const es of ess.eventStates) {
+          essUnpacked.push(es)
+        }
+      } else {
+        essUnpacked.push(ess)
+      }
+    }
+
+    var autoHeight = AutoHeight()
+  }
+
   return (
     <Center>
-      <Grid w="100%" justify="center">
-        {stageState.eventSpaceStates.map((es, idx) => (
-          <Grid.Col key={idx} span={colSpan(es)}>
-            <EventSpaceCard eventSpaceState={es} dependencyPassed={dependencyPassMap.get(es)} manageFn={manageDependencies} />
-          </Grid.Col>
-        ))}
-      </Grid>
+      {
+        view == "carousel" ?
+          <Carousel w="100%" align="center" slideGap="md" slideSize="auto" mb="xl" controlsOffset="md" dragFree>
+            {stageState.eventSpaceStates.map((es, idx) => (
+              <Carousel.Slide key={idx} maw="100%">
+                <EventSpaceCard eventSpaceState={es} dependencyPassed={dependencyPassMap.get(es)} manageFn={manageDependencies} progressFn={props.progressFn} />
+              </Carousel.Slide>
+            ))}
+          </Carousel>
+          :
+          <Grid w="100%" justify="center">
+            {stageState.eventSpaceStates.map((es, idx) => (
+              <Grid.Col key={idx} span={colSpan(es)}>
+                <EventSpaceCard eventSpaceState={es} dependencyPassed={dependencyPassMap.get(es)} manageFn={manageDependencies} progressFn={props.progressFn} />
+              </Grid.Col>
+            ))}
+          </Grid>
+      }
     </Center>
   )
 }
 
-export function EventSpaceCard(props: { eventSpaceState: EventState | EventGroupState, dependencyPassed?: Array<boolean>, manageFn?}) {
+export function EventSpaceCard(props: { eventSpaceState: EventState | EventGroupState, dependencyPassed?: Array<boolean>, manageFn?, progressFn}) {
   if (props.eventSpaceState instanceof EventState) {
     return (
-      <EventCard eventState={props.eventSpaceState} dependencyPassed={props.dependencyPassed} manageFn={props.manageFn} />
+      <EventCard eventState={props.eventSpaceState} dependencyPassed={props.dependencyPassed} manageFn={props.manageFn} progressFn={props.progressFn}/>
     )
   } else {
     return (
-      <EventGroupCard eventGroupState={props.eventSpaceState} manageFn={props.manageFn} />
+      <EventGroupCard eventGroupState={props.eventSpaceState} manageFn={props.manageFn} progressFn={props.progressFn}/>
     )
   }
 }
 
-export function EventGroupCard(props: { eventGroupState: EventGroupState, dependencyPassed?: Array<boolean>, manageFn?}) {
+export function EventGroupCard(props: { eventGroupState: EventGroupState, dependencyPassed?: Array<boolean>, manageFn?, progressFn}) {
   const eventGroupState = props.eventGroupState;
   const eventGroup = eventGroupState.eventGroup;
   var dependencyPassMap = new Map<EventState, Array<boolean>>();
@@ -149,7 +204,6 @@ export function EventGroupCard(props: { eventGroupState: EventGroupState, depend
           dependencyPassed.push(d.isComplete())
         } else {
           dependencyPassed.push(d.check())
-          console.log(d.variableState)
         }
       }
       dependencyPassMap.set(es, dependencyPassed);
@@ -162,16 +216,16 @@ export function EventGroupCard(props: { eventGroupState: EventGroupState, depend
   return (
     <Card>
       {eventGroup.title ? title : null}
-      <SimpleGrid cols={eventGroupState.eventGroup.events.length}>
+      <SimpleGrid cols={{ base: 1, sm: Math.min(eventGroup.events.length, 2), md: Math.min(eventGroup.events.length, 3) }}>
         {eventGroupState.eventStates.map((es, idx) => (
-          <EventCard key={idx} eventState={es} dependencyPassed={dependencyPassMap.get(es)} manageFn={manageDependencies} />
+          <EventCard key={idx} eventState={es} dependencyPassed={dependencyPassMap.get(es)} manageFn={manageDependencies} progressFn={props.progressFn} />
         ))}
       </SimpleGrid>
     </Card>
   )
 }
 
-export function EventCard(props: { eventState: EventState, dependencyPassed?: Array<boolean>, manageFn?}) {
+export function EventCard(props: { eventState: EventState, dependencyPassed?: Array<boolean>, manageFn?, progressFn}) {
   const eventState = props.eventState;
   const event = eventState.event;
 
@@ -189,6 +243,7 @@ export function EventCard(props: { eventState: EventState, dependencyPassed?: Ar
       setRoll(eventState.currentRoll)
     }
     props.manageFn()
+    props.progressFn()
   }
 
   var depsUnpacked = []
@@ -278,7 +333,7 @@ export function EventCard(props: { eventState: EventState, dependencyPassed?: Ar
       <Table highlightOnHover>
         <Table.Tbody>
           {event.tasks.map((task, idx) => (
-            <HoverCard key={idx} position="right" width="auto" shadow="md">
+            <HoverCard key={idx} position="right" width="target" shadow="md">
               <HoverCard.Target>
                 <Table.Tr>
                   <Table.Td>
@@ -426,142 +481,4 @@ export function TaskCard(props: { taskState: TaskState, completeFn?}) {
       {actions}
     </Card>
   )
-}
-
-
-function STL() {
-  const ifr = new IFR("Sissy Transformation Lab")
-
-  // Stages
-  var body = new Stage("Body", "", "", 1, 2);
-  var mind = new Stage("Mind", "", "", 1, 1);
-  var training = new Stage("Training", "", "", 1, 1);
-  var quality = new Stage("Quality Check", "", "", 1, 1);
-  var ending = new Stage("Ending", "", "", 1, 1)
-
-  // Events
-  var eventGroup = new EventGroup("", 1, 2);
-  var event1 = new Event("Body Transformation", "yeet treat", 10, true)
-  var event2 = new Event("Pussy Table", "Roll a pussy", 8, true)
-
-  // Variables
-  var variable1 = new Variable("Breasts", Variable.STRING, "")
-  var variable2 = new Variable("Genitals", Variable.STRING, "")
-  variable1.addBounds(["", "Small", "Medium", "Large"])
-  variable2.addBounds(["", "Oversized Clitoris", "Vagina", "Full Female"])
-  ifr.addVariable(variable1)
-  ifr.addVariable(variable2)
-
-  // Tasks
-  var outcome1 = new Outcome(variable1, Outcome.SET, "Small")
-  var outcome2 = new Outcome(variable2, Outcome.SET, "Vagina")
-  var outcome3 = new Outcome(variable2, Outcome.SET, "Oversized Clitoris")
-  var task1 = new Task("Breasts", "", "Immobilize your body on a chair. Use nipple suckers to pump them for 5 minutes. Put on warm lube and repeat 1 more minute.", outcome1)
-  var task2 = new Task("Reproductive System Transformation", "", "Wear a chastity cage and put on abundant numbing cream on your clitty", outcome2)
-  var task3 = new Task("Irritable Pussy", "", "Permanent: You must always use a drop of hot sauce during penetration.", outcome3)
-
-
-  event1.addTask({ min: 1, max: 5, task: task1 })
-  event1.addTask({ min: 6, max: 10, task: task2 })
-  event2.addTask({ min: 1, max: 1, task: task3 })
-
-  // Dependencies
-  event2.addDependency(event1)
-  var condition1 = new Condition(variable2, Condition.ANY, ["Vagina", "Full Female"])
-  event2.addDependency(condition1)
-
-
-  eventGroup.addEvent(event1)
-  eventGroup.addEvent(event2)
-  body.addEventSpace(eventGroup)
-
-  ifr.addStage(body)
-  ifr.addStage(mind)
-  ifr.addStage(training)
-  ifr.addStage(quality)
-  ifr.addStage(ending)
-
-  const ifrState = new IFRState(ifr)
-  return ifrState
-}
-
-function Simple() {
-  const ifr = new IFR("Messy Facial", "https://www.faproulette.co/44693/messy-facial-roulette/", "https://files.faproulette.co/images/fap/44693.png?1672076552")
-  var facial = new Stage("Facial", "Legs above head!", "", 6, 6)
-  var test = new Variable("X", Variable.NUM, 4)
-  ifr.addVariable(test)
-
-  var prep = new Event("Preparation", "", 10);
-  var edge = new Task("Edge", "", "Edge {{ _roll * 2 }} times before cumming");
-  prep.addTask({ min: 1, max: 10, task: edge });
-  facial.addEventSpace(prep);
-
-  var orgasm = new Event("Orgasm", "", 2);
-  var normal = new Task("Normal", "", "Cum normally");
-  var ruined = new Task("Ruined", "", "Ruined orgasm");
-  orgasm.addTask({ min: 1, max: 1, task: normal });
-  orgasm.addTask({ min: 2, max: 2, task: ruined });
-  orgasm.addDependency(prep);
-  facial.addEventSpace(orgasm)
-
-  var mouth = new Event("Mouth", "", 2);
-  var opened = new Task("Opened", "", "Mouth wide open");
-  var closed = new Task("Closed", "", "Mouth closed");
-  mouth.addTask({ min: 1, max: 1, task: opened });
-  mouth.addTask({ min: 2, max: 2, task: closed });
-  mouth.addDependency(orgasm)
-  facial.addEventSpace(mouth)
-
-  var aim = new Event("Where to Aim", "", 10);
-  var chin = new Task("Chin and Neck", "", "Aim for Chin and Neck");
-  var forehead = new Task("Forehead and Nose", "", "Aim for Forehead and Nose");
-  var cheeks = new Task("Mouth and Cheeks", "", "Aim for Mouth and Cheeks");
-  var mouth_only = new Task("Mouth Only", "", "Aim directly in your Mouth");
-  aim.addTask({ min: 1, max: 3, task: chin });
-  aim.addTask({ min: 4, max: 6, task: forehead });
-  aim.addTask({ min: 7, max: 9, task: cheeks });
-  aim.addTask({ min: 10, max: 10, task: mouth_only });
-  aim.addDependency(mouth)
-  facial.addEventSpace(aim)
-
-  var gather = new Event("Gathering Cum", "", 10);
-  var scrape = new Task("Scrape into Mouth", "", "Scrape all cum into your mouth");
-  var rub = new Task("Rub on Face", "", "Rub cum all over face, lick fingers cleans");
-  var lick = new Task("Lick lips", "", "Lick up any cum your tongue can reach, leave the rest as is");
-  gather.addTask({ min: 1, max: 8, task: scrape });
-  gather.addTask({ min: 9, max: 9, task: rub });
-  gather.addTask({ min: 10, max: 10, task: lick });
-  gather.addDependency(aim)
-  facial.addEventSpace(gather);
-
-  var play = new Event("Cumplay", "", 10);
-  var snowball = new Task("Snowball", "", "Snowball X times");
-  var swirl = new Task("Swirl", "", "Swirl cum around in mouth for X * 10 seconds");
-  var gargle = new Task("Gargle", "", "Gargle cum for X * 10 seconds");
-  var smear = new Task("Smear", "", "Smear around face, then collect with fingers. Repeat X  times.");
-  var drool = new Task("Drool", "", "Drool onto body, scoop with hands and lick them clean.");
-  var hold = new Task("Hold", "", "Hold cum in mouth for {{ X }} minutes then reroll.", "REROLL");
-  play.addTask({ min: 1, max: 2, task: snowball })
-  play.addTask({ min: 3, max: 4, task: swirl })
-  play.addTask({ min: 5, max: 6, task: gargle })
-  play.addTask({ min: 7, max: 7, task: smear })
-  play.addTask({ min: 8, max: 8, task: drool })
-  play.addTask({ min: 9, max: 10, task: hold });
-  play.addDependency(gather)
-  facial.addEventSpace(play)
-
-  ifr.addStage(facial);
-
-  return new IFRState(ifr);
-}
-
-function SP() {
-  const ifr = new IFR("Sissy Prostitute")
-  var please = new Stage("Work", "Please the Customer", "", 1, 5);
-
-  please.addEventSpace
-
-  ifr.addStage(please)
-
-  return new IFRState(ifr)
 }

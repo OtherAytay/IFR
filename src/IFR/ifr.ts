@@ -15,13 +15,24 @@ export class IFR {
         this.fr_img = fr_img;
     }
 
-    addVariable = function (variable: Variable) {
-        for (const v of this.variables) {
-            if (v.name == variable.name) { return false }
+    addVariable = function (variable: Variable | Array<Variable>) {
+        if (variable instanceof Variable) {
+            for (const v of this.variables) {
+                if (v.name == variable.name) { return false }
+            }
+
+            this.variables.push(variable);
+            return true;
+        } else {
+            for (const newV of variable) {
+                for (const v of this.variables) {
+                    if (v.name == newV.name) { return false }
+                }
+                this.variables.push(newV);
+            }
+            return true;
         }
 
-        this.variables.push(variable)
-        return true
     }
 
     addStage = function (stage: Stage) {
@@ -55,6 +66,9 @@ export class Stage {
     addEventSpace = function (eventSpace: Event | EventGroup) {
         if (this.checkDependencies(eventSpace)) {
             this.eventSpaces.push(eventSpace);
+            // var numRequired = this.eventSpaces.filter((es) => es.required).length
+            // this.minComplete = Math.min(this.minComplete, numRequired)
+            // this.maxComplete = Math.min(this.maxComplete, numRequired)
             return true;
         }
         return false;
@@ -82,6 +96,7 @@ export class EventGroup {
     minComplete: number = 0;
     maxComplete: number = this.events.length;
     dependencies: Set<Event | EventGroup | Condition> = new Set();
+    required: boolean = true;
 
     constructor(title: string, minComplete: number, maxComplete: number) {
         this.title = title;
@@ -92,6 +107,9 @@ export class EventGroup {
     addEvent = function (event: Event) {
         if (this.checkDependencies(event)) {
             this.events.push(event);
+            // var numRequired = this.events.filter((es) => es.required).length
+            // this.minComplete = Math.min(this.minComplete, numRequired)
+            // this.maxComplete = Math.min(this.maxComplete, numRequired)
             return true;
         }
         return false;
@@ -420,11 +438,11 @@ export class Condition {
 
 export class IFRState {
     ifr: IFR;
-    stageStates: Array<StageState> = [];
+    stageStates: Map<Stage, StageState> = new Map();
     currentStage: StageState;
 
     /** Maps variables to variableStates */
-    variableStates = new Map<Variable, VariableState>();
+    variableStates: Map<Variable, VariableState> = new Map();
 
     constructor(ifr: IFR) {
         this.ifr = ifr
@@ -437,9 +455,21 @@ export class IFRState {
         }
 
         for (const s of this.ifr.stages) {
-            this.stageStates.push(new StageState(s, this.variableStates))
+            this.stageStates.set(s, new StageState(s, this.variableStates))
         }
-        this.currentStage = this.stageStates[0]
+
+        for (const s of this.stageStates.values()) {
+            for (const c of s.stage.progress.keys()) {
+                if (c instanceof Condition) {
+                    s.progressStates.set(new ConditionState(c, this.variableStates), this.stageStates.get(s.stage.progress.get(c)))
+                } else if (c instanceof ConditionGroup) {
+                    s.progressStates.set(new ConditionGroupState(c, this.variableStates), this.stageStates.get(s.stage.progress.get(c)))
+                } else {
+                    s.progressStates.set("Default", this.stageStates.get(s.stage.progress.get("Default")))
+                }
+            }
+        }
+        this.currentStage = this.stageStates.values().next().value;
     }
 
     getVariableState = function (variable: Variable) {
@@ -455,7 +485,7 @@ export class StageState {
     // TODO: add logic to process progression
     stage: Stage;
     eventSpaceStates: Array<EventState | EventGroupState> = [];
-    progressStates: Array<ConditionState | ConditionGroupState> = []; // don't forget default state
+    progressStates: Map<ConditionState | ConditionGroupState | "Default", StageState> = new Map(); // don't forget default state
 
     timesCompleted: number = 0;
 
@@ -473,13 +503,13 @@ export class StageState {
             }
         }
 
-        for (const c of this.stage.progress.keys()) {
-            if (c instanceof Condition) {
-                this.progressStates.push(new ConditionState(c, variableStates))
-            } else if (c instanceof ConditionGroup) {
-                this.progressStates.push(new ConditionGroupState(c, variableStates))
-            }
-        }
+        // for (const c of this.stage.progress.keys()) {
+        //     if (c instanceof Condition) {
+        //         this.progressStates.set(new ConditionState(c, variableStates),)
+        //     } else if (c instanceof ConditionGroup) {
+        //         this.progressStates.push(new ConditionGroupState(c, variableStates))
+        //     }
+        // }
 
         for (const es of this.eventSpaceStates) {
             if (es instanceof EventState) {
@@ -525,7 +555,9 @@ export class StageState {
     isComplete = function () {
         var complete = true
         for (const e of this.eventSpaceStates) {
-            complete = complete && e.isComplete()
+            if (e.isAvailable() && e.required) {
+                complete = complete && e.isComplete()
+            }
         }
         return complete
     }
@@ -533,17 +565,17 @@ export class StageState {
     progress = function () {
         if (!this.isComplete()) { this.stage } // If stage is not complete, stay on current stage
 
-        for (const p of this.progressStates) {
+        for (const p of this.progressStates.keys()) {
             if (p instanceof ConditionState) {
                 if (p.check()) {
-                    return this.stage.progress.get(p.condition)
+                    return this.progressStates.get(p)
                 }
             } else if (p instanceof ConditionGroupState) {
                 if (p.check()) {
-                    return this.stage.progress.get(p.conditionGroup)
+                    return this.progressStates.get(p)
                 }
             } else {
-                return this.stage.progress.get("Default")
+                return this.progressStates.get("Default")
             }
         }
     }
@@ -595,7 +627,7 @@ export class EventGroupState {
     isComplete = function () {
         var complete = true
         for (const e of this.eventStates) {
-            if (e.isAvailable()) {
+            if (e.isAvailable() && e.required) {
                 complete = complete && e.isComplete()
             }
         }
