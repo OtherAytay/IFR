@@ -1,8 +1,8 @@
 'use client'
 import { useRef, useState } from 'react';
-import { Stepper, Group, Container, Title, Text, Anchor, Card, Table, Badge, HoverCard, Center, Button, Divider, rem, ScrollArea, Grid, SimpleGrid, Image, Transition, Paper, SegmentedControl } from '@mantine/core';
-import { IFR, Stage, Event, Task, Outcome, Variable, IFRState, StageState, EventState, EventGroupState, EventGroup, Condition, TaskState } from '../IFR/ifr';
-import { STL, Simple, SP } from '../IFR/examples'
+import { Stepper, Group, Container, Title, Text, Anchor, Card, Table, Badge, HoverCard, Center, Button, Divider, rem, ScrollArea, Grid, SimpleGrid, Image, Transition, Paper, SegmentedControl, Overlay } from '@mantine/core';
+import { IFR, Stage, Event, Task, Outcome, Variable, IFRState, StageState, EventState, EventGroupState, EventGroup, Condition, TaskState, VariableState } from '../../IFR/ifr';
+import { STL, Simple, SP } from '../../IFR/examples'
 import { IconCarouselHorizontal, IconEdit, IconLayoutGrid, IconPhoto, IconSquareCheck, IconSquareX } from '@tabler/icons-react';
 import { Carousel } from '@mantine/carousel'
 import AutoHeight from 'embla-carousel-auto-height'
@@ -10,7 +10,7 @@ import './page.module.css'
 
 export default function Home() {
   return (
-    <InteractiveFR ifrState={STL()} />
+    <InteractiveFR ifrState={Simple()} />
   );
 }
 
@@ -18,7 +18,7 @@ export function InteractiveFR(props: { ifrState: IFRState }) {
   const ifrState = props.ifrState
   const ifr = ifrState.ifr
   const [showImage, setShowImage] = useState(false);
-  const [depCheck, setDepCheck] = useState(1)
+  const [depCheck, setDepCheck] = useState(0)
   const [active, setActive] = useState(0);
   const [view, setView] = useState("carousel")
 
@@ -31,9 +31,7 @@ export function InteractiveFR(props: { ifrState: IFRState }) {
   };
 
   function progress() {
-    console.log(ifrState.currentStage.progressStates)
     ifrState.progress()
-    console.log(ifrState.currentStage.progressStates)
     setDepCheck(depCheck + 1);
   }
 
@@ -89,16 +87,20 @@ export function InteractiveFR(props: { ifrState: IFRState }) {
         {title}
       </Center>
       <Text>{ifr.description}</Text>
-      <Stepper active={active} onStepClick={setActive}>
-        {[...ifrState.stageStates.values()].map((stageState, idx) => (
-          <Stepper.Step key={idx} label={stageState.stage.title} description={stageState.stage.subtitle} allowStepSelect={false}>
-            <StagePanel stageState={stageState} view={view} progressFn={progress}/>
-          </Stepper.Step>
-        ))}
-      </Stepper>
-      <Center>
-        <Button variant="filled" disabled={!ifrState.currentStage.isComplete()} onClick={() => changeStage([...ifrState.stageStates.values()].indexOf(ifrState.currentStage))}>Continue</Button>
-      </Center>
+      <div>
+        <Stepper active={active} onStepClick={setActive}>
+          {[...ifrState.stageStates.values()].map((stageState, idx) => (
+            <Stepper.Step key={idx} label={stageState.stage.title} description={stageState.stage.subtitle} allowStepSelect={false}>
+              <StagePanel stageState={stageState} view={view} progressFn={progress} />
+            </Stepper.Step>
+          ))}
+        </Stepper>
+        <Center>
+          <Button variant="filled" disabled={!ifrState.currentStage.isComplete()} onClick={() => changeStage([...ifrState.stageStates.values()].indexOf(ifrState.currentStage))}>Continue</Button>
+        </Center>
+        {ifrState.getVariableState(ifrState.ifr.variables[0]).value && <Overlay />}
+      </div>
+
     </Container>
   )
 }
@@ -172,19 +174,19 @@ export function StagePanel(props: { stageState: StageState, view: string, progre
   )
 }
 
-export function EventSpaceCard(props: { eventSpaceState: EventState | EventGroupState, dependencyPassed?: Array<boolean>, manageFn?, progressFn}) {
+export function EventSpaceCard(props: { eventSpaceState: EventState | EventGroupState, dependencyPassed?: Array<boolean>, manageFn?, progressFn }) {
   if (props.eventSpaceState instanceof EventState) {
     return (
-      <EventCard eventState={props.eventSpaceState} dependencyPassed={props.dependencyPassed} manageFn={props.manageFn} progressFn={props.progressFn}/>
+      <EventCard eventState={props.eventSpaceState} dependencyPassed={props.dependencyPassed} manageFn={props.manageFn} progressFn={props.progressFn} />
     )
   } else {
     return (
-      <EventGroupCard eventGroupState={props.eventSpaceState} manageFn={props.manageFn} progressFn={props.progressFn}/>
+      <EventGroupCard eventGroupState={props.eventSpaceState} manageFn={props.manageFn} progressFn={props.progressFn} />
     )
   }
 }
 
-export function EventGroupCard(props: { eventGroupState: EventGroupState, dependencyPassed?: Array<boolean>, manageFn?, progressFn}) {
+export function EventGroupCard(props: { eventGroupState: EventGroupState, dependencyPassed?: Array<boolean>, manageFn?, progressFn }) {
   const eventGroupState = props.eventGroupState;
   const eventGroup = eventGroupState.eventGroup;
   var dependencyPassMap = new Map<EventState, Array<boolean>>();
@@ -225,7 +227,7 @@ export function EventGroupCard(props: { eventGroupState: EventGroupState, depend
   )
 }
 
-export function EventCard(props: { eventState: EventState, dependencyPassed?: Array<boolean>, manageFn?, progressFn}) {
+export function EventCard(props: { eventState: EventState, dependencyPassed?: Array<boolean>, manageFn?, progressFn }) {
   const eventState = props.eventState;
   const event = eventState.event;
 

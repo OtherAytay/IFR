@@ -6,7 +6,7 @@ export class IFR {
     description: string;
     fr_link: string;
     fr_img: string;
-    variables: Array<Variable> = [];
+    variables: Array<Variable> = [new Variable("DONE", Variable.BOOL, false)]; // mandatory DONE variable for FR state
     stages: Array<Stage> = new Array();
 
     constructor(title: string, fr_link: string = "", fr_img: string = "") {
@@ -184,6 +184,7 @@ export class Event {
 }
 
 
+type TaskOutcome = Outcome | "REROLL" | "DONE"
 export class Task {
     static readonly PASS = true
     static readonly FAIL = false
@@ -192,10 +193,10 @@ export class Task {
     title: string;
     flavor: string;
     description: string;
-    passOutcome: Outcome | "REROLL";
-    failOutcome: Outcome | "REROLL";
+    passOutcome: TaskOutcome;
+    failOutcome: TaskOutcome;
 
-    constructor(title: string, flavor: string = "", description: string, passOutcome?: Outcome | "REROLL", failOutcome?: Outcome | "REROLL") {
+    constructor(title: string, flavor: string = "", description: string, passOutcome?: TaskOutcome, failOutcome?: TaskOutcome) {
         this.title = title;
         this.flavor = flavor;
         this.description = description;
@@ -477,7 +478,7 @@ export class IFRState {
     }
 
     progress = function () {
-        this.currentStage = this.currentStage.progress()
+        this.currentStage = this.stageStates.get(this.currentStage.progress());
     }
 }
 
@@ -555,7 +556,7 @@ export class StageState {
     isComplete = function () {
         var complete = true
         for (const e of this.eventSpaceStates) {
-            if (e.isAvailable() && e.required) {
+            if (e.isAvailable() && e.isRequired()) {
                 complete = complete && e.isComplete()
             }
         }
@@ -563,7 +564,7 @@ export class StageState {
     }
 
     progress = function () {
-        if (!this.isComplete()) { this.stage } // If stage is not complete, stay on current stage
+        if (!this.isComplete()) { return this.stage } // If stage is not complete, stay on current stage
 
         for (const p of this.progressStates.keys()) {
             if (p instanceof ConditionState) {
@@ -627,11 +628,15 @@ export class EventGroupState {
     isComplete = function () {
         var complete = true
         for (const e of this.eventStates) {
-            if (e.isAvailable() && e.required) {
+            if (e.isAvailable() && e.isRequired()) {
                 complete = complete && e.isComplete()
             }
         }
         return complete;
+    }
+
+    isRequired = function () {
+        return this.eventGroup.required
     }
 }
 
@@ -685,6 +690,10 @@ export class EventState {
         return this.completed
     }
 
+    isRequired = function () {
+        return this.event.required
+    }
+
     complete = function (pass = true) {
         this.completed = true;
         this.activeTaskState.complete(pass)
@@ -722,24 +731,27 @@ export class TaskState {
         this.reroll = false;
         this.currentRoll = null;
         this.pass = pass;
-        if (this.task.getOutcome(pass) && pass == true) {
-            if (this.task.getOutcome(pass) == "REROLL") {
-                this.isComplete = false;
-                this.reroll = true;
+        this.timesCompleted += 1;
+
+        let outcome = this.task.getOutcome(pass)
+        if (!outcome) {
+            return
+        }
+
+        if (outcome == "REROLL") {
+            this.isComplete = false;
+            this.reroll = true;
+        } else if (outcome == "DONE") {
+            this.isComplete = false;
+            this.reroll = false;
+        } else {
+            this.isComplete = true;
+            if (pass) {
+                outcome.process(this.passVarState);
             } else {
-                this.isComplete = true;
-                this.task.getOutcome(pass).process(this.passVarState);
-            }
-        } else if (this.task.getOutcome(pass) && pass == false) {
-            if (this.task.getOutcome(pass) == "REROLL") {
-                this.isComplete = false;
-                this.reroll = true;
-            } else {
-                this.isComplete = true;
-                this.task.getOutcome(pass).process(this.failVarState);
+                outcome.process(this.failVarState);
             }
         }
-        this.timesCompleted += 1;
     }
 
     getDescription = function () {

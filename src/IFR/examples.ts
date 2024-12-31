@@ -231,11 +231,11 @@ export function Simple() {
     facial.addEventSpace(gather);
 
     var play = new Event("Cumplay", "", 10);
-    var snowball = new Task("Snowball", "", "Snowball X times");
-    var swirl = new Task("Swirl", "", "Swirl cum around in mouth for X * 10 seconds");
-    var gargle = new Task("Gargle", "", "Gargle cum for X * 10 seconds");
-    var smear = new Task("Smear", "", "Smear around face, then collect with fingers. Repeat X  times.");
-    var drool = new Task("Drool", "", "Drool onto body, scoop with hands and lick them clean.");
+    var snowball = new Task("Snowball", "", "Snowball X times", "DONE");
+    var swirl = new Task("Swirl", "", "Swirl cum around in mouth for X * 10 seconds", "DONE");
+    var gargle = new Task("Gargle", "", "Gargle cum for X * 10 seconds", "DONE");
+    var smear = new Task("Smear", "", "Smear around face, then collect with fingers. Repeat X  times.", "DONE");
+    var drool = new Task("Drool", "", "Drool onto body, scoop with hands and lick them clean.", "DONE");
     var hold = new Task("Hold", "", "Hold cum in mouth for {{ X }} minutes then reroll.", "REROLL");
     play.addTask({ min: 1, max: 2, task: snowball })
     play.addTask({ min: 3, max: 4, task: swirl })
@@ -245,6 +245,7 @@ export function Simple() {
     play.addTask({ min: 9, max: 10, task: hold });
     play.addDependency(gather)
     facial.addEventSpace(play)
+    facial.addProgression("Default", facial)
 
     ifr.addStage(facial);
 

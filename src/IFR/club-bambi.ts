@@ -1,0 +1,599 @@
+import { MantineColor } from '@mantine/core'
+
+export const Uniform = [
+  'Collar',
+  'Panties & Bra',
+  'Stockings',
+  'Dress or Skirt & Top',
+  'High Heels',
+  'Intimates Shaved',
+  'Jewelry & Accessories',
+  'Blonde or Pink Wig',
+  'Make-up',
+  'Painted or Fake Nails',
+  'Completely Shaved',
+  'Corset',
+]
+
+export interface Client {
+  name: string;
+  attributes: Attribute[]
+}
+
+export type Attribute = 'Rough' | 'Kinky' | 'Sadistic' | 'Insatiable' | 'Breeder' | 'Cosplay' | 'Trainer'
+const ROUGH = 'Rough'
+const KINKY = 'Kinky'
+const SADISTIC = 'Sadistic'
+const INSATIABLE = 'Insatiable'
+const BREEDER = 'Breeder'
+const COSPLAY = 'Cosplay'
+const TRAINER = 'Trainer'
+
+export interface AttributeDetail {
+  color: MantineColor;
+  description: string;
+}
+
+export const Attributes: {[attribute in Attribute]: AttributeDetail} = {
+  [ROUGH]: {
+    color: 'red.7',
+    description: 'Enjoys inflicting pain and slapping you around a bit. Makes punishment tasks more difficult. Do red text.'
+  },
+  [KINKY]: {
+    color: 'green.6',
+    description: 'Enjoys engaging in kinks and using BDSM gear. Increases chance of being put in bondage. Do green text.'
+  }, 
+  [SADISTIC]: {
+    color: 'orange.6',
+    description: 'Takes joy in causing shame and degrading you. Makes humiliation tasks more difficult. Do orange text'
+  }, 
+  [INSATIABLE]: {
+    color: 'grape.6',
+    description: 'Wants to fuck you relentlessly with no end in sight. They become harder to satisfy. Add 30BPM to anal/oral tasks and do purple text.'
+  }, 
+  [BREEDER]: {
+    color: 'cyan.4',
+    description: 'Has a seemingless endless supply of Cum, tries to impregnate you with huge loads. Double all cum amounts and do light blue text.'
+  }, 
+  [COSPLAY]: {
+    color: 'yellow.3',
+    description: 'Has high standards when it comes to Bambis being in uniform. More likely to add uniform pieces or make you dress up in an outfit. Do yellow text.'
+  }, 
+  [TRAINER]: {
+    color: 'indigo.7',
+    description: 'Wants to condition you into becoming Bambi completely. Listen to Bambi Sleep files while doing tasks. Do dark blue text.'
+  }
+}
+
+type size = 'Small' | 'Medium' | 'Large' | 'Huge'
+export interface Client {
+  name: string;
+  attributes: Attribute[],
+  description: string;
+  size: size;
+}
+
+export function slugify(name: string) {
+  return name.toLowerCase().replaceAll(' ', '-')
+}
+
+export const Clients: Client[] = [
+  {
+    name: 'Sammi',
+    attributes: [TRAINER],
+    description: 'Sammi previously worked at club Bambi and was one of the few who escaped. Far from unscathed though, Sammi is now a sissy but still visits the club occassionally. I guess no one ever truly escapes Bambi do they.',
+    size: 'Small'
+  },
+  {
+    name: 'Henry',
+    attributes: [COSPLAY],
+    description: 'Henry is the newest member of the gang and younger brother to Butch. He is still somewhat innocent when it comes to sexual experiences. And is by far the more kind-hearted of the two brothers.',
+    size: 'Small'
+  },
+  {
+    name: 'The Creep',
+    attributes: [KINKY, SADISTIC, BREEDER],
+    description: 'The creep always seems to be hanging around the club. Gossip among the other bambis is that he takes pleasure in breaking the new arrivals by forcing them to do degrading and humiliating sexual acts.',
+    size: 'Small'
+  },
+  {
+    name: 'Eve',
+    attributes: [INSATIABLE, SADISTIC],
+    description: 'Eve is the muscle hired to keep the Bambis well behaved. She often remarks on how she cant believe you were ever a man to begin with, and loves seeing how far you will sink into complete de-pravity. She delights in re-minding you just how pathetic you are.',
+    size: 'Medium'
+  },
+  {
+    name: 'The Fixer',
+    attributes: [ROUGH, KINKY],
+    description: 'The Fixer is one of the Dons right hand men. A violent man who is well-versed in torture and bondage techniques. He enjoys employing his talents on Bambis in his free time and making them squirm.',
+    size: 'Medium'
+  },
+  {
+    name: 'The Connoisseur',
+    attributes: [KINKY, COSPLAY],
+    description: 'The Connoisseur has a unique taste for Bambis. He enjoys seeing them dress up for him in suggestive outfits before he has his way with them.',
+    size: 'Medium'
+  },
+  {
+    name: 'Stella',
+    attributes: [ROUGH, TRAINER, SADISTIC],
+    description: 'Stella sometimes likes to check on how her bimbos are coming along and provide "hands on" guidance in the form of her strap-on aptly named "The impaler". She\'ll make sure that you\'re being a good girl, or else.',
+    size: 'Large'
+  },
+  {
+    name: 'Butch',
+    attributes: [ROUGH, INSATIABLE, SADISTIC, BREEDER],
+    description: 'Butch is the guard that escorted you into Club Bambi, and he enjoys making Bambis his bitch. He\'ll make you regret not knowing your place when you first started. He usually leaves his bitches as a quivering mess once he\'s done with them.',
+    size: 'Large'
+  },
+  {
+    name: 'The Don',
+    attributes: [ROUGH, KINKY, SADISTIC, INSATIABLE, BREEDER, COSPLAY, TRAINER],
+    description: 'The Don is the boss of the entire gang and you are his property. They say once a Bambi spends a night with him there\'s no going back. With an impossibly large cock and a mean temper you had better be on your best behaviour.',
+    size: 'Huge'
+  }
+]
+
+export interface Stage {
+  name: string;
+  description: string;
+}
+
+export const Stages: Stage[] = [
+  {
+    name: 'Training',
+    description: ''
+  },
+  {
+    name: 'Earn Your Keep',
+    description: ''
+  }
+]
+
+export type Event = 'Preparation' | 'Anal' | 'Oral' | 'Humiliation' | 'Punishment' | 'Cum' | 'Payment'
+const PREPARATION = 'Preparation'
+const ANAL = 'Anal'
+const ORAL = 'Oral'
+const HUMILIATION = 'Humiliation'
+const PUNISHMENT = 'Punishment'
+const CUM = 'Cum'
+const PAYMENT = 'Payment'
+
+export interface PenetrationTask {
+  min: number;
+  max: number;
+  duration: number;
+  speed?: number;
+  name: string;
+  task: string;
+  description: string;
+  attributeTasks: {[key in Attribute]?: string}
+}
+
+const SENSITIVE = 'Super Sensitive'
+const A2M = 'Ass-to-Mouth'
+const A2M_THROATING = 'Ass-to-Mouth Throating'
+const LOCKED = 'Locked'
+const PERMALOCKED = 'Permanently Locked'
+const FACIAL = 'Facial'
+const SELFIE = 'Selfie'
+const PLUGGED = 'Plugged'
+const PLUGGED_SNAKE = 'Snake Plugged'
+const MAKEUP = 'Makeup Fixer'
+const MAKEUP_DESTROYER = 'Makeup Destruction'
+const CLEANER = 'Cock Cleaner'
+const LIMP = 'Limp Clitty'
+
+export const EventDetails: {[event in Event]: any} = {
+  [PREPARATION]: {
+    'Bondage': [
+      {min: 1, max: 3, task: 'Do nothing'},
+      {min: 4, max: 5, task: 'Add a leash and tie it to something'},
+      {min: 6, max: 6, task: 'Add nipple clamps'},
+      {min: 7, max: 7, task: 'Tie your hands behind your back'},
+      {min: 8, max: 8, task: 'Add butt plug when your ass is not in use'},
+      {min: 9, max: 9, task: 'Add gag when your mouth is not in use'},
+      {min: 10, max: 10, task: 'Tie your feet together'},
+    ],
+    'Clothes': [
+      {min: 1, max: 2, task: 'Do nothing'},
+      {min: 3, max: 4, task: 'Add +3 to your current uniform for this client'},
+      {min: 5, max: 6, task: ''},
+      {min: 7, max: 8, task: 'Replace your clothing (keep accessories) with lingerie bra and panties for this client'},
+      {min: 9, max: 10, task: 'Add +1 to your current uniform permanently'},
+    ],
+    'Starting Task': [
+      {min: 1, max: 3, task: HUMILIATION},
+      {min: 4, max: 6, task: PUNISHMENT},
+      {min: 7, max: 8, task: ORAL},
+      {min: 9, max: 10, task: ANAL},
+    ]
+  },
+  [ANAL]: {
+    'Position': [
+      {
+        min: 1, 
+        max: 2, 
+        duration: 8,
+        speed: 60,
+        name: 'On Your Back', 
+        task: 'Fuck your ass while on your back, with your legs in the air.', 
+        description: 'They pick you up and throw you down on the bed. Grabbing your ankles and holding them over your head. There is a couple seconds where you hold your breath in anticipation but you can\'t help but moan as they enter your ass.'
+      },
+      {
+        min: 3, 
+        max: 4, 
+        duration: 8,
+        speed: 90,
+        name: 'Doggy Style', 
+        task: 'Fuck your ass doggy style.',
+        description: 'You are forced onto all fours like a dog. They grab you by your hips and you yelp as they push their entire length inside you with no warning. Your mind short-circuits as they continue their assault on your ass.'
+      },
+      {
+        min: 5, 
+        max: 6, 
+        duration: 5,
+        speed: 120,
+        name: 'Bent Over', 
+        task: 'Bend over and fuck your ass.',
+        description: 'They bend you over a table with your ass sticking out. Then they grab you by the hair and start pounding away. The only sounds; your moans mixed with a rythmic slapping sound as their balls smack against your ass.',
+        attributeTasks: {
+          ROUGH: 'Slap your ass every 15 seconds'
+        }
+      },
+      {
+        min: 7, 
+        max: 8, 
+        duration: 8,
+        speed: 90,
+        name: 'Cow Girl', 
+        task: 'Ride a Dildo.',
+        description: 'They lie on their back, their throbbing cock standing right at attention. You climb on top of them and position your butt right over it, sinking down on its girthy length with a gasp, then starting to bounce up and down, gradually picking up speed.'
+      },
+      {
+        min: 9, 
+        max: 9, 
+        duration: 10,
+        speed: 40,
+        name: 'On Your Side', 
+        task: 'While on your side, steadily fuck your ass.',
+        description: 'They turn you onto your side with your clitty tucked between your legs and spread your ass and inspect your hole before slowly fucking your ass like the bitch you are.'
+      },
+      {
+        min: 10, 
+        max: 10, 
+        duration: 5,
+        speed: 100,
+        name: 'Piledriver', 
+        task: 'Fuck your ass in the pile driver position.',
+        description: 'They manhandle you to the ground, with your legs over your head. Your useless clitty pointing straight at your face. They stand over you and plunge their cock deep into your ass over and over again.'
+      },
+    ],
+    'Modifier': [
+      {
+        min: 1, 
+        max: 2, 
+        task: 'Every 2 minutes, you must attempt to gape your ass for 30 seconds before continuing.',
+        attributeTasks: {
+          KINKY: 'Insert and expel a plug 5 times without hands after your fucking.'
+        }
+      },
+      {
+        min: 3, 
+        max: 4, 
+        task: 'The dildo must completely leave your ass between each stroke.',
+      },
+      {
+        min: 5, 
+        max: 6, 
+        task: '"Posture Lock" - you must maintain feminine, submissive posture at all times, making sure to arch your back. If you falter at any point they slap you 1 time.',
+        attributeTasks: {
+          ROUGH: 'They slap you 5 times instead.'
+        }
+      },
+      {
+        min: 7, 
+        max: 8, 
+        task: 'They smack your ass every 10 seconds while fucking you.',
+        attributeTasks: {
+          ROUGH: 'They slap you harder.',
+          SADISTIC: 'They slap you in the balls instead.'
+        }
+      },
+      {
+        min: 9, 
+        max: 10, 
+        task: 'They demand that you moan and whine while they fucking you.',
+        attributeTasks: {
+          TRAINER: 'They force your clitty into chastity while you are getting fucked.'
+        }
+      },
+    ],
+    'Next': [
+      {min: 1, max: 5, task: CUM},
+      {min: 6, max: 6, task: ANAL},
+      {min: 7, max: 8, task: HUMILIATION},
+      {min: 9, max: 10, task: PUNISHMENT}
+    ]
+  },
+  [ORAL]: {
+    'Position': [
+      {
+        min: 1, 
+        max: 2, 
+        duration: 5,
+        name: 'Worship Cock', 
+        task: 'Attach a dildo to the wall and get on your kness. Rub your face all over it including the balls, then lick the head and up down the shaft worshipping it.', 
+        description: 'They grab the back of your head and rub your face all over their cock and balls, ordering you to worship it.',
+      },
+      {
+        min: 3, 
+        max: 4, 
+        duration: 5,
+        name: 'In Your Place', 
+        task: 'While on all fours, suck a dildo.', 
+        description: 'They sit down and tell you to begin. You crawl over on all fours between their legs, take their cock into your mouth and timidly begin sucking.',
+        attributeTasks: {
+          KINKY: 'If you are wearing a leash, they sit on it, preventing you from taking the head of the cock out of your mouth.'
+        }
+      },
+      {
+        min: 5, 
+        max: 6, 
+        duration: 5,
+        speed: 60,
+        name: 'On Your Knees', 
+        task: 'Get on your knees with your hands behind your back. Stick a dildo to a wall and suck it.', 
+        description: 'They take hold of your head and force you to your knees. Sliding their hard cock between your lips over and over again.',
+        attributeTasks: {
+          TRAINER: 'Have a picture of your client above the dildo and maintain eye contact.'
+        }
+      },
+      {
+        min: 7, 
+        max: 8, 
+        duration: 5,
+        speed: 60,
+        name: 'Service Cock', 
+        task: 'Lick up and down the shaft every now and then, and use your hands while sucking the dildo.', 
+        description: 'They take hold of your head and force you to your knees. Sliding their hard cock between your lips over and over again.',
+      },
+      {
+        min: 9, 
+        max: 9, 
+        duration: 4,
+        speed: 60,
+        name: 'No Escape', 
+        task: 'Get on your knees with your back against the wall and fuck your throat. Afterwards, deepthroat 5 times for as long as you can.', 
+        description: 'They drag you to your knees by your hair and push you up against a wall. There will be no escape while he tests your deepthroating limits.',
+        attributeTasks: {
+          COSPLAY: 'Apply heavy eye makeup, including mascara, before getting fucked.',
+          SADISTIC: 'Hold or clamp your nose closed.'
+        }
+      },
+      {
+        min: 10, 
+        max: 10, 
+        duration: 5,
+        speed: 90,
+        name: 'Throat Fucked', 
+        task: 'Hang your head off the edge of a bed and fuck your throat, do not swallow any spit.', 
+        description: 'The shove you onto the bed with your head hanging off the edge. Then, they proceed to throat fuck you with a passion giving you no chance to catch your breath.',
+        attributeTasks: {
+          COSPLAY: 'Apply heavy eye makeup, including mascara, before getting fucked.',
+          KINKY: 'Insert an anal hook (or butt plug) and tie it to your collar while getting fucked.'
+        }
+      },
+    ],
+    'Modifier': [
+      {
+        min: 1,
+        max: 2,
+        task: 'Finger your ass while sucking.'
+      },
+      {
+        min: 3,
+        max: 4,
+        task: 'Every 1 minute, hold a deepthroat for as long as you can before continuing.'
+      },
+      {
+        min: 5,
+        max: 6,
+        task: 'Occasionally spit on their cock.'
+      },
+      {
+        min: 7,
+        max: 8,
+        task: 'They slap your face with their dick 10 times.',
+        attributeTasks: {
+          ROUGH: 'They do it 20 times extra hard instead.'
+        }
+      },
+      {
+        min: 9,
+        max: 10,
+        task: 'The cock may never leave your mouth. You must keep some part of the cock / balls in your mouth at all times.',
+        attributeTasks: {
+          TRAINER: 'They force your clitty into chastity while you are getting fucked.'
+        }
+      },
+    ],
+    'Next': [
+      {min: 1, max: 5, task: CUM},
+      {min: 6, max: 7, task: ANAL},
+      {min: 8, max: 9, task: HUMILIATION},
+      {min: 10, max: 10, task: PUNISHMENT}
+    ]
+  },
+  [HUMILIATION]: [
+    {
+      min: 1,
+      max: 2,
+      task: 'Finger your ass while moaning how much you want their cock inside you.',
+      description: 'They order you to finger yourself and beg for their cock.',
+      next: ANAL,
+    },
+    {
+      min: 3,
+      max: 4,
+      task: 'Rub ice on your asshole. Moan like a slut for the rest of this client',
+      description: 'They tell you to spread your ass cheeks. You feel them rub something cold against your hole and a few seconds later your asshole becomes extremely sensitive. "Here, an aphrodesiac, for being such a Good Girl."',
+      next: ANAL,
+      state: SENSITIVE
+    },
+    {
+      min: 5,
+      max: 5,
+      task: 'Roll anal, then immediately roll oral.',
+      description: 'They force you to do ass to mouth.',
+      next: ANAL,
+      state: A2M,
+      attributeStates: {
+        SADISTIC: A2M_THROATING
+      }
+    },
+    {
+      min: 6,
+      max: 6,
+      task: 'Suck on 2 fingers while moaning and thinking of sucking a hard cock.',
+      description: 'They use a trigger on your, "Zap cock drain obey", filling your head with thoughts of sucking hard cock. They tell you to suck on their 2 fingers as if it was their dick.',
+      next: ORAL,
+    },
+    {
+      min: 7,
+      max: 7,
+      task: 'Spread your ass cheeks, trying to gape your ass.',
+      description: 'They demand you to beg them to fuck your ass.',
+      next: ANAL,
+    },
+    {
+      min: 8,
+      max: 8,
+      task: 'Lock yourself in chastity for rest of this client. Listen to a hypno audio for 3 minutes while slapping your balls with a dildo.',
+      description: 'They make fun of your pathetic clitty and compare it to a real cock.',
+      state: LOCKED,
+      attributeStates: {
+        TRAINER: PERMALOCKED
+      },
+      next: HUMILIATION,
+    },
+    {
+      min: 9,
+      max: 9,
+      task: 'Give them a handjob for 2 minutes and catch 10ml cum on your face. Do not clean it off for the rest of this client.',
+      description: 'They want you to experience their cum.',
+      state: FACIAL,
+      next: HUMILIATION,
+    },
+    {
+      min: 10,
+      max: 10,
+      task: 'Take a selfie of yourself in a slutty pose with a suggestive caption. Maintain eye contact with it during the next oral.',
+      description: 'They want you to know how slutty you have become.',
+      state: SELFIE,
+      next: ORAL,
+    },
+  ],
+  [PUNISHMENT]: [
+    {
+      min: 1,
+      max: 1,
+      task: 'Get on your knees and smack your face with a dildo hard 20 times.',
+      description: 'They show you where you belong. On your knees.',
+      attributeTasks: {
+        ROUGH: 'Smack your face 40 times instead.'
+      },
+      next: ORAL
+    },
+    {
+      min: 2,
+      max: 2,
+      task: 'Spank your ass 20 times.',
+      description: 'They spank your ass and make you promise to be a "good girl" from now on.',
+      attributeTasks: {
+        ROUGH: 'Spank your ass 40 times instead.'
+      },
+      next: ANAL
+    },
+    {
+      min: 3,
+      max: 3,
+      task: 'Put nipple clamps on and pull on them for 2 minutes while moaning.',
+      description: 'They train your nipples to feel pleasure from pain.',
+      attributeTasks: {
+        ROUGH: 'Then rip the clamps off 5 times.'
+      },
+      next: HUMILIATION
+    },
+    {
+      min: 4,
+      max: 4,
+      task: 'Squeeze your balls for 1 minute, pretending that they\'re being stepped on.',
+      description: 'They step on your balls and destroy your last scraps of "manhood".',
+      attributeTasks: {
+        ROUGH: 'Lightly choke yourself at the same time.'
+      },
+      next: HUMILIATION
+    },
+    {
+      min: 5,
+      max: 5,
+      task: 'Deepthroat on 2 fingers for 1 minute, then wipe your saliva over your face and slap yourself 5 times.',
+      description: 'You are nothing more than an object.',
+      attributeTasks: {
+        ROUGH: 'Slap yourself 10 times instead.'
+      },
+      next: ANAL
+    },
+    {
+      min: 6,
+      max: 6,
+      task: 'Insert your largest butt plug. Leave it in during the next oral.',
+      description: 'Time to push you ass to its limits.',
+      state: PLUGGED,
+      attributeStates: {
+        KINKY: PLUGGED_SNAKE
+      },
+      next: ORAL
+    },
+    {
+      min: 7,
+      max: 7,
+      task: 'Tie a 500g weight to a buttplug and insert it. Let the weight hang and hold the plug in without hands for 2 minutes.',
+      description: 'Time to push you ass to its limits.',
+      attributeTasks: {
+        SADISTIC: 'Use a 1kg weight instead.'
+      },
+      next: ANAL
+    },
+    {
+      min: 8,
+      max: 8,
+      task: 'Fix your make-up whenever it gets ruined for the rest of this client.',
+      description: 'A Bambi should always be looking her best.',
+      state: MAKEUP,
+      attributeStates: {
+        ROUGH: MAKEUP_DESTROYER 
+      },
+      next: ORAL
+    },
+    {
+      min: 9,
+      max: 9,
+      task: 'From now on you must lick their cock clean after every anal and cum task.',
+      description: 'They order you to clean their cock with your mouth.',
+      state: CLEANER,
+      next: ANAL
+    },
+    {
+      min: 10,
+      max: 10,
+      task: 'Smack your clitty limp whenever it gets hard for the rest of this client.',
+      description: 'Good girls know that their clitty is useless now and should stay limp at all times.',
+      state: LIMP,
+      next: PUNISHMENT
+    },
+  ],
+  [CUM]: {},
+  [PAYMENT]: {},
+}

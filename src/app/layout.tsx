@@ -1,11 +1,7 @@
 'use client'
-import '@mantine/core/styles.css';
-import '@mantine/carousel/styles.css';
-import { useState } from 'react';
-import { ColorSchemeScript, MantineProvider, createTheme, Container, Group, Burger, mergeMantineTheme, DEFAULT_THEME, Badge, Text } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import classes from './HeaderSimple.module.css';
-import { usePathname } from 'next/navigation';
+import '@/app/globals.css';
+import { DEFAULT_THEME, MantineProvider, createTheme, mergeMantineTheme } from '@mantine/core';
+import React from 'react';
 
 const themeOverride = createTheme({
   primaryColor: "violet",
@@ -14,61 +10,29 @@ const themeOverride = createTheme({
     to: 'violet',
     deg: 45,
   },
-  defaultRadius: "md"
+  other: {
+    gradients: {
+      'club-bambi': { from: 'violet', to: 'grape', deg: 135 },
+    }
+  },
+  defaultRadius: "md",
+  autoContrast: true,
 });
 
 export const theme = mergeMantineTheme(DEFAULT_THEME, themeOverride)
 
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+
   return (
     <html lang="en">
       <head>
-        <ColorSchemeScript defaultColorScheme='auto' />
+        {/* <ColorSchemeScript defaultColorScheme='auto' /> */}
       </head>
       <body>
-        <MantineProvider theme={theme} defaultColorScheme='auto'>
-          {Navbar()}
+        <MantineProvider theme={themeOverride} defaultColorScheme='dark'>
           {children}
         </MantineProvider>
       </body>
     </html>
-  );
-}
-
-export function Navbar() {
-  const links = [
-    { link: '/', label: 'Home' },
-    { link: '/create', label: 'New' },
-    // { link: '/learn', label: 'Learn' },
-    // { link: '/community', label: 'Community' },
-  ];
-
-  const [opened, { toggle }] = useDisclosure(false);
-  const [active, setActive] = useState(usePathname());
-
-  const items = links.map((link) => (
-    <a
-      key={link.label}
-      href={link.link}
-      className={classes.link}
-      data-active={active === link.link || undefined}
-      onClick={(event) => {
-        setActive(link.link);
-      }}
-    >
-      {link.label}
-    </a>
-  ));
-
-  return (
-    <header className={classes.header}>
-      <Container size="md" className={classes.inner}>
-        <Text variant="gradient" size="xl" fw="bold">Interactive FR</Text>
-        <Group gap={5} visibleFrom="xs" mx="auto">
-          {items}
-        </Group>
-        <Burger opened={opened} onClick={toggle} hiddenFrom="xs" size="sm" />
-      </Container>
-    </header>
   );
 }
