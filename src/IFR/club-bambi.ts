@@ -594,8 +594,35 @@ export const EventDetails: {[event in Event]: any} = {
       next: PUNISHMENT
     },
   ],
-  [CUM]: {},
-  [PAYMENT]: {},
+  [CUM]: {
+    [ORAL]: [
+      {min: 1, max: 2, cum: 10, task: 'They cum down your throat during a 15 second deepthroat.'},
+      {min: 3, max: 4, cum: 10, task: 'They cum all over your face.'},
+      {min: 5, max: 6, cum: 10, task: 'They cum into your open mouth with your tongue sticking out. Swallow and show them your empty mouth.', attributeTasks: {KINKY: 'Instead of swallowing it, they put on a gag until the next time it needs to be removed.'}},
+      {min: 7, max: 8, cum: 20, task: 'They cum onto your neck and tits.'},
+      {min: 9, max: 10, cum: 30, task: 'They cum into a glass and force you to drink it.', attributeTasks: { SADISTIC: 'Instead of a glass, they cum into a bowl and force you to lick it all up from the bowl'}},
+    ],
+    [ANAL]: [
+      {min: 1, max: 2, cum: 20, task: 'They pull out and cum on your clitty.'},
+      {min: 3, max: 5, cum: 30, task: 'They cum inside your ass and let it leak out slowly.', attributeTasks: { KINKY: 'Instead of letting it leak, they insert a buttplug until the next time it needs to be removed.'}},
+      {min: 6, max: 8, cum: 30, task: 'They cum inside your ass and fuck it slow and deep for 1 minute.'},
+      {min: 9, max: 10, cum: 50, task: 'They cum balls deep inside your ass. Gape and let it leak out.', attributeTasks: { SADISTIC: 'They force you to lick up the leaked cum.'}},
+    ],
+    next: [
+      {min: 1, max: 2, next: ANAL},
+      {min: 3, max: 4, next: ORAL},
+      {min: 5, max: 5, next: HUMILIATION},
+      {min: 6, max: 6, next: PUNISHMENT},
+      {min: 7, max: 10, next: PAYMENT},
+    ]
+  },
+  [PAYMENT]: [
+    {min: 1, max: 1, amount: 150, description: 'They are impressed with your skills and they leave a tip.'},
+    {min: 2, max: 5, amount: 100, description: 'They pay as expected.'},
+    {min: 6, max: 7, amount: 100, description: 'They pay under the condition that you deepthroat them one last time. They hold you down balls deep for 10 seconds.'},
+    {min: 8, max: 9, amount: 50, description: 'With you disoriented after a good pounding with a dumb bimbo brain, they dash out after tucking a bill in your bra.'},
+    {min: 10, max: 10, amount: 0, description: 'They drug you. You wake up in a hogtie with a gag, chastity, and buttplug. After you wake up, 10 minutes pass before someone finds you and releases you.'},
+  ],
 }
 
 export interface State {
