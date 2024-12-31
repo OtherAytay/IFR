@@ -597,3 +597,63 @@ export const EventDetails: {[event in Event]: any} = {
   [CUM]: {},
   [PAYMENT]: {},
 }
+
+export interface State {
+  description: string;
+  expiration: 'task' | 'client' | 'game'
+}
+
+const states: {[name: string]: State} = {
+  SENSITIVE: {
+    description: 'Extra sensitive, moaning like a slut.',
+    expiration: 'client'
+  },
+  A2M: {
+    description: 'Performing anal followed by oral.',
+    expiration: 'task'
+  },
+  A2M_THROATING: {
+    description: 'The next oral will be a brutal throating.',
+    expiration: 'task'
+  },
+  LOCKED: {
+    description: 'Locked in chastity.',
+    expiration: 'client'
+  },
+  PERMALOCKED: {
+    description: 'Locked in chastity permanently.',
+    expiration: 'game'
+  },
+  FACIAL: {
+    description: 'Face full of cum.',
+    expiration: 'client'
+  },
+  SELFIE: {
+    description: 'Focusing on a slutty selfie.',
+    expiration: 'task'
+  },
+  PLUGGED: {
+    description: 'Largest butt plug inserted.',
+    expiration: 'task'
+  },
+  PLUGGED_SNAKE: {
+    description: 'Long, snake-like plug (or secured dildo) inserted.',
+    expiration: 'task'
+  },
+  MAKEUP: {
+    description: 'Fixing makeup after it gets ruined.',
+    expiration: 'client'
+  },
+  MAKEUP_DESTROYER: {
+    description: 'The next oral will definitely ruin your makeup.',
+    expiration: 'task'
+  },
+  CLEANER: {
+    description: 'Licking the cock clean after anal and cum.',
+    expiration: 'client'
+  },
+  LIMP: {
+    description: 'Smacking balls limp when they get hard.',
+    expiration: 'client'
+  },
+}
