@@ -1,6 +1,7 @@
 'use client'
 import '@/app/globals.css';
 import { DEFAULT_THEME, MantineProvider, createTheme, mergeMantineTheme } from '@mantine/core';
+import { IconPictureInPictureFilled } from '@tabler/icons-react';
 import React from 'react';
 
 const themeOverride = createTheme({
@@ -13,6 +14,9 @@ const themeOverride = createTheme({
   other: {
     gradients: {
       'club-bambi': { from: 'violet', to: 'grape', deg: 135 },
+    },
+    hexcodes: {
+      
     }
   },
   defaultRadius: "md",

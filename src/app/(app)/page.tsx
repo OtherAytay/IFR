@@ -6,7 +6,7 @@ import { STL, Simple, SP } from '../../IFR/examples'
 import { IconCarouselHorizontal, IconEdit, IconLayoutGrid, IconPhoto, IconSquareCheck, IconSquareX } from '@tabler/icons-react';
 import { Carousel } from '@mantine/carousel'
 import AutoHeight from 'embla-carousel-auto-height'
-import './page.module.css'
+import '../page.module.css'
 
 export default function Home() {
   return (
