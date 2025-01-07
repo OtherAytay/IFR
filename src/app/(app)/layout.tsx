@@ -1,19 +1,12 @@
 'use client'
 import '@mantine/core/styles.css';
 import '@mantine/carousel/styles.css';
-import { createContext, useEffect, useState } from 'react';
-import { ColorSchemeScript, MantineProvider, createTheme, Container, Group, Burger, mergeMantineTheme, DEFAULT_THEME, Badge, Text, AppShell, Anchor, Stack, useComputedColorScheme } from '@mantine/core';
+import { useEffect, useState } from 'react';
+import { Container, Group, Burger, Text, AppShell, Anchor, Stack, useComputedColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import classes from './HeaderSimple.module.css';
 import { usePathname } from 'next/navigation';
-
-export type CollapseContext = { 
-  statePanelOpened: boolean, 
-  toggleStatePanel: () => void, 
-  openStatePanel: () => void,
-  closeStatePanel: () => void, 
-}
-export const PageContext = createContext<CollapseContext | null>(null);
+import { PageContext } from '@/IFR/club-bambi';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [opened, { toggle }] = useDisclosure(false)

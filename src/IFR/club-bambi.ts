@@ -1,4 +1,35 @@
-import { MantineColor } from '@mantine/core'
+import { createTheme, DEFAULT_THEME, MantineColor, mergeMantineTheme } from '@mantine/core';
+import { createContext } from 'react';
+
+export type CollapseContext = { 
+  statePanelOpened: boolean, 
+  toggleStatePanel: () => void, 
+  openStatePanel: () => void,
+  closeStatePanel: () => void, 
+}
+export const PageContext = createContext<CollapseContext | null>(null);
+
+const themeOverride = createTheme({
+  primaryColor: "violet",
+  defaultGradient: {
+    from: 'blue',
+    to: 'violet',
+    deg: 45,
+  },
+  other: {
+    gradients: {
+      'club-bambi': { from: 'violet', to: 'grape', deg: 135 },
+    },
+    hexcodes: {
+      
+    }
+  },
+  defaultRadius: "md",
+  autoContrast: true,
+});
+
+export const theme = mergeMantineTheme(DEFAULT_THEME, themeOverride)
+
 
 export const Uniform = [
   'Collar',

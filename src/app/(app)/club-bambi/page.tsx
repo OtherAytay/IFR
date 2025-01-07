@@ -1,14 +1,12 @@
 'use client'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
-import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, BREEDER, CLIENT, Client, Clients, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, eventDetails, events, findDecision, GameState, HUMILIATION, INSATIABLE, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, UNIFORM, Uniform } from "@/IFR/club-bambi"
-import { theme } from "@/app/layout"
+import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, BREEDER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, eventDetails, events, findDecision, GameState, HUMILIATION, INSATIABLE, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
 import { ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Table, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
 import { useDisclosure, useElementSize, useHover, useLocalStorage, useViewportSize } from "@mantine/hooks"
 import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh } from "@tabler/icons-react"
 import React, { useContext, useEffect, useState } from "react"
-import { CollapseContext, PageContext } from "../layout"
-import { minify } from 'next/dist/build/swc/generated-native'
+import { PageContext } from '@/IFR/club-bambi'
 
 dayjs.extend(duration)
 
@@ -48,7 +46,7 @@ export default function Home() {
     if (gameState.stage == 2) {
       collapseContext.openStatePanel()
     }
-  }, [gameState.stage])
+  }, [])
 
   let event = null
   switch (gameState.currentEvent) {
@@ -418,7 +416,7 @@ function DifficultyEvent({ gameState, setGameState }: EventInput) {
 }
 
 function UniformEvent({ gameState, setGameState }: EventInput) {
-  const [uniformRoll, setUniformRoll] = useState<number | null>(null)
+  const [uniformRoll, setUniformRoll] = useState<number | null>(null) //eslint-disable-line react-hooks/rules-of-hooks
 
   function setUniform(roll: number) {
     setUniformRoll(roll)
@@ -448,7 +446,7 @@ function UniformEvent({ gameState, setGameState }: EventInput) {
           <Table.Tbody>
             {UniformTable}
           </Table.Tbody>
-        </Table>
+        </Table>9
       </Card.Section>
       <Card.Section p='xs'>
         <Center>
@@ -590,7 +588,7 @@ function StartingTaskEvent({ gameState, setGameState }: EventInput) {
       <Card.Section>
         <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         <Center mt='sm'>
-          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => 4} />
+          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={r10} />
         </Center>
       </Card.Section>
     </BasicEvent>
@@ -956,7 +954,7 @@ function CumNextEvent({ gameState, setGameState }: EventInput) {
     <BasicEvent name='Are They Satisfied?' canContinue={!!taskRoll} nextEvent={nextEvent} image='club-bambi/cum-next.png' ratio={7 / 10}>
       <Card.Section withBorder p='sm'>
         <Stack gap='xs'>
-          <Title ta='center' fz='h4'>Client's Satisfaction Level: {gameState.satisfaction}</Title>
+          <Title ta='center' fz='h4'>Client&aposs Satisfaction Level: {gameState.satisfaction}</Title>
           <Progress.Root radius='sm' size="xl">
             <Progress.Section value={Math.min(gameState.satisfaction * 10, 30)} color="red" animated />
             <Progress.Section value={Math.min(gameState.satisfaction * 10 - 30, 60)} color="green" animated />
@@ -981,7 +979,7 @@ function HumiliationEvent({ gameState, setGameState }: EventInput) {
 
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
-    const effects = [decision.effect, ...Object.values(decision.attributeEffects ?? {})]
+    const effects = [decision.effect ?? undefined, ...Object.values(decision.attributeEffects ?? {})].filter((e) => e)
 
     modifyState({
       'currentEvent': decision.next,
@@ -992,7 +990,7 @@ function HumiliationEvent({ gameState, setGameState }: EventInput) {
   let humiliation = null
   if (taskRoll) {
     const decision = findDecision(taskRoll, decisionSet)
-    const effects = [decision.effect, ...Object.values(decision.attributeEffects ?? {})]
+    const effects = [decision.effect ?? undefined, ...Object.values(decision.attributeEffects ?? {})].filter((e) => e)
 
     humiliation = (
       <Stack gap='xs'>
@@ -1000,13 +998,18 @@ function HumiliationEvent({ gameState, setGameState }: EventInput) {
         <Divider />
         <Text fw='bold'>{decision.task}</Text>
         <Divider />
-        <Text ta='center' fz='h4' fw='bold'>Effects</Text>
-        <Group justify='center'>
-          {effects.map((effect, idx) => (
-            <EffectBadge key={idx} effect={effect} />
-          ))}
-        </Group>
-        <Divider />
+        {effects.length ?
+          <>
+            <Text ta='center' fz='h4' fw='bold'>Effects</Text>
+            <Group justify='center'>
+              {effects.map((effect, idx) => (
+                <EffectBadge key={idx} effect={effect} />
+              ))}
+            </Group>
+            <Divider />
+          </>
+          : null}
+
         <Text ta='center'>Next Task: {decision.next}</Text>
       </Stack>
     )
@@ -1017,11 +1020,11 @@ function HumiliationEvent({ gameState, setGameState }: EventInput) {
       <Collapse in={!taskRoll}>
         <Card.Section>
           <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
-          <Center mt='sm'>
-            <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 8)} />
-          </Center>
         </Card.Section>
       </Collapse>
+      <Center mt={!taskRoll ? 'md' : 0} mb='md'>
+        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 8)} />
+      </Center>
       <Collapse in={!!taskRoll}>
         {humiliation}
       </Collapse>
@@ -1089,11 +1092,11 @@ function PunishmentEvent({ gameState, setGameState }: EventInput) {
       <Collapse in={!taskRoll}>
         <Card.Section>
           <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
-          <Center mt='sm'>
-            <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 10)} />
-          </Center>
         </Card.Section>
       </Collapse>
+      <Center mt={!taskRoll ? 'md' : 0} mb='md'>
+        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 8)} />
+      </Center>
       <Collapse in={!!taskRoll}>
         {punishment}
       </Collapse>
@@ -1270,7 +1273,7 @@ function DecisionTable({ activeRoll, decisionSet, showDescription = false, cumul
   )
 }
 
-function Roller({ roll, setRoll, rollFn, rerolls, useReroll, readOnly = false }: { roll: number, setRoll: any, rollFn: () => number, rerolls?: number, useReroll?: () => void, readOnly?: boolean }) {
+function Roller({ roll, setRoll, rollFn, rerolls, reroll, readOnly = false }: { roll: number, setRoll: any, rollFn: () => number, rerolls?: number, reroll?: () => void, readOnly?: boolean }) {
   const [rollStarted, { open: startRoll }] = useDisclosure(readOnly)
   const [rollFinished, { open: finishRoll, close: restartRoll }] = useDisclosure(readOnly)
 
@@ -1289,7 +1292,7 @@ function Roller({ roll, setRoll, rollFn, rerolls, useReroll, readOnly = false }:
         finishRoll()
 
         if (rerolls) {
-          useReroll()
+          reroll()
         }
       }, 1500)
     }

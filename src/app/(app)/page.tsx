@@ -14,7 +14,7 @@ export default function Home() {
   );
 }
 
-export function InteractiveFR(props: { ifrState: IFRState }) {
+function InteractiveFR(props: { ifrState: IFRState }) {
   const ifrState = props.ifrState
   const ifr = ifrState.ifr
   const [showImage, setShowImage] = useState(false);
@@ -105,7 +105,7 @@ export function InteractiveFR(props: { ifrState: IFRState }) {
   )
 }
 
-export function StagePanel(props: { stageState: StageState, view: string, progressFn }) {
+function StagePanel(props: { stageState: StageState, view: string, progressFn }) {
   const stageState = props.stageState
   const stage = stageState.stage
   const view = props.view
@@ -174,7 +174,7 @@ export function StagePanel(props: { stageState: StageState, view: string, progre
   )
 }
 
-export function EventSpaceCard(props: { eventSpaceState: EventState | EventGroupState, dependencyPassed?: Array<boolean>, manageFn?, progressFn }) {
+function EventSpaceCard(props: { eventSpaceState: EventState | EventGroupState, dependencyPassed?: Array<boolean>, manageFn?, progressFn }) {
   if (props.eventSpaceState instanceof EventState) {
     return (
       <EventCard eventState={props.eventSpaceState} dependencyPassed={props.dependencyPassed} manageFn={props.manageFn} progressFn={props.progressFn} />
@@ -186,7 +186,7 @@ export function EventSpaceCard(props: { eventSpaceState: EventState | EventGroup
   }
 }
 
-export function EventGroupCard(props: { eventGroupState: EventGroupState, dependencyPassed?: Array<boolean>, manageFn?, progressFn }) {
+function EventGroupCard(props: { eventGroupState: EventGroupState, dependencyPassed?: Array<boolean>, manageFn?, progressFn }) {
   const eventGroupState = props.eventGroupState;
   const eventGroup = eventGroupState.eventGroup;
   var dependencyPassMap = new Map<EventState, Array<boolean>>();
@@ -227,7 +227,7 @@ export function EventGroupCard(props: { eventGroupState: EventGroupState, depend
   )
 }
 
-export function EventCard(props: { eventState: EventState, dependencyPassed?: Array<boolean>, manageFn?, progressFn }) {
+function EventCard(props: { eventState: EventState, dependencyPassed?: Array<boolean>, manageFn?, progressFn }) {
   const eventState = props.eventState;
   const event = eventState.event;
 
@@ -275,12 +275,12 @@ export function EventCard(props: { eventState: EventState, dependencyPassed?: Ar
     }
   }
 
-  function ConditionRow(props: { dependencyState }, key) {
+  function ConditionRow(props: { dependencyState }) {
     const dep = props.dependencyState;
 
     if (dep instanceof EventState) {
       return (
-        <Table.Tr key={key}>
+        <Table.Tr>
           <Table.Td><Center>{dep.isComplete() ? <IconSquareCheck color="green" /> : <IconSquareX color="red" />}</Center></Table.Td>
           <Table.Td>
             <Center><Text >Completed <Text span fw={600}>{dep.event.title}</Text></Text></Center>
@@ -289,7 +289,7 @@ export function EventCard(props: { eventState: EventState, dependencyPassed?: Ar
       )
     } else {
       return (
-        <Table.Tr key={key}>
+        <Table.Tr>
           <Table.Td><Center>{dep.check() ? <IconSquareCheck color="green" /> : <IconSquareX color="red" />}</Center></Table.Td>
           <Table.Td>
             <Center>{dep.condition.readCondition()}</Center>
@@ -380,7 +380,7 @@ export function EventCard(props: { eventState: EventState, dependencyPassed?: Ar
   )
 }
 
-export function TaskCard(props: { taskState: TaskState, completeFn?}) {
+function TaskCard(props: { taskState: TaskState, completeFn?}) {
   const taskState = props.taskState
   const task = taskState.task
 
