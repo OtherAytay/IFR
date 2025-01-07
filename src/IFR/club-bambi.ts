@@ -214,6 +214,11 @@ export interface PenetrationTask {
   attributeTasks: { [key in Attribute]?: string }
 }
 
+export type Effect =
+  'Super Sensitive' | 'Ass-to-Mouth' | 'Ass-to-Mouth Throating' | 'Locked'
+  | 'Permanently Locked' | 'Facial' | 'Selfie' | 'Plugged' | 'Snake Plugged'
+  | 'Makeup Fixer' | 'Makeup Destruction' | 'Cock Cleaner' | 'Limp Clitty'
+
 export const SENSITIVE = 'Super Sensitive'
 export const A2M = 'Ass-to-Mouth'
 export const A2M_THROATING = 'Ass-to-Mouth Throating'
@@ -378,7 +383,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       task: 'While on all fours, suck a dildo.',
       description: 'They sit down and tell you to begin. You crawl over on all fours between their legs, take their cock into your mouth and timidly begin sucking.',
       attributeTasks: {
-        KINKY: 'If you are wearing a leash, they sit on it, preventing you from taking the head of the cock out of your mouth.'
+        [KINKY]: 'If you are wearing a leash, they sit on it, preventing you from taking the head of their cock out of your mouth.'
       }
     },
     {
@@ -390,7 +395,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       task: 'Get on your knees with your hands behind your back. Stick a dildo to a wall and suck it.',
       description: 'They take hold of your head and force you to your knees. Sliding their hard cock between your lips over and over again.',
       attributeTasks: {
-        TRAINER: 'Have a picture of your client above the dildo and maintain eye contact.'
+        [TRAINER]: 'Have a picture of your client above the dildo and maintain eye contact.'
       }
     },
     {
@@ -411,8 +416,8 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       task: 'Get on your knees with your back against the wall and fuck your throat. Afterwards, deepthroat 5 times for as long as you can.',
       description: 'They drag you to your knees by your hair and push you up against a wall. There will be no escape while he tests your deepthroating limits.',
       attributeTasks: {
-        COSPLAY: 'Apply heavy eye makeup, including mascara, before getting fucked.',
-        SADISTIC: 'Hold or clamp your nose closed.'
+        [COSPLAY]: 'Apply heavy eye makeup, including mascara, before getting fucked.',
+        [SADISTIC]: 'Hold or clamp your nose closed.'
       }
     },
     {
@@ -424,8 +429,8 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       task: 'Hang your head off the edge of a bed and fuck your throat, do not swallow any spit.',
       description: 'The shove you onto the bed with your head hanging off the edge. Then, they proceed to throat fuck you with a passion giving you no chance to catch your breath.',
       attributeTasks: {
-        COSPLAY: 'Apply heavy eye makeup, including mascara, before getting fucked.',
-        KINKY: 'Insert an anal hook (or butt plug) and tie it to your collar while getting fucked.'
+        [COSPLAY]: 'Apply heavy eye makeup, including mascara, before getting fucked.',
+        [KINKY]: 'Insert an anal hook (or butt plug) and tie it to your collar while getting fucked.'
       }
     },
   ],
@@ -450,7 +455,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 8,
       task: 'They slap your face with their dick 10 times.',
       attributeTasks: {
-        ROUGH: 'They do it 20 times extra hard instead.'
+        [ROUGH]: 'They do it 20 times extra hard instead.'
       }
     },
     {
@@ -458,7 +463,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 10,
       task: 'The cock may never leave your mouth. You must keep some part of the cock / balls in your mouth at all times.',
       attributeTasks: {
-        TRAINER: 'They force your clitty into chastity while you are getting fucked.'
+        [TRAINER]: 'They force your clitty into chastity while you are getting fucked.'
       }
     },
   ],
@@ -493,7 +498,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       next: ANAL_POSITION,
       effect: A2M,
       attributeEffects: {
-        SADISTIC: A2M_THROATING
+        [SADISTIC]: A2M_THROATING
       }
     },
     {
@@ -517,7 +522,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       description: 'They make fun of your pathetic clitty and compare it to a real cock.',
       effect: LOCKED,
       attributeEffects: {
-        TRAINER: PERMALOCKED
+        [TRAINER]: PERMALOCKED
       },
       next: HUMILIATION,
     },
@@ -545,7 +550,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       task: 'Get on your knees and smack your face with a dildo hard 20 times.',
       description: 'They show you where you belong. On your knees.',
       attributeTasks: {
-        ROUGH: 'Smack your face 40 times instead.'
+        [ROUGH]: 'Smack your face 40 times instead.'
       },
       next: ORAL_POSITION
     },
@@ -555,7 +560,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       task: 'Spank your ass 20 times.',
       description: 'They spank your ass and make you promise to be a "good girl" from now on.',
       attributeTasks: {
-        ROUGH: 'Spank your ass 40 times instead.'
+        [ROUGH]: 'Spank your ass 40 times instead.'
       },
       next: ANAL_POSITION
     },
@@ -565,7 +570,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       task: 'Put nipple clamps on and pull on them for 2 minutes while moaning.',
       description: 'They train your nipples to feel pleasure from pain.',
       attributeTasks: {
-        ROUGH: 'Then rip the clamps off 5 times.'
+        [ROUGH]: 'Then rip the clamps off 5 times.'
       },
       next: HUMILIATION
     },
@@ -575,7 +580,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       task: 'Squeeze your balls for 1 minute, pretending that they\'re being stepped on.',
       description: 'They step on your balls and destroy your last scraps of "manhood".',
       attributeTasks: {
-        ROUGH: 'Lightly choke yourself at the same time.'
+        [ROUGH]: 'Lightly choke yourself at the same time.'
       },
       next: HUMILIATION
     },
@@ -585,7 +590,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       task: 'Deepthroat on 2 fingers for 1 minute, then wipe your saliva over your face and slap yourself 5 times.',
       description: 'You are nothing more than an object.',
       attributeTasks: {
-        ROUGH: 'Slap yourself 10 times instead.'
+        [ROUGH]: 'Slap yourself 10 times instead.'
       },
       next: ANAL_POSITION
     },
@@ -596,7 +601,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       description: 'Time to push you ass to its limits.',
       effect: PLUGGED,
       attributeEffects: {
-        KINKY: PLUGGED_SNAKE
+        [KINKY]: PLUGGED_SNAKE
       },
       next: ORAL_POSITION
     },
@@ -606,7 +611,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       task: 'Tie a 500g weight to a buttplug and insert it. Let the weight hang and hold the plug in without hands for 2 minutes.',
       description: 'Time to push you ass to its limits.',
       attributeTasks: {
-        SADISTIC: 'Use a 1kg weight instead.'
+        [SADISTIC]: 'Use a 1kg weight instead.'
       },
       next: ANAL_POSITION
     },
@@ -617,7 +622,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       description: 'A Bambi should always be looking her best.',
       effect: MAKEUP,
       attributeEffects: {
-        ROUGH: MAKEUP_DESTROYER
+        [ROUGH]: MAKEUP_DESTROYER
       },
       next: ORAL_POSITION
     },
@@ -641,87 +646,87 @@ export const eventDetails: { [key in Event]: Decision[] } = {
   [ORAL_CUM]: [
     { min: 1, max: 2, cum: 10, task: 'They cum down your throat during a 15 second deepthroat.' },
     { min: 3, max: 4, cum: 10, task: 'They cum all over your face.' },
-    { min: 5, max: 6, cum: 10, task: 'They cum into your open mouth with your tongue sticking out. Swallow and show them your empty mouth.', attributeTasks: { KINKY: 'Instead of swallowing it, they put on a gag until the next time it needs to be removed.' } },
+    { min: 5, max: 6, cum: 10, task: 'They cum into your open mouth with your tongue sticking out. Swallow and show them your empty mouth.', attributeTasks: { [KINKY]: 'Instead of swallowing it, they put on a gag until the next time it needs to be removed.' } },
     { min: 7, max: 8, cum: 20, task: 'They cum onto your neck and tits.' },
-    { min: 9, max: 10, cum: 30, task: 'They cum into a glass and force you to drink it.', attributeTasks: { SADISTIC: 'Instead of a glass, they cum into a bowl and force you to lick it all up from the bowl' } },
+    { min: 9, max: 10, cum: 30, task: 'They cum into a glass and force you to drink it.', attributeTasks: { [SADISTIC]: 'Instead of a glass, they cum into a bowl and force you to lick it all up from the bowl' } },
   ],
   [ANAL_CUM]: [
     { min: 1, max: 2, cum: 20, task: 'They pull out and cum on your clitty.' },
-    { min: 3, max: 5, cum: 30, task: 'They cum inside your ass and let it leak out slowly.', attributeTasks: { KINKY: 'Instead of letting it leak, they insert a buttplug until the next time it needs to be removed.' } },
+    { min: 3, max: 5, cum: 30, task: 'They cum inside your ass and let it leak out slowly.', attributeTasks: { [KINKY]: 'Instead of letting it leak, they insert a buttplug until the next time it needs to be removed.' } },
     { min: 6, max: 8, cum: 30, task: 'They cum inside your ass and fuck it slow and deep for 1 minute.' },
-    { min: 9, max: 10, cum: 50, task: 'They cum balls deep inside your ass. Gape and let it leak out.', attributeTasks: { SADISTIC: 'They force you to lick up the leaked cum.' } },
+    { min: 9, max: 10, cum: 50, task: 'They cum balls deep inside your ass. Gape and let it leak out.', attributeTasks: { [SADISTIC]: 'They force you to lick up the leaked cum.' } },
   ],
   [CUM_NEXT]: [
-    { min: 1, max: 2, next: ANAL_POSITION },
-    { min: 3, max: 4, next: ORAL_POSITION },
-    { min: 5, max: 5, next: HUMILIATION },
-    { min: 6, max: 6, next: PUNISHMENT },
-    { min: 7, max: 10, next: PAYMENT },
+    { min: 1, max: 2, task: ANAL_POSITION, description: 'No, they eye your ass obviously looking to another round.' },
+    { min: 3, max: 4, task: ORAL_POSITION, description: 'No, they lick their lips imagining your plump lips around their still hard cock.' },
+    { min: 5, max: 5, task: HUMILIATION, description: 'No, a devilish smile splits their face after seeing you covered in their cum.' },
+    { min: 6, max: 6, task: PUNISHMENT, description: 'No, if anything they seem angrier than ever.' },
+    { min: 7, max: 10, task: PAYMENT, description: 'Yes, move on to payment.' },
   ],
   [PAYMENT]: [
-    { min: 1, max: 1, amount: 150, description: 'They are impressed with your skills and they leave a tip.' },
-    { min: 2, max: 5, amount: 100, description: 'They pay as expected.' },
-    { min: 6, max: 7, amount: 100, description: 'They pay under the condition that you deepthroat them one last time. They hold you down balls deep for 10 seconds.' },
-    { min: 8, max: 9, amount: 50, description: 'With you disoriented after a good pounding with a dumb bimbo brain, they dash out after tucking a bill in your bra.' },
-    { min: 10, max: 10, amount: 0, description: 'They drug you. You wake up in a hogtie with a gag, chastity, and buttplug. After you wake up, 10 minutes pass before someone finds you and releases you.' },
+    { min: 1, max: 1, amount: 150, task: '$150', description: 'They are impressed with your skills and leave a tip.' },
+    { min: 2, max: 5, amount: 100, task: '$100', description: 'They pay as expected.' },
+    { min: 6, max: 7, amount: 100, task: '$100', description: 'They pay under the condition that you deepthroat them one last time. They hold you down balls deep for 10 seconds.' },
+    { min: 8, max: 9, amount: 50, task: '$50', description: 'With you disoriented after a good pounding with a dumb bimbo brain, they dash out after tucking a bill in your bra.' },
+    { min: 10, max: 10, amount: 0, task: '$0', description: 'They drug you. You wake up in a hogtie with a gag, chastity, and buttplug. After you wake up, 10 minutes pass before someone finds you and releases you.' },
   ],
 }
 
-export interface Effect {
+export interface EffectDetail {
   description: string;
   expiration: 'task' | 'client' | 'game'
 }
 
-const states: { [name: string]: Effect } = {
-  SENSITIVE: {
+export const effectDetails: { [name in Effect]: EffectDetail } = {
+  [SENSITIVE]: {
     description: 'Extra sensitive, moaning like a slut.',
     expiration: 'client'
   },
-  A2M: {
+  [A2M]: {
     description: 'Performing anal followed by oral.',
     expiration: 'task'
   },
-  A2M_THROATING: {
+  [A2M_THROATING]: {
     description: 'The next oral will be a brutal throating.',
     expiration: 'task'
   },
-  LOCKED: {
+  [LOCKED]: {
     description: 'Locked in chastity.',
     expiration: 'client'
   },
-  PERMALOCKED: {
+  [PERMALOCKED]: {
     description: 'Locked in chastity permanently.',
     expiration: 'game'
   },
-  FACIAL: {
+  [FACIAL]: {
     description: 'Face full of cum.',
     expiration: 'client'
   },
-  SELFIE: {
+  [SELFIE]: {
     description: 'Focusing on a slutty selfie.',
     expiration: 'task'
   },
-  PLUGGED: {
+  [PLUGGED]: {
     description: 'Largest butt plug inserted.',
     expiration: 'task'
   },
-  PLUGGED_SNAKE: {
+  [PLUGGED_SNAKE]: {
     description: 'Long, snake-like plug (or secured dildo) inserted.',
     expiration: 'task'
   },
-  MAKEUP: {
+  [MAKEUP]: {
     description: 'Fixing makeup after it gets ruined.',
     expiration: 'client'
   },
-  MAKEUP_DESTROYER: {
+  [MAKEUP_DESTROYER]: {
     description: 'The next oral will definitely ruin your makeup.',
     expiration: 'task'
   },
-  CLEANER: {
+  [CLEANER]: {
     description: 'Licking the cock clean after anal and cum.',
     expiration: 'client'
   },
-  LIMP: {
+  [LIMP]: {
     description: 'Smacking balls limp when they get hard.',
     expiration: 'client'
   },
@@ -733,13 +738,13 @@ export interface GameState {
   debt: number | null;
   uniform: number | null;
   stage: number;
+  currentEvent: Event;
 
   // Client
   client: number | null;
-  currentEvent: Event;
-  cumCount: number;
-  bondage: number;
-  outfit: number;
+  satisfaction: number | null;
+  bondage: number | null;
+  outfit: number | null;
 
   //Task
   currentTask?: {
@@ -749,7 +754,6 @@ export interface GameState {
   }
 
   effects: Effect[]
-
 }
 
 /* UTILITIES */

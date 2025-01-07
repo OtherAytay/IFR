@@ -1,13 +1,14 @@
 'use client'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
-import { Attribute, AttributeDetail, Attributes, BONDAGE, CLIENT, Client, Clients, Decision, DIFFICULTY, eventDetails, events, findDecision, GameState, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PenetrationTask, randRange, slugify, Stage, Stages, STARTING_TASK, UNIFORM, Uniform } from "@/IFR/club-bambi"
+import { Attribute, AttributeDetail, Attributes, BONDAGE, BREEDER, CLIENT, Client, Clients, CUM_NEXT, Decision, DIFFICULTY, Effect, effectDetails, eventDetails, events, findDecision, GameState, INSATIABLE, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, randRange, slugify, Stage, Stages, STARTING_TASK, UNIFORM, Uniform } from "@/IFR/club-bambi"
 import { theme } from "@/app/layout"
 import { ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Table, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
 import { useDisclosure, useElementSize, useHover, useLocalStorage, useViewportSize } from "@mantine/hooks"
-import { IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh } from "@tabler/icons-react"
+import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh } from "@tabler/icons-react"
 import React, { useContext, useEffect, useState } from "react"
 import { CollapseContext, PageContext } from "../layout"
+import { minify } from 'next/dist/build/swc/generated-native'
 
 dayjs.extend(duration)
 
@@ -21,10 +22,17 @@ const defaultGameState: GameState = {
   stage: 1,
   client: null,
   currentEvent: DIFFICULTY,
-  cumCount: 0,
+  satisfaction: 0,
   bondage: 1,
   outfit: 1,
   effects: []
+}
+
+const initializeClient: Partial<GameState> = {
+  client: null,
+  satisfaction: 0,
+  bondage: 1,
+  outfit: 1,
 }
 
 export default function Home() {
@@ -41,17 +49,6 @@ export default function Home() {
       collapseContext.openStatePanel()
     }
   }, [gameState.stage])
-
-  let uniformBonus = 0
-  if (gameState.client) {
-    if (gameState.outfit >= 3) {
-      uniformBonus += 1
-    }
-    if (gameState.outfit >= 7) {
-      uniformBonus += 1
-    }
-  }
-
 
   let event = null
   switch (gameState.currentEvent) {
@@ -80,12 +77,24 @@ export default function Home() {
     case ORAL_TASK:
       event = (<OralTaskEvent gameState={gameState} setGameState={setGameState} />)
       break;
+    case ORAL_NEXT:
+      event = (<OralNextEvent gameState={gameState} setGameState={setGameState} />)
+      break;
+    case ORAL_CUM:
+      event = (<OralCumEvent gameState={gameState} setGameState={setGameState} />)
+      break;
+    case CUM_NEXT:
+      event = (<CumNextEvent gameState={gameState} setGameState={setGameState} />)
+      break;
+    case PAYMENT:
+      event = (<PaymentEvent gameState={gameState} setGameState={setGameState} />)
+      break;
   }
 
   return (
     <>
       <TaskPanel />
-      <StatusBar debtPaid={gameState.debtPaid} debt={gameState.debt} uniform={gameState.uniform} uniformBonus={uniformBonus} stage={gameState.stage} client={gameState.client} setGameState={setGameState} />
+      <StatusBar gameState={gameState} setGameState={setGameState} />
       <AppShell.Main mt="md">
         <Container fluid>
           <Group grow preventGrowOverflow={false}>
@@ -151,33 +160,45 @@ function Bullet(text) {
   )
 }
 
-function StatusBar({ debtPaid, debt, uniform, uniformBonus, stage, client, setGameState }: { debtPaid: number, debt: number, uniform: number, uniformBonus: number, stage: number, client: number, setGameState: (gameState: GameState) => void }) {
+function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameState: (gameState: GameState) => void }) {
   const theme = useMantineTheme()
   const { hovered: uniformHovered, ref: uniformRef } = useHover()
   const { hovered: clientHovered, ref: clientRef } = useHover()
+  const { hovered: satisfactionHovered, ref: satisfactionRef } = useHover()
 
-  const clientDetail: Client = Clients[client - 1]
-  const stageDetail: Stage = Stages[stage - 1]
+  const clientDetail: Client = Clients[gameState.client - 1]
+  const stageDetail: Stage = Stages[gameState.stage - 1]
+
+  let uniformBonus = 0
+  if (gameState.client) {
+    if (gameState.outfit >= 3) {
+      uniformBonus += 1
+    }
+    if (gameState.outfit >= 7) {
+      uniformBonus += 1
+    }
+  }
 
   const UniformTable = []
   for (let i = 0; i < Uniform.length / 2; i++) {
     UniformTable.push((
       <Table.Tr key={i}>
-        <Table.Th c={uniform + uniformBonus >= i + 1 ? 'grape.4' : undefined}>{i + 1}</Table.Th>
-        <Table.Td c={uniform + uniformBonus >= i + 1 ? 'grape.4' : undefined}>{Uniform[i]}</Table.Td>
-        <Table.Th c={uniform + uniformBonus >= i + 7 ? 'grape.4' : undefined}>{i + 7}</Table.Th>
-        <Table.Td c={uniform + uniformBonus >= i + 7 ? 'grape.4' : undefined}>{Uniform[i + 6]}</Table.Td>
+        <Table.Th c={gameState.uniform + uniformBonus >= i + 1 ? 'grape.4' : undefined}>{i + 1}</Table.Th>
+        <Table.Td c={gameState.uniform + uniformBonus >= i + 1 ? 'grape.4' : undefined}>{Uniform[i]}</Table.Td>
+        <Table.Th c={gameState.uniform + uniformBonus >= i + 7 ? 'grape.4' : undefined}>{i + 7}</Table.Th>
+        <Table.Td c={gameState.uniform + uniformBonus >= i + 7 ? 'grape.4' : undefined}>{Uniform[i + 6]}</Table.Td>
       </Table.Tr>
     ))
   }
 
   let clientStatus = null
   let sizeStatus = null
+  let satisfactionStatus = null
   if (clientDetail) {
     clientStatus = (
       <HoverCard offset={12} transitionProps={{ transition: 'pop' }}>
         <HoverCard.Target ref={clientRef}>
-          <Card display={client ? undefined : 'none'} withBorder py="0.25rem" bg={clientHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
+          <Card display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={clientHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
             <Group>
               <Text>Client</Text>
               <Divider orientation="vertical" />
@@ -186,29 +207,55 @@ function StatusBar({ debtPaid, debt, uniform, uniformBonus, stage, client, setGa
           </Card>
         </HoverCard.Target>
         <HoverCard.Dropdown p={0} style={{ borderColor: 'violet', borderRadius: '2rem' }}>
-          <ClientCard client={client} />
+          <ClientCard client={gameState.client} />
         </HoverCard.Dropdown>
       </HoverCard>
     )
-
-    sizeStatus = (<StatusGroup display={stage != 2 ? 'none' : undefined} leftChildren='Size' rightChildren={clientDetail.size} />)
+    sizeStatus = (<StatusGroup display={gameState.client ? undefined : 'none'} leftChildren='Size' rightChildren={clientDetail.size} />)
+    satisfactionStatus = (
+      <HoverCard offset={12} transitionProps={{ transition: 'pop' }}>
+        <HoverCard.Target ref={satisfactionRef}>
+          <Card display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={satisfactionHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
+            <Group>
+              <Text>Satisfaction</Text>
+              <Divider orientation="vertical" />
+              <Text>{gameState.satisfaction}</Text>
+            </Group>
+          </Card>
+        </HoverCard.Target>
+        <HoverCard.Dropdown p='md' w={300} style={{ borderColor: 'violet', borderRadius: '2rem' }}>
+          <Stack gap={0}>
+            <Text>
+              As you perform sexual tasks for your client, their sexual satisfaction increases.
+            </Text>
+            <Progress.Root radius='sm' my='sm' size="xl">
+              <Progress.Section value={Math.min(gameState.satisfaction * 10, 30)} color="red" animated />
+              <Progress.Section value={Math.min(gameState.satisfaction * 10 - 30, 60)} color="green" animated />
+              <Progress.Section value={Math.min(gameState.satisfaction * 10 - 90, 10)} color="blue" animated />
+            </Progress.Root>
+            <Text><Text span c='green'>Can Finish:</Text> 4</Text>
+            <Text><Text span c='blue'>Guaranteed to Finish:</Text> 10</Text>
+          </Stack>
+        </HoverCard.Dropdown>
+      </HoverCard>
+    )
   }
 
   return (
     <AppShell.Footer p="sm">
       <Group h="100%" justify="center" gap="lg">
         {/* Debt Paid Progress */}
-        <StatusGroup display={debt ? undefined : 'none'} leftChildren='Debt Paid' rightChildren={`$${debtPaid} / $${debt}`} />
+        <StatusGroup display={gameState.debt ? undefined : 'none'} leftChildren='Debt Paid' rightChildren={`$${gameState.debtPaid} / $${gameState.debt}`} />
 
         {/* Uniform */}
         <HoverCard offset={12} transitionProps={{ transition: 'pop' }}>
           <HoverCard.Target ref={uniformRef}>
-            <Indicator label={`+${uniformBonus}`} disabled={!uniformBonus || !uniform} color='grape' size={14}>
-              <Card display={uniform ? undefined : 'none'} withBorder py="0.25rem" bg={uniformHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
+            <Indicator label={`+${uniformBonus}`} disabled={!uniformBonus || !gameState.uniform} color='grape' size={14}>
+              <Card display={gameState.uniform ? undefined : 'none'} withBorder py="0.25rem" bg={uniformHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
                 <Group>
                   <Text>Uniform</Text>
                   <Divider orientation="vertical" />
-                  <Text>{uniform}</Text>
+                  <Text>{gameState.uniform}</Text>
                 </Group>
               </Card>
             </Indicator>
@@ -230,7 +277,6 @@ function StatusBar({ debtPaid, debt, uniform, uniformBonus, stage, client, setGa
             </AspectRatio>
           </HoverCard.Dropdown>
         </HoverCard>
-        <Divider display={stage != 2 ? 'none' : undefined} orientation="vertical" />
 
         {/* Stage */}
         <StatusGroup leftChildren='Stage' rightChildren={stageDetail.name} />
@@ -241,7 +287,10 @@ function StatusBar({ debtPaid, debt, uniform, uniformBonus, stage, client, setGa
         {/* Size */}
         {sizeStatus}
 
-        <ActionIcon size='lg' color='red' onClick={() => setGameState(null)}><IconRefresh /></ActionIcon>
+        {/* Sexual Satisfaction */}
+        {satisfactionStatus}
+
+        <ActionIcon size='lg' color='red' onClick={() => setGameState(defaultGameState)}><IconRefresh /></ActionIcon>
       </Group>
 
     </AppShell.Footer>
@@ -424,7 +473,7 @@ function ClientEvent({ gameState, setGameState }: EventInput) {
         ))}
       </SimpleGrid>
       <Center>
-        <Roller roll={clientRoll} setRoll={setClient} rollFn={r10} />
+        <Roller roll={clientRoll} setRoll={setClient} rollFn={() => randRange(1, Clients.length)} />
         <Button display={!clientRoll ? 'none' : undefined} ml='sm' variant='gradient' gradient={clubBambiGradient} onClick={nextEvent}>Continue</Button>
       </Center>
     </Stack>
@@ -525,7 +574,7 @@ function StartingTaskEvent({ gameState, setGameState }: EventInput) {
       <Card.Section>
         <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         <Center mt='sm'>
-          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={r10} />
+          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => 7} />
         </Center>
       </Card.Section>
     </BasicEvent>
@@ -570,6 +619,8 @@ function OralEvent({ gameState, setGameState }: EventInput) {
 }
 
 function OralTaskEvent({ gameState, setGameState }: EventInput) {
+  const [timerFinished, { open: finishTimer }] = useDisclosure(false)
+
   const currentTask = gameState.currentTask
 
   const attributes = Clients[gameState.client - 1].attributes
@@ -587,18 +638,21 @@ function OralTaskEvent({ gameState, setGameState }: EventInput) {
       if (attributes.includes(attribute as Attribute)) {
         const attributeDetail = Attributes[attribute]
         attributeTasks.push((
-          <Text c={attributeDetail.color}>{task}</Text>
+          <Text key={attribute} c={attributeDetail.color}>{task}</Text>
         ))
       }
     }
   }
 
   function nextEvent() {
-
+    modifyState({
+      'currentEvent': ORAL_NEXT,
+      'satisfaction': gameState.satisfaction + 1 + attributeTasks.length
+    }, gameState, setGameState)
   }
 
   return (
-    <BasicEvent name='Oral Task' canContinue={false} nextEvent={nextEvent} image={`club-bambi/${slugify(position.name)}.png`} ratio={7 / 10}>
+    <BasicEvent name='Oral Task' canContinue={timerFinished} nextEvent={nextEvent} image={`club-bambi/${slugify(position.name)}.png`} ratio={7 / 10}>
       <Stack>
         <Title ta='center' fz='h3'>{position.name}</Title>
         <Text>{position.description}</Text>
@@ -610,19 +664,179 @@ function OralTaskEvent({ gameState, setGameState }: EventInput) {
           {position.speed ?
             <StatusGroup
               leftChildren='Speed'
-              rightChildren={<Text c={speedBonus ? Attributes['Insatiable'].color : undefined}>{`${position.speed + speedBonus} BPM`}</Text>} />
+              rightChildren={<Text span c={speedBonus ? Attributes[INSATIABLE].color : undefined}>{`${position.speed + speedBonus} BPM`}</Text>} />
             : null}
         </Group>
         <Divider />
         <Text>{modifier.task}</Text>
         <Divider />
-        <TaskTimer duration={position.duration} />
+        <TaskTimer duration={position.duration} finishCallback={finishTimer} />
       </Stack>
     </BasicEvent>
   )
 }
 
-function TaskTimer({ duration }: { duration: number }) {
+function OralNextEvent({ gameState, setGameState }: EventInput) {
+  const [taskRoll, setTaskRoll] = useState<number | null>(null)
+  const decisionSet = eventDetails[ORAL_NEXT]
+
+  function nextEvent() {
+    const decision = findDecision(taskRoll, decisionSet)
+    modifyState({ 'currentEvent': decision.task }, gameState, setGameState)
+  }
+
+
+  return (
+    <BasicEvent name='Oral Next Task' canContinue={!!taskRoll} nextEvent={nextEvent} image='club-bambi/oral-next.png' ratio={1 / 1}>
+      <Card.Section>
+        <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
+        <Center mt='sm'>
+          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => 4} />
+        </Center>
+      </Card.Section>
+    </BasicEvent>
+  )
+}
+
+function OralCumEvent({ gameState, setGameState }: EventInput) {
+  const [cumRoll, setCumRoll] = useState<number | null>(null)
+
+  let cumMultiplier = 1
+  let satisfactionBonus = 0
+  if (Clients[gameState.client - 1].attributes.includes(BREEDER)) {
+    cumMultiplier = 2
+    satisfactionBonus = 1
+  }
+
+  function nextEvent() {
+    modifyState({
+      'currentEvent': CUM_NEXT,
+      'satisfaction': gameState.satisfaction + 1 + satisfactionBonus
+    }, gameState, setGameState)
+  }
+
+  const decisionSet = eventDetails[ORAL_CUM]
+  const cum = cumRoll ? findDecision(cumRoll, decisionSet) : null
+
+  return (
+    <BasicEvent name='Cum from Oral' canContinue={!!cumRoll} nextEvent={nextEvent} image='club-bambi/oral-cum.png' ratio={1 / 1}>
+      <Card.Section p='sm' withBorder>
+        <Text>
+          Your cannot clean off any cum until you finish with this client, except for any in/on your eyes.
+        </Text>
+      </Card.Section>
+      <Card.Section withBorder={!!cumRoll}>
+        <DecisionTable activeRoll={cumRoll} decisionSet={decisionSet} />
+        <Center my='sm'>
+          <Roller roll={cumRoll} setRoll={setCumRoll} rollFn={r10} />
+        </Center>
+      </Card.Section>
+      {cumRoll ?
+        <Card.Section p='sm'>
+          <Group justify='center'>
+            <StatusGroup leftChildren='Cum Amount'
+              rightChildren={<Text span c={cumMultiplier > 1 ? Attributes[BREEDER].color : undefined}>{`${cum.cum * cumMultiplier} ml`}</Text>} />
+          </Group>
+        </Card.Section>
+        : null}
+    </BasicEvent>
+  )
+}
+
+function CumNextEvent({ gameState, setGameState }: EventInput) {
+  const [taskRoll, setTaskRoll] = useState<number | null>(null)
+  const decisionSet = eventDetails[CUM_NEXT]
+
+  function rollSatisfied() {
+    return Math.max(1, Math.min(randRange(1, 6) + Math.max(0, gameState.satisfaction - 3), 10))
+  }
+
+  function nextEvent() {
+    const decision = findDecision(taskRoll, decisionSet)
+    modifyState({ 'currentEvent': decision.task }, gameState, setGameState)
+  }
+
+  return (
+    <BasicEvent name='Are They Satisfied?' canContinue={!!taskRoll} nextEvent={nextEvent} image='club-bambi/cum-next.png' ratio={7 / 10}>
+      <Card.Section withBorder p='sm'>
+        <Stack gap='xs'>
+          <Title ta='center' fz='h4'>Client's Satisfaction Level: {gameState.satisfaction}</Title>
+          <Progress.Root radius='sm' size="xl">
+            <Progress.Section value={Math.min(gameState.satisfaction * 10, 30)} color="red" animated />
+            <Progress.Section value={Math.min(gameState.satisfaction * 10 - 30, 60)} color="green" animated />
+            <Progress.Section value={Math.min(gameState.satisfaction * 10 - 90, 10)} color="blue" animated />
+          </Progress.Root>
+          <Text ta='center'>Roll Range: 1 - {6 + Math.max(0, gameState.satisfaction - 3)}</Text>
+        </Stack>
+      </Card.Section>
+      <Card.Section>
+        <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} showDescription />
+        <Center mt='sm'>
+          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={rollSatisfied} />
+        </Center>
+      </Card.Section>
+    </BasicEvent>
+  )
+}
+
+function PaymentEvent({ gameState, setGameState }: EventInput) {
+  const [paymentRoll, setPaymentRoll] = useState<number | null>(null)
+  const [canContinue, { open: allowContinue }] = useDisclosure(!!paymentRoll)
+  const decisionSet = eventDetails[PAYMENT]
+
+  function setPayment(roll: number) {
+    roll = 10
+    setPaymentRoll(roll)
+    if (roll != 10) {
+      allowContinue()
+    }
+  }
+
+  function nextEvent() {
+    let payment = 0
+    if (paymentRoll == 1) {
+      payment = 150
+    } else if (paymentRoll >= 2 && paymentRoll <= 7) {
+      payment = 100
+    } else if (paymentRoll >= 8) {
+      payment = 50
+    }
+
+    modifyState({
+      'currentEvent': CLIENT,
+      'debtPaid': gameState.debtPaid + payment,
+      'effects': expireEffects(gameState.effects, 'client'),
+      ...initializeClient
+    }, gameState, setGameState)
+  }
+
+  let drugged = null
+  if (paymentRoll == 10) {
+    drugged = (
+      <>
+        <Divider mt='sm' />
+        <Text>Put on a mouth gag, chastity, and buttplug. Put yourself in a hogtie for 10 minutes.</Text>
+        <Card.Section p='sm'>
+          <TaskTimer duration={10} finishCallback={allowContinue} />
+        </Card.Section>
+      </>
+    )
+  }
+
+  return (
+    <BasicEvent name='Payment' canContinue={canContinue} nextEvent={nextEvent} image='club-bambi/oral-next.png' ratio={1 / 1}>
+      <Card.Section>
+        <DecisionTable activeRoll={paymentRoll} decisionSet={decisionSet} showDescription />
+        <Center mt='sm'>
+          <Roller roll={paymentRoll} setRoll={setPayment} rollFn={r10} />
+        </Center>
+      </Card.Section>
+      {drugged}
+    </BasicEvent>
+  )
+}
+
+function TaskTimer({ duration, finishCallback }: { duration: number, finishCallback?: () => void }) {
   const [timerStarted, { open: startTimer }] = useDisclosure(false)
   const [timerRunning, { open: runTimer, close: stopTimer }] = useDisclosure(false)
 
@@ -636,20 +850,30 @@ function TaskTimer({ duration }: { duration: number }) {
     runTimer()
   }
 
-  setInterval(() => {
-    if (dayjs(now) > dayjs(startTime).add(duration, 'minutes')) {
-      stopTimer()
-    } else {
-      setNow(new Date())
+  useEffect(() => {
+    if (timerRunning) {
+      const interval = setInterval(() => {
+        if (dayjs(now) > dayjs(startTime).add(duration, 'minutes')) {
+          stopTimer()
+          if (finishCallback) { finishCallback() }
+        } else {
+          setNow(new Date())
+        }
+      }, 1000)
+
+      return () => {
+        clearInterval(interval)
+      }
     }
-  }, 1000)
+  }, [timerRunning])
+
 
   let progressElement = (
     <Center>
       <Button variant='gradient' gradient={clubBambiGradient} size='md' onClick={start}>Start Task</Button>
     </Center>
   )
-  if (timerRunning) {
+  if (timerStarted) {
     const elapsedTime = dayjs.duration(dayjs(now).diff(dayjs(startTime))).format('m:ss')
     const remainingTime = dayjs.duration(dayjs(dayjs(startTime).add(duration, 'minutes')).diff(now)).format('m:ss')
     const endTime = dayjs(startTime).add(duration, 'minutes').toDate()
@@ -667,7 +891,10 @@ function TaskTimer({ duration }: { duration: number }) {
   return (
     <Card withBorder style={{ borderColor: 'violet' }}>
       <Card.Section p='sm' withBorder>
-        <Title fz='h4' ta='center'>Task Timer</Title>
+        <Group grow preventGrowOverflow={false} justify='center'>
+          <Title fz='h4' ta='center'>Task Timer</Title>
+          <ActionIcon flex={0} onClick={() => { stopTimer(); finishCallback() }}><IconBug /></ActionIcon>
+        </Group>
       </Card.Section>
       <Card.Section p='sm' withBorder>
         {progressElement}
@@ -676,7 +903,7 @@ function TaskTimer({ duration }: { duration: number }) {
   )
 }
 
-function DecisionTable({ activeRoll, decisionSet, cumulative = false }: { activeRoll: number, decisionSet: Decision[], cumulative?: boolean }) {
+function DecisionTable({ activeRoll, decisionSet, showDescription = false, cumulative = false }: { activeRoll: number, decisionSet: Decision[], showDescription?: boolean, cumulative?: boolean }) {
   return (
     <Table>
       <Table.Tbody>
@@ -698,8 +925,10 @@ function DecisionTable({ activeRoll, decisionSet, cumulative = false }: { active
             <Table.Tr key={idx}>
               <Table.Th w='5rem' ta='center' c={color}>{decision.min == decision.max ? decision.min : `${decision.min} - ${decision.max}`}</Table.Th>
               <Table.Td c={color}>
-                {decision.task}
-
+                <Stack gap={0}>
+                  <Text>{decision.task}</Text>
+                  <Text c='dimmed'>{showDescription && decision.description ? decision.description : null}</Text>
+                </Stack>
               </Table.Td>
             </Table.Tr>
           )
@@ -780,18 +1009,23 @@ function Roller({ roll, setRoll, rollFn, rerolls, useReroll }: { roll: number, s
   )
 }
 
-function r10() {
-  return randRange(1, 10)
-}
-
 function ChangingNumber() {
   const [number, setNumber] = useState(1);
 
-  setInterval(() => {
-    setNumber(randRange(1, 10))
-  }, 150)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNumber(randRange(1, 10))
+    }, 150)
+
+    return () => clearInterval(interval)
+  }, [])
+
 
   return number
+}
+
+function r10() {
+  return randRange(1, 10)
 }
 
 function modifyState(changes: { [attribute: string]: any }, gameState: GameState, setGameState: (gameState: GameState) => void) {
@@ -801,4 +1035,8 @@ function modifyState(changes: { [attribute: string]: any }, gameState: GameState
   }
 
   setGameState(newGameState)
+}
+
+function expireEffects(effects: Effect[], expiration: 'task' | 'client' | 'game') {
+  return effects.filter((effect) => effectDetails[effect].expiration != expiration)
 }
