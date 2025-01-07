@@ -1,9 +1,9 @@
 'use client'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
-import { Attribute, AttributeDetail, Attributes, BONDAGE, BREEDER, CLIENT, Client, Clients, CUM_NEXT, Decision, DIFFICULTY, Effect, effectDetails, eventDetails, events, findDecision, GameState, INSATIABLE, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, randRange, slugify, Stage, Stages, STARTING_TASK, UNIFORM, Uniform } from "@/IFR/club-bambi"
+import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, BREEDER, CLIENT, Client, Clients, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, eventDetails, events, findDecision, GameState, HUMILIATION, INSATIABLE, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, UNIFORM, Uniform } from "@/IFR/club-bambi"
 import { theme } from "@/app/layout"
-import { ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Table, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
+import { ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Table, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
 import { useDisclosure, useElementSize, useHover, useLocalStorage, useViewportSize } from "@mantine/hooks"
 import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh } from "@tabler/icons-react"
 import React, { useContext, useEffect, useState } from "react"
@@ -83,6 +83,25 @@ export default function Home() {
     case ORAL_CUM:
       event = (<OralCumEvent gameState={gameState} setGameState={setGameState} />)
       break;
+    case ANAL_POSITION:
+    case ANAL_MODIFIER:
+      event = (<AnalEvent gameState={gameState} setGameState={setGameState} />)
+      break;
+    case ANAL_TASK:
+      event = (<AnalTaskEvent gameState={gameState} setGameState={setGameState} />)
+      break;
+    case ANAL_NEXT:
+      event = (<AnalNextEvent gameState={gameState} setGameState={setGameState} />)
+      break;
+    case ANAL_CUM:
+      event = (<AnalCumEvent gameState={gameState} setGameState={setGameState} />)
+      break;
+    case HUMILIATION:
+      event = (<HumiliationEvent gameState={gameState} setGameState={setGameState} />)
+      break;
+    case PUNISHMENT:
+      event = (<PunishmentEvent gameState={gameState} setGameState={setGameState} />)
+      break;
     case CUM_NEXT:
       event = (<CumNextEvent gameState={gameState} setGameState={setGameState} />)
       break;
@@ -105,12 +124,9 @@ export default function Home() {
               {collapseContext.statePanelOpened ? <IconLayoutSidebarRightCollapse /> : <IconLayoutSidebarRightExpandFilled />}
             </ActionIcon>
           </Group>
-
         </Container>
-
       </AppShell.Main>
     </>
-
   )
 }
 
@@ -574,7 +590,7 @@ function StartingTaskEvent({ gameState, setGameState }: EventInput) {
       <Card.Section>
         <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         <Center mt='sm'>
-          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => 7} />
+          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => 4} />
         </Center>
       </Card.Section>
     </BasicEvent>
@@ -582,9 +598,9 @@ function StartingTaskEvent({ gameState, setGameState }: EventInput) {
 }
 
 function OralEvent({ gameState, setGameState }: EventInput) {
-  const [positionRoll, setPositionRoll] = useState<number | null>(null)
-  const [modifierRoll, setModifierRoll] = useState<number | null>(null)
-
+  const throating = gameState.effects.includes(A2M_THROATING)
+  const [positionRoll, setPositionRoll] = useState<number | null>(throating ? 10 : null)
+  const [modifierRoll, setModifierRoll] = useState<number | null>(throating ? 10 : null)
 
   function nextEvent() {
     modifyState({
@@ -605,11 +621,47 @@ function OralEvent({ gameState, setGameState }: EventInput) {
         <Text fz='h3' fw='bold' ta='center'>Position</Text>
         <DecisionTable activeRoll={positionRoll} decisionSet={eventDetails[ORAL_POSITION]} />
         <Center>
-          <Roller roll={positionRoll} setRoll={setPositionRoll} rollFn={r10} />
+          <Roller roll={positionRoll} setRoll={setPositionRoll} rollFn={r10} readOnly={throating} />
         </Center>
         <Divider my='sm' />
         <Text fz='h3' fw='bold' ta='center'>Modifier</Text>
         <DecisionTable activeRoll={modifierRoll} decisionSet={eventDetails[ORAL_MODIFIER]} />
+        <Center>
+          <Roller roll={modifierRoll} setRoll={setModifierRoll} rollFn={r10} readOnly={throating} />
+        </Center>
+      </Stack>
+    </BasicEvent>
+  )
+}
+
+function AnalEvent({ gameState, setGameState }: EventInput) {
+  const [positionRoll, setPositionRoll] = useState<number | null>(null)
+  const [modifierRoll, setModifierRoll] = useState<number | null>(null)
+
+  function nextEvent() {
+    modifyState({
+      'currentEvent': ANAL_TASK,
+      'currentTask': {
+        'task': ANAL_TASK,
+        'position': positionRoll,
+        'modifier': modifierRoll,
+      }
+    }, gameState, setGameState)
+  }
+
+  return (
+    <BasicEvent name='Anal' canContinue={!!positionRoll && !!modifierRoll} nextEvent={nextEvent} image='club-bambi/anal.png' ratio={5 / 3}>
+      <Stack gap={0} mb='xs'>
+        <Text px='sm'>Roll your anal position and modifier. You will begin your task on the next screen.</Text>
+        <Divider />
+        <Text fz='h3' fw='bold' ta='center'>Position</Text>
+        <DecisionTable activeRoll={positionRoll} decisionSet={eventDetails[ANAL_POSITION]} />
+        <Center>
+          <Roller roll={positionRoll} setRoll={setPositionRoll} rollFn={r10} />
+        </Center>
+        <Divider my='sm' />
+        <Text fz='h3' fw='bold' ta='center'>Modifier</Text>
+        <DecisionTable activeRoll={modifierRoll} decisionSet={eventDetails[ANAL_MODIFIER]} />
         <Center>
           <Roller roll={modifierRoll} setRoll={setModifierRoll} rollFn={r10} />
         </Center>
@@ -647,7 +699,8 @@ function OralTaskEvent({ gameState, setGameState }: EventInput) {
   function nextEvent() {
     modifyState({
       'currentEvent': ORAL_NEXT,
-      'satisfaction': gameState.satisfaction + 1 + attributeTasks.length
+      'satisfaction': gameState.satisfaction + 1 + attributeTasks.length,
+      'effects': expireEffects(gameState.effects, 'task')
     }, gameState, setGameState)
   }
 
@@ -676,6 +729,83 @@ function OralTaskEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
+function AnalTaskEvent({ gameState, setGameState }: EventInput) {
+  const [timerFinished, { open: finishTimer }] = useDisclosure(false)
+
+  const currentTask = gameState.currentTask
+
+  const attributes = Clients[gameState.client - 1].attributes
+  const position = findDecision(currentTask.position, eventDetails[ANAL_POSITION]) as PenetrationTask
+  const modifier = findDecision(currentTask.modifier, eventDetails[ANAL_MODIFIER]) as PenetrationTask
+
+  let speedBonus = 0;
+  if (attributes.includes('Insatiable')) {
+    speedBonus = 30
+  }
+
+  let positionAttributeTasks = []
+  if (position.attributeTasks) {
+    for (const [attribute, task] of Object.entries(position.attributeTasks)) {
+      if (attributes.includes(attribute as Attribute)) {
+        const attributeDetail = Attributes[attribute]
+        positionAttributeTasks.push((
+          <Text key={attribute} c={attributeDetail.color}>{task}</Text>
+        ))
+      }
+    }
+  }
+
+  let modifierAttributeTasks = []
+  if (modifier.attributeTasks) {
+    for (const [attribute, task] of Object.entries(modifier.attributeTasks)) {
+      if (attributes.includes(attribute as Attribute)) {
+        const attributeDetail = Attributes[attribute]
+        modifierAttributeTasks.push((
+          <Text key={attribute} c={attributeDetail.color}>{task}</Text>
+        ))
+      }
+    }
+  }
+
+  function nextEvent() {
+    let nextEvent = ANAL_NEXT
+    if (gameState.effects.includes(A2M)) {
+      nextEvent = ORAL_POSITION
+    }
+
+    modifyState({
+      'currentEvent': nextEvent,
+      'satisfaction': gameState.satisfaction + 1 + positionAttributeTasks.length + modifierAttributeTasks.length,
+      'effects': expireEffects(gameState.effects, 'task')
+    }, gameState, setGameState)
+  }
+
+  return (
+    <BasicEvent name='Anal Task' canContinue={timerFinished} nextEvent={nextEvent} image={`club-bambi/${slugify(position.name)}.png`} ratio={7 / 10}>
+      <Stack>
+        <Title ta='center' fz='h3'>{position.name}</Title>
+        <Text>{position.description}</Text>
+        <Divider />
+        <Text>{position.task}</Text>
+        {positionAttributeTasks}
+        <Group justify='center'>
+          <StatusGroup leftChildren='Duration' rightChildren={`${position.duration} min`} />
+          {position.speed ?
+            <StatusGroup
+              leftChildren='Speed'
+              rightChildren={<Text span c={speedBonus ? Attributes[INSATIABLE].color : undefined}>{`${position.speed + speedBonus} BPM`}</Text>} />
+            : null}
+        </Group>
+        <Divider />
+        <Text>{modifier.task}</Text>
+        {modifierAttributeTasks}
+        <Divider />
+        <TaskTimer duration={position.duration} finishCallback={finishTimer} />
+      </Stack>
+    </BasicEvent>
+  )
+}
+
 function OralNextEvent({ gameState, setGameState }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[ORAL_NEXT]
@@ -691,7 +821,28 @@ function OralNextEvent({ gameState, setGameState }: EventInput) {
       <Card.Section>
         <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         <Center mt='sm'>
-          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => 4} />
+          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={r10} />
+        </Center>
+      </Card.Section>
+    </BasicEvent>
+  )
+}
+
+function AnalNextEvent({ gameState, setGameState }: EventInput) {
+  const [taskRoll, setTaskRoll] = useState<number | null>(null)
+  const decisionSet = eventDetails[ANAL_NEXT]
+
+  function nextEvent() {
+    const decision = findDecision(taskRoll, decisionSet)
+    modifyState({ 'currentEvent': decision.task }, gameState, setGameState)
+  }
+
+  return (
+    <BasicEvent name='Anal Next Task' canContinue={!!taskRoll} nextEvent={nextEvent} image='club-bambi/anal-next.png' ratio={1 / 1}>
+      <Card.Section>
+        <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
+        <Center mt='sm'>
+          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={r10} />
         </Center>
       </Card.Section>
     </BasicEvent>
@@ -743,6 +894,51 @@ function OralCumEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
+function AnalCumEvent({ gameState, setGameState }: EventInput) {
+  const [cumRoll, setCumRoll] = useState<number | null>(null)
+
+  let cumMultiplier = 1
+  let satisfactionBonus = 0
+  if (Clients[gameState.client - 1].attributes.includes(BREEDER)) {
+    cumMultiplier = 2
+    satisfactionBonus = 1
+  }
+
+  function nextEvent() {
+    modifyState({
+      'currentEvent': CUM_NEXT,
+      'satisfaction': gameState.satisfaction + 1 + satisfactionBonus
+    }, gameState, setGameState)
+  }
+
+  const decisionSet = eventDetails[ANAL_CUM]
+  const cum = cumRoll ? findDecision(cumRoll, decisionSet) : null
+
+  return (
+    <BasicEvent name='Cum from Anal' canContinue={!!cumRoll} nextEvent={nextEvent} image='club-bambi/anal-cum.png' ratio={1 / 1}>
+      <Card.Section p='sm' withBorder>
+        <Text>
+          Your cannot clean off any cum until you finish with this client.
+        </Text>
+      </Card.Section>
+      <Card.Section withBorder={!!cumRoll}>
+        <DecisionTable activeRoll={cumRoll} decisionSet={decisionSet} />
+        <Center my='sm'>
+          <Roller roll={cumRoll} setRoll={setCumRoll} rollFn={r10} />
+        </Center>
+      </Card.Section>
+      {cumRoll ?
+        <Card.Section p='sm'>
+          <Group justify='center'>
+            <StatusGroup leftChildren='Cum Amount'
+              rightChildren={<Text span c={cumMultiplier > 1 ? Attributes[BREEDER].color : undefined}>{`${cum.cum * cumMultiplier} ml`}</Text>} />
+          </Group>
+        </Card.Section>
+        : null}
+    </BasicEvent>
+  )
+}
+
 function CumNextEvent({ gameState, setGameState }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[CUM_NEXT]
@@ -766,7 +962,7 @@ function CumNextEvent({ gameState, setGameState }: EventInput) {
             <Progress.Section value={Math.min(gameState.satisfaction * 10 - 30, 60)} color="green" animated />
             <Progress.Section value={Math.min(gameState.satisfaction * 10 - 90, 10)} color="blue" animated />
           </Progress.Root>
-          <Text ta='center'>Roll Range: 1 - {6 + Math.max(0, gameState.satisfaction - 3)}</Text>
+          <Text ta='center'>Roll Range: {1 + Math.max(0, gameState.satisfaction - 3)} - {6 + Math.max(0, gameState.satisfaction - 3)}</Text>
         </Stack>
       </Card.Section>
       <Card.Section>
@@ -775,6 +971,132 @@ function CumNextEvent({ gameState, setGameState }: EventInput) {
           <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={rollSatisfied} />
         </Center>
       </Card.Section>
+    </BasicEvent>
+  )
+}
+
+function HumiliationEvent({ gameState, setGameState }: EventInput) {
+  const [taskRoll, setTaskRoll] = useState<number | null>(null)
+  const decisionSet = eventDetails[HUMILIATION]
+
+  function nextEvent() {
+    const decision = findDecision(taskRoll, decisionSet)
+    const effects = [decision.effect, ...Object.values(decision.attributeEffects ?? {})]
+
+    modifyState({
+      'currentEvent': decision.next,
+      'effects': gameState.effects.concat(effects)
+    }, gameState, setGameState)
+  }
+
+  let humiliation = null
+  if (taskRoll) {
+    const decision = findDecision(taskRoll, decisionSet)
+    const effects = [decision.effect, ...Object.values(decision.attributeEffects ?? {})]
+
+    humiliation = (
+      <Stack gap='xs'>
+        <Text>{decision.description}</Text>
+        <Divider />
+        <Text fw='bold'>{decision.task}</Text>
+        <Divider />
+        <Text ta='center' fz='h4' fw='bold'>Effects</Text>
+        <Group justify='center'>
+          {effects.map((effect, idx) => (
+            <EffectBadge key={idx} effect={effect} />
+          ))}
+        </Group>
+        <Divider />
+        <Text ta='center'>Next Task: {decision.next}</Text>
+      </Stack>
+    )
+  }
+
+  return (
+    <BasicEvent name='Humiliation' canContinue={!!taskRoll} nextEvent={nextEvent} image='club-bambi/humiliation.png' ratio={1 / 1}>
+      <Collapse in={!taskRoll}>
+        <Card.Section>
+          <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
+          <Center mt='sm'>
+            <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 8)} />
+          </Center>
+        </Card.Section>
+      </Collapse>
+      <Collapse in={!!taskRoll}>
+        {humiliation}
+      </Collapse>
+    </BasicEvent>
+  )
+}
+
+function PunishmentEvent({ gameState, setGameState }: EventInput) {
+  const [taskRoll, setTaskRoll] = useState<number | null>(null)
+  const decisionSet = eventDetails[PUNISHMENT]
+
+  function nextEvent() {
+    const decision = findDecision(taskRoll, decisionSet)
+    const effects = [decision.effect ?? undefined, ...Object.values(decision.attributeEffects ?? {})].filter((e) => e)
+
+    modifyState({
+      'currentEvent': decision.next,
+      'effects': gameState.effects.concat(effects)
+    }, gameState, setGameState)
+  }
+
+  let punishment = null
+  if (taskRoll) {
+    const decision = findDecision(taskRoll, decisionSet)
+    const effects = [decision.effect ?? undefined, ...Object.values(decision.attributeEffects ?? {})].filter((e) => e)
+
+    const attributes = Clients[gameState.client - 1].attributes
+    let attributeTasks = []
+    if (decision.attributeTasks) {
+      for (const [attribute, task] of Object.entries(decision.attributeTasks as { [key in Attribute]?: string })) {
+        if (attributes.includes(attribute as Attribute)) {
+          const attributeDetail = Attributes[attribute]
+          attributeTasks.push((
+            <Text key={attribute} c={attributeDetail.color}>{task}</Text>
+          ))
+        }
+      }
+    }
+
+    punishment = (
+      <Stack gap='xs'>
+        <Text>{decision.description}</Text>
+        <Divider />
+        <Text fw='bold'>{decision.task}</Text>
+        {attributeTasks}
+        <Divider />
+        {effects.length ?
+          <>
+            <Text ta='center' fz='h4' fw='bold'>Effects</Text>
+            <Group justify='center'>
+              {effects.map((effect, idx) => (
+                <EffectBadge key={idx} effect={effect} />
+              ))}
+            </Group>
+            <Divider />
+          </>
+          : null}
+        <Text ta='center'>Next Task: {decision.next}</Text>
+      </Stack>
+    )
+  }
+
+  return (
+    <BasicEvent name='Punishment' canContinue={!!taskRoll} nextEvent={nextEvent} image='club-bambi/punishment.png' ratio={1 / 1}>
+      <Collapse in={!taskRoll}>
+        <Card.Section>
+          <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
+          <Center mt='sm'>
+            <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 10)} />
+          </Center>
+        </Card.Section>
+      </Collapse>
+      <Collapse in={!!taskRoll}>
+        {punishment}
+      </Collapse>
     </BasicEvent>
   )
 }
@@ -833,6 +1155,16 @@ function PaymentEvent({ gameState, setGameState }: EventInput) {
       </Card.Section>
       {drugged}
     </BasicEvent>
+  )
+}
+
+function EffectBadge({ effect }: { effect: Effect }) {
+  const effectDetail: EffectDetail = effectDetails[effect]
+
+  return (
+    <Tooltip label={effectDetail.description}>
+      <Badge color='grape' radius='md'>{effect}</Badge>
+    </Tooltip>
   )
 }
 
@@ -938,9 +1270,9 @@ function DecisionTable({ activeRoll, decisionSet, showDescription = false, cumul
   )
 }
 
-function Roller({ roll, setRoll, rollFn, rerolls, useReroll }: { roll: number, setRoll: any, rollFn: () => number, rerolls?: number, useReroll?: () => void }) {
-  const [rollStarted, { open: startRoll }] = useDisclosure(false)
-  const [rollFinished, { open: finishRoll, close: restartRoll }] = useDisclosure(false)
+function Roller({ roll, setRoll, rollFn, rerolls, useReroll, readOnly = false }: { roll: number, setRoll: any, rollFn: () => number, rerolls?: number, useReroll?: () => void, readOnly?: boolean }) {
+  const [rollStarted, { open: startRoll }] = useDisclosure(readOnly)
+  const [rollFinished, { open: finishRoll, close: restartRoll }] = useDisclosure(readOnly)
 
   const buttonStyle = rollStarted && rerolls ? undefined : { borderTopRightRadius: '0.5rem', borderBottomRightRadius: '0.5rem' }
 

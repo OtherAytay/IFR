@@ -314,9 +314,9 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 10,
       duration: 5,
       speed: 100,
-      name: 'Piledriver',
-      task: 'Fuck your ass in the pile driver position.',
-      description: 'They manhandle you to the ground, with your legs over your head. Your useless clitty pointing straight at your face. They stand over you and plunge their cock deep into your ass over and over again.'
+      name: 'Prone',
+      task: 'Fuck your ass in the prone position.',
+      description: 'They manhandle you to the bed, with a firm hand on your back pinning you down on your stomach. Your useless clitty smothered on the sheets. They lean over you and plunge their cock deep into your ass over and over again.'
     },
   ],
   [ANAL_MODIFIER]: [
@@ -325,7 +325,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 2,
       task: 'Every 2 minutes, you must attempt to gape your ass for 30 seconds before continuing.',
       attributeTasks: {
-        KINKY: 'Insert and expel a plug 5 times without hands after your fucking.'
+        [KINKY]: 'Insert and expel a plug 5 times without hands after your fucking.'
       }
     },
     {
@@ -338,7 +338,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 6,
       task: '"Posture Lock" - you must maintain feminine, submissive posture at all times, making sure to arch your back. If you falter at any point they slap you 1 time.',
       attributeTasks: {
-        ROUGH: 'They slap you 5 times instead.'
+        [ROUGH]: 'They slap you 5 times instead.'
       }
     },
     {
@@ -346,8 +346,8 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 8,
       task: 'They smack your ass every 10 seconds while fucking you.',
       attributeTasks: {
-        ROUGH: 'They slap you harder.',
-        SADISTIC: 'They slap you in the balls instead.'
+        [ROUGH]: 'They slap you harder.',
+        [SADISTIC]: 'They slap you in the balls instead.'
       }
     },
     {
@@ -355,7 +355,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 10,
       task: 'They demand that you moan and whine while they fucking you.',
       attributeTasks: {
-        TRAINER: 'They force your clitty into chastity while you are getting fucked.'
+        [TRAINER]: 'They force your clitty into chastity while you are getting fucked.'
       }
     },
   ],
@@ -477,22 +477,22 @@ export const eventDetails: { [key in Event]: Decision[] } = {
   [HUMILIATION]: [
     {
       min: 1,
-      max: 2,
+      max: 1,
       task: 'Finger your ass while moaning how much you want their cock inside you.',
       description: 'They order you to finger yourself and beg for their cock.',
       next: ANAL_POSITION,
     },
     {
-      min: 3,
-      max: 4,
+      min: 2,
+      max: 2,
       task: 'Rub ice on your asshole. Moan like a slut for the rest of this client',
       description: 'They tell you to spread your ass cheeks. You feel them rub something cold against your hole and a few seconds later your asshole becomes extremely sensitive. "Here, an aphrodesiac, for being such a Good Girl."',
       next: ANAL_POSITION,
       effect: SENSITIVE
     },
     {
-      min: 5,
-      max: 5,
+      min: 3,
+      max: 3,
       task: 'Roll anal, then immediately roll oral.',
       description: 'They force you to do ass to mouth.',
       next: ANAL_POSITION,
@@ -502,22 +502,22 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       }
     },
     {
-      min: 6,
-      max: 6,
+      min: 4,
+      max: 4,
       task: 'Suck on 2 fingers while moaning and thinking of sucking a hard cock.',
       description: 'They use a trigger on your, "Zap cock drain obey", filling your head with thoughts of sucking hard cock. They tell you to suck on their 2 fingers as if it was their dick.',
       next: ORAL_POSITION,
     },
     {
-      min: 7,
-      max: 7,
+      min: 5,
+      max: 5,
       task: 'Spread your ass cheeks, trying to gape your ass.',
       description: 'They demand you to beg them to fuck your ass.',
       next: ANAL_POSITION,
     },
     {
-      min: 8,
-      max: 8,
+      min: 6,
+      max: 6,
       task: 'Lock yourself in chastity for rest of this client. Listen to a hypno audio for 3 minutes while slapping your balls with a dildo.',
       description: 'They make fun of your pathetic clitty and compare it to a real cock.',
       effect: LOCKED,
@@ -527,16 +527,16 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       next: HUMILIATION,
     },
     {
-      min: 9,
-      max: 9,
+      min: 7,
+      max: 7,
       task: 'Give them a handjob for 2 minutes and catch 10ml cum on your face. Do not clean it off for the rest of this client.',
       description: 'They want you to experience their cum.',
       effect: FACIAL,
       next: HUMILIATION,
     },
     {
-      min: 10,
-      max: 10,
+      min: 8,
+      max: 8,
       task: 'Take a selfie of yourself in a slutty pose with a suggestive caption. Maintain eye contact with it during the next oral.',
       description: 'They want you to know how slutty you have become.',
       effect: SELFIE,
@@ -598,7 +598,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       min: 6,
       max: 6,
       task: 'Insert your largest butt plug. Leave it in during the next oral.',
-      description: 'Time to push you ass to its limits.',
+      description: 'Time to push your ass to its limits.',
       effect: PLUGGED,
       attributeEffects: {
         [KINKY]: PLUGGED_SNAKE
@@ -609,7 +609,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       min: 7,
       max: 7,
       task: 'Tie a 500g weight to a buttplug and insert it. Let the weight hang and hold the plug in without hands for 2 minutes.',
-      description: 'Time to push you ass to its limits.',
+      description: 'You need to train to squeeze cocks inside your ass.',
       attributeTasks: {
         [SADISTIC]: 'Use a 1kg weight instead.'
       },
@@ -695,7 +695,7 @@ export const effectDetails: { [name in Effect]: EffectDetail } = {
     expiration: 'client'
   },
   [PERMALOCKED]: {
-    description: 'Locked in chastity permanently.',
+    description: 'Locked in chastity permanently until your debt is settled.',
     expiration: 'game'
   },
   [FACIAL]: {
