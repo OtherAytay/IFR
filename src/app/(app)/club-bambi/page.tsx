@@ -1,7 +1,7 @@
 'use client'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
-import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, BREEDER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, eventDetails, events, findDecision, GameState, HUMILIATION, INSATIABLE, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
+import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, BREEDER, CLEANER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, eventDetails, events, findDecision, GameState, HUMILIATION, INSATIABLE, LIMP, LOCKED, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PERMALOCKED, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
 import { ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Table, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
 import { useDisclosure, useElementSize, useHover, useLocalStorage, useViewportSize } from "@mantine/hooks"
 import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh } from "@tabler/icons-react"
@@ -446,7 +446,7 @@ function UniformEvent({ gameState, setGameState }: EventInput) {
           <Table.Tbody>
             {UniformTable}
           </Table.Tbody>
-        </Table>9
+        </Table>
       </Card.Section>
       <Card.Section p='xs'>
         <Center>
@@ -1015,15 +1015,21 @@ function HumiliationEvent({ gameState, setGameState }: EventInput) {
     )
   }
 
+  let image = 'club-bambi/humiliation.png'
+  if (taskRoll) {
+    image = `club-bambi/humiliation-${taskRoll}.png`
+  }
+
+
   return (
-    <BasicEvent name='Humiliation' canContinue={!!taskRoll} nextEvent={nextEvent} image='club-bambi/humiliation.png' ratio={1 / 1}>
+    <BasicEvent name='Humiliation' canContinue={!!taskRoll} nextEvent={nextEvent} image={image} ratio={2 / 3}>
       <Collapse in={!taskRoll}>
         <Card.Section>
           <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         </Card.Section>
       </Collapse>
       <Center mt={!taskRoll ? 'md' : 0} mb='md'>
-        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 8)} />
+        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 7)} />
       </Center>
       <Collapse in={!!taskRoll}>
         {humiliation}
@@ -1044,6 +1050,24 @@ function PunishmentEvent({ gameState, setGameState }: EventInput) {
       'currentEvent': decision.next,
       'effects': gameState.effects.concat(effects)
     }, gameState, setGameState)
+  }
+
+  function rollPunishment() {
+    let valid = false
+    let roll = 0
+    while (!valid) {
+      roll = randRange(1, 10)
+
+      const e = gameState.effects
+      if (roll == 9) {
+        valid = !(e.includes(CLEANER))
+      } else if (roll == 10) {
+        valid = !(e.includes(LOCKED) || e.includes(PERMALOCKED) || e.includes(LIMP))
+      } else {
+        valid = true
+      }
+    }
+    return roll
   }
 
   let punishment = null
@@ -1087,15 +1111,20 @@ function PunishmentEvent({ gameState, setGameState }: EventInput) {
     )
   }
 
+  let image = 'club-bambi/punishment.png'
+  if (taskRoll) {
+    image = `club-bambi/punishment-${taskRoll}.png`
+  }
+
   return (
-    <BasicEvent name='Punishment' canContinue={!!taskRoll} nextEvent={nextEvent} image='club-bambi/punishment.png' ratio={1 / 1}>
+    <BasicEvent name='Punishment' canContinue={!!taskRoll} nextEvent={nextEvent} image={image} ratio={2 / 3}>
       <Collapse in={!taskRoll}>
         <Card.Section>
           <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         </Card.Section>
       </Collapse>
       <Center mt={!taskRoll ? 'md' : 0} mb='md'>
-        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 8)} />
+        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={rollPunishment} />
       </Center>
       <Collapse in={!!taskRoll}>
         {punishment}

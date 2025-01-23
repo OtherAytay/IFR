@@ -560,14 +560,6 @@ export const eventDetails: { [key in Event]: Decision[] } = {
     {
       min: 7,
       max: 7,
-      task: 'Give them a handjob for 2 minutes and catch 10ml cum on your face. Do not clean it off for the rest of this client.',
-      description: 'They want you to experience their cum.',
-      effect: FACIAL,
-      next: HUMILIATION,
-    },
-    {
-      min: 8,
-      max: 8,
       task: 'Take a selfie of yourself in a slutty pose with a suggestive caption. Maintain eye contact with it during the next oral.',
       description: 'They want you to know how slutty you have become.',
       effect: SELFIE,
