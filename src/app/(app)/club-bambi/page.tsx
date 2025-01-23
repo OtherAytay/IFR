@@ -979,7 +979,13 @@ function HumiliationEvent({ gameState, setGameState }: EventInput) {
 
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
-    const effects = [decision.effect ?? undefined, ...Object.values(decision.attributeEffects ?? {})].filter((e) => e)
+    const mainEffect = decision.effect ?? undefined
+    const attributeEffects = Object.entries(decision.attributeEffects ?? {}).map(([attribute, effect]: [Attribute, Effect]) => {
+      if (Clients[gameState.client - 1].attributes.includes(attribute)) {
+        return effect
+      }
+    })
+    const effects = [mainEffect, ...attributeEffects].filter((e) => e)
 
     modifyState({
       'currentEvent': decision.next,
@@ -990,7 +996,13 @@ function HumiliationEvent({ gameState, setGameState }: EventInput) {
   let humiliation = null
   if (taskRoll) {
     const decision = findDecision(taskRoll, decisionSet)
-    const effects = [decision.effect ?? undefined, ...Object.values(decision.attributeEffects ?? {})].filter((e) => e)
+    const mainEffect = decision.effect ?? undefined
+    const attributeEffects = Object.entries(decision.attributeEffects ?? {}).map(([attribute, effect]: [Attribute, Effect]) => {
+      if (Clients[gameState.client - 1].attributes.includes(attribute)) {
+        return effect
+      }
+    })
+    const effects = [mainEffect, ...attributeEffects].filter((e) => e)
 
     humiliation = (
       <Stack gap='xs'>
@@ -1044,7 +1056,13 @@ function PunishmentEvent({ gameState, setGameState }: EventInput) {
 
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
-    const effects = [decision.effect ?? undefined, ...Object.values(decision.attributeEffects ?? {})].filter((e) => e)
+    const mainEffect = decision.effect ?? undefined
+    const attributeEffects = Object.entries(decision.attributeEffects).map(([attribute, effect]: [Attribute, Effect]) => {
+      if (Clients[gameState.client - 1].attributes.includes(attribute)) {
+        return effect
+      }
+    })
+    const effects = [mainEffect, ...attributeEffects].filter((e) => e)
 
     modifyState({
       'currentEvent': decision.next,
@@ -1073,7 +1091,13 @@ function PunishmentEvent({ gameState, setGameState }: EventInput) {
   let punishment = null
   if (taskRoll) {
     const decision = findDecision(taskRoll, decisionSet)
-    const effects = [decision.effect ?? undefined, ...Object.values(decision.attributeEffects ?? {})].filter((e) => e)
+    const mainEffect = decision.effect ?? undefined
+    const attributeEffects = Object.entries(decision.attributeEffects ?? {}).map(([attribute, effect]: [Attribute, Effect]) => {
+      if (Clients[gameState.client - 1].attributes.includes(attribute)) {
+        return effect
+      }
+    })
+    const effects = [mainEffect, ...attributeEffects].filter((e) => e)
 
     const attributes = Clients[gameState.client - 1].attributes
     let attributeTasks = []
