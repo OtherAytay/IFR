@@ -1247,7 +1247,6 @@ function PaymentEvent({ gameState, setGameState }: EventInput) {
   const decisionSet = eventDetails[PAYMENT]
 
   function setPayment(roll: number) {
-    roll = 10
     setPaymentRoll(roll)
     if (roll != 10) {
       allowContinue()
