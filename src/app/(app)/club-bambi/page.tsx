@@ -1,10 +1,10 @@
 'use client'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
-import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, BREEDER, CLEANER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, eventDetails, events, findDecision, GameState, HUMILIATION, INSATIABLE, LIMP, LOCKED, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PERMALOCKED, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
-import { ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Table, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
+import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, bpmToPercent, BREEDER, CLEANER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, eventDetails, events, findDecision, GameState, HUMILIATION, INSATIABLE, LIMP, LOCKED, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PERMALOCKED, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
+import { ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Modal, Popover, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Switch, Table, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
 import { useDisclosure, useElementSize, useHover, useLocalStorage, useViewportSize } from "@mantine/hooks"
-import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh } from "@tabler/icons-react"
+import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh, IconRestore, IconSettings } from "@tabler/icons-react"
 import React, { useContext, useEffect, useState } from "react"
 import { PageContext } from '@/IFR/club-bambi'
 
@@ -23,7 +23,10 @@ const defaultGameState: GameState = {
   satisfaction: 0,
   bondage: 1,
   outfit: 1,
-  effects: []
+  effects: [],
+  strokeSpeedUnit: 'bpm',
+  taskTimeModifier: '1',
+  debugMode: false
 }
 
 const initializeClient: Partial<GameState> = {
@@ -180,6 +183,8 @@ function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameS
   const { hovered: clientHovered, ref: clientRef } = useHover()
   const { hovered: satisfactionHovered, ref: satisfactionRef } = useHover()
 
+  const [resetModalOpened, resetModalHandlers] = useDisclosure(false)
+
   const clientDetail: Client = Clients[gameState.client - 1]
   const stageDetail: Stage = Stages[gameState.stage - 1]
 
@@ -191,6 +196,10 @@ function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameS
     if (gameState.outfit >= 7) {
       uniformBonus += 1
     }
+  }
+
+  function adjustOption(option: string, value: any) {
+    modifyState({ [option]: value }, gameState, setGameState)
   }
 
   const UniformTable = []
@@ -210,7 +219,7 @@ function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameS
   let satisfactionStatus = null
   if (clientDetail) {
     clientStatus = (
-      <HoverCard offset={12} transitionProps={{ transition: 'pop' }}>
+      <HoverCard offset={20} transitionProps={{ transition: 'pop' }}>
         <HoverCard.Target ref={clientRef}>
           <Card display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={clientHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
             <Group>
@@ -227,7 +236,7 @@ function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameS
     )
     sizeStatus = (<StatusGroup display={gameState.client ? undefined : 'none'} leftChildren='Size' rightChildren={clientDetail.size} />)
     satisfactionStatus = (
-      <HoverCard offset={12} transitionProps={{ transition: 'pop' }}>
+      <HoverCard offset={20} transitionProps={{ transition: 'pop' }}>
         <HoverCard.Target ref={satisfactionRef}>
           <Card display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={satisfactionHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
             <Group>
@@ -262,7 +271,7 @@ function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameS
         <StatusGroup display={gameState.debt ? undefined : 'none'} leftChildren='Debt Paid' rightChildren={`$${gameState.debtPaid} / $${gameState.debt}`} />
 
         {/* Uniform */}
-        <HoverCard offset={12} transitionProps={{ transition: 'pop' }}>
+        <HoverCard offset={20} transitionProps={{ transition: 'pop' }}>
           <HoverCard.Target ref={uniformRef}>
             <Indicator label={`+${uniformBonus}`} disabled={!uniformBonus || !gameState.uniform} color='grape' size={14}>
               <Card display={gameState.uniform ? undefined : 'none'} withBorder py="0.25rem" bg={uniformHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
@@ -304,7 +313,62 @@ function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameS
         {/* Sexual Satisfaction */}
         {satisfactionStatus}
 
-        <ActionIcon size='lg' color='red' onClick={() => setGameState(defaultGameState)}><IconRefresh /></ActionIcon>
+        <Tooltip label='Reset Game'>
+          <ActionIcon variant='filled' size='lg' color='red' onClick={resetModalHandlers.open}><IconRestore /></ActionIcon>
+        </Tooltip>
+        <Modal title='Reset Game' opened={resetModalOpened} onClose={resetModalHandlers.close}>
+          <Text>Are you sure you want to reset your game state, progress, and options? This <strong>cannot</strong> be undone.</Text>
+          <Group justify='flex-end' mt='sm' gap='xs'>
+            <Button variant='default' onClick={resetModalHandlers.close}>Cancel</Button>
+            <Button color='red' onClick={() => {setGameState(defaultGameState); resetModalHandlers.close()}}>Confirm Reset</Button>
+          </Group>
+        </Modal>
+
+        {/* Options Popover */}
+        <Popover offset={20}>
+          <Popover.Target>
+            <ActionIcon size='lg' variant='gradient'><IconSettings /></ActionIcon>
+          </Popover.Target>
+          <Popover.Dropdown>
+            <Title mb='sm'>
+              <Text fz='h3' ta='center' fw='bold' c='violet'>Options</Text>
+            </Title>
+
+            <SimpleGrid cols={2} ta='center'>
+              {/* Stroke Speed Unit */}
+              <Center><Text>Stroke Speed Unit</Text></Center>
+              <SegmentedControl
+                color='violet'
+                value={gameState.strokeSpeedUnit}
+                onChange={(value) => adjustOption('strokeSpeedUnit', value)}
+                data={[
+                  { label: <Text span>BPM</Text>, value: 'bpm' },
+                  { label: <Tooltip label="Stroke Speed % of a Hismith machine"><Text span>%</Text></Tooltip>, value: 'percent' }]}
+              />
+
+              {/* Task Time Modifier */}
+              <Center><Text>Task Time Modifier</Text></Center>
+              <SegmentedControl
+                color='violet'
+                value={gameState.taskTimeModifier}
+                onChange={(value) => adjustOption('taskTimeModifier', value)}
+                data={['0.5', '1', '1.5']}
+              />
+
+              {/* Debug */}
+              <Center><Text>Debug Mode</Text></Center>
+              <Center>
+                <Switch
+                  radius='md'
+                  size='lg'
+                  checked={gameState.debugMode}
+                  onChange={(event) => adjustOption('debugMode', event.currentTarget.checked)}
+                />
+              </Center>
+              
+            </SimpleGrid>
+          </Popover.Dropdown>
+        </Popover>
       </Group>
 
     </AppShell.Footer>
@@ -702,6 +766,16 @@ function OralTaskEvent({ gameState, setGameState }: EventInput) {
     }, gameState, setGameState)
   }
 
+  let speed = null
+  if (gameState.strokeSpeedUnit == 'bpm') {
+    speed = `${position.speed + speedBonus} BPM`
+  } else {
+    speed = `${bpmToPercent(position.speed + speedBonus)} %`
+  }
+
+  let duration = position.duration * parseFloat(gameState.taskTimeModifier ?? '1')
+  let durationDisplay = `${duration} min`
+
   return (
     <BasicEvent name='Oral Task' canContinue={timerFinished} nextEvent={nextEvent} image={`club-bambi/${slugify(position.name)}.png`} ratio={7 / 10}>
       <Stack>
@@ -711,17 +785,17 @@ function OralTaskEvent({ gameState, setGameState }: EventInput) {
         <Text>{position.task}</Text>
         {attributeTasks}
         <Group justify='center'>
-          <StatusGroup leftChildren='Duration' rightChildren={`${position.duration} min`} />
+          <StatusGroup leftChildren='Duration' rightChildren={durationDisplay} />
           {position.speed ?
             <StatusGroup
               leftChildren='Speed'
-              rightChildren={<Text span c={speedBonus ? Attributes[INSATIABLE].color : undefined}>{`${position.speed + speedBonus} BPM`}</Text>} />
+              rightChildren={<Text span c={speedBonus ? Attributes[INSATIABLE].color : undefined}>{speed}</Text>} />
             : null}
         </Group>
         <Divider />
         <Text>{modifier.task}</Text>
         <Divider />
-        <TaskTimer duration={position.duration} finishCallback={finishTimer} />
+        <TaskTimer duration={duration} finishCallback={finishTimer} debug={gameState.debugMode}/>
       </Stack>
     </BasicEvent>
   )
@@ -778,6 +852,16 @@ function AnalTaskEvent({ gameState, setGameState }: EventInput) {
     }, gameState, setGameState)
   }
 
+  let speed = null
+  if (gameState.strokeSpeedUnit == 'bpm') {
+    speed = `${position.speed + speedBonus} BPM`
+  } else {
+    speed = `${bpmToPercent(position.speed + speedBonus)} %`
+  }
+
+  let duration = position.duration * parseFloat(gameState.taskTimeModifier ?? '1')
+  let durationDisplay = `${duration} min`
+
   return (
     <BasicEvent name='Anal Task' canContinue={timerFinished} nextEvent={nextEvent} image={`club-bambi/${slugify(position.name)}.png`} ratio={7 / 10}>
       <Stack>
@@ -787,18 +871,18 @@ function AnalTaskEvent({ gameState, setGameState }: EventInput) {
         <Text>{position.task}</Text>
         {positionAttributeTasks}
         <Group justify='center'>
-          <StatusGroup leftChildren='Duration' rightChildren={`${position.duration} min`} />
+          <StatusGroup leftChildren='Duration' rightChildren={durationDisplay} />
           {position.speed ?
             <StatusGroup
               leftChildren='Speed'
-              rightChildren={<Text span c={speedBonus ? Attributes[INSATIABLE].color : undefined}>{`${position.speed + speedBonus} BPM`}</Text>} />
+              rightChildren={<Text span c={speedBonus ? Attributes[INSATIABLE].color : undefined}>{speed}</Text>} />
             : null}
         </Group>
         <Divider />
         <Text>{modifier.task}</Text>
         {modifierAttributeTasks}
         <Divider />
-        <TaskTimer duration={position.duration} finishCallback={finishTimer} />
+        <TaskTimer duration={duration} finishCallback={finishTimer} debug={gameState.debugMode}/>
       </Stack>
     </BasicEvent>
   )
@@ -954,7 +1038,7 @@ function CumNextEvent({ gameState, setGameState }: EventInput) {
     <BasicEvent name='Are They Satisfied?' canContinue={!!taskRoll} nextEvent={nextEvent} image='club-bambi/cum-next.png' ratio={7 / 10}>
       <Card.Section withBorder p='sm'>
         <Stack gap='xs'>
-          <Title ta='center' fz='h4'>Client&aposs Satisfaction Level: {gameState.satisfaction}</Title>
+          <Title ta='center' fz='h4'>Client&apos;s Satisfaction Level: {gameState.satisfaction}</Title>
           <Progress.Root radius='sm' size="xl">
             <Progress.Section value={Math.min(gameState.satisfaction * 10, 30)} color="red" animated />
             <Progress.Section value={Math.min(gameState.satisfaction * 10 - 30, 60)} color="green" animated />
@@ -1057,7 +1141,7 @@ function PunishmentEvent({ gameState, setGameState }: EventInput) {
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
     const mainEffect = decision.effect ?? undefined
-    const attributeEffects = Object.entries(decision.attributeEffects).map(([attribute, effect]: [Attribute, Effect]) => {
+    const attributeEffects = Object.entries(decision.attributeEffects ?? {}).map(([attribute, effect]: [Attribute, Effect]) => {
       if (Clients[gameState.client - 1].attributes.includes(attribute)) {
         return effect
       }
@@ -1195,7 +1279,7 @@ function PaymentEvent({ gameState, setGameState }: EventInput) {
         <Divider mt='sm' />
         <Text>Put on a mouth gag, chastity, and buttplug. Put yourself in a hogtie for 10 minutes.</Text>
         <Card.Section p='sm'>
-          <TaskTimer duration={10} finishCallback={allowContinue} />
+          <TaskTimer duration={10} finishCallback={allowContinue} debug={gameState.debugMode}/>
         </Card.Section>
       </>
     )
@@ -1224,7 +1308,7 @@ function EffectBadge({ effect }: { effect: Effect }) {
   )
 }
 
-function TaskTimer({ duration, finishCallback }: { duration: number, finishCallback?: () => void }) {
+function TaskTimer({ duration, finishCallback, debug }: { duration: number, finishCallback?: () => void, debug?: boolean }) {
   const [timerStarted, { open: startTimer }] = useDisclosure(false)
   const [timerRunning, { open: runTimer, close: stopTimer }] = useDisclosure(false)
 
@@ -1276,12 +1360,14 @@ function TaskTimer({ duration, finishCallback }: { duration: number, finishCallb
     )
   }
 
+  const debugButton = <ActionIcon flex={0} onClick={() => { stopTimer(); finishCallback() }}><IconBug /></ActionIcon>
+
   return (
     <Card withBorder style={{ borderColor: 'violet' }}>
       <Card.Section p='sm' withBorder>
         <Group grow preventGrowOverflow={false} justify='center'>
           <Title fz='h4' ta='center'>Task Timer</Title>
-          <ActionIcon flex={0} onClick={() => { stopTimer(); finishCallback() }}><IconBug /></ActionIcon>
+          {debug && debugButton}
         </Group>
       </Card.Section>
       <Card.Section p='sm' withBorder>

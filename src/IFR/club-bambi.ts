@@ -384,7 +384,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
     {
       min: 9,
       max: 10,
-      task: 'They demand that you moan and whine while they fucking you.',
+      task: 'They demand that you moan and whine while they fuck you.',
       attributeTasks: {
         [TRAINER]: 'They force your clitty into chastity while you are getting fucked.'
       }
@@ -756,6 +756,11 @@ export const effectDetails: { [name in Effect]: EffectDetail } = {
 }
 
 export interface GameState {
+  // Options
+  strokeSpeedUnit: 'bpm' | 'percent';
+  taskTimeModifier: '0.5' | '1' | '1.5';
+  debugMode: boolean;
+
   // Globals
   debtPaid: number;
   debt: number | null;
@@ -799,4 +804,8 @@ export function randRange(min: number, max: number, integer: boolean = true) {
   } else {
     return Math.random() * ((max - min) + 1) + min;
   }
+}
+
+export function bpmToPercent(bpm: number) {
+  return Math.min((bpm - 20) / 10 * 4 + 2, 100)
 }
