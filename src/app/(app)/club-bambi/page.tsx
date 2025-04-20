@@ -1223,6 +1223,9 @@ function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory
       'currentEvent': decision.next,
       'effects': new Set([...effects, ...gameState.effects])
     }, gameState, setGameState)
+    if (gameState.currentEvent == HUMILIATION) {
+      setTaskRoll(null)
+    }
   }
 
   let humiliation = null
@@ -1263,7 +1266,7 @@ function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory
         </Card.Section>
       </Collapse>
       <Center mt={!taskRoll ? 'md' : 0} mb='md'>
-        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 7)} />
+        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => 6} />
       </Center>
       <Collapse in={!!taskRoll}>
         {humiliation}
@@ -1291,6 +1294,9 @@ function PunishmentEvent({ gameState, setGameState, gameHistory, setGameHistory 
       'currentEvent': decision.next,
       'effects': new Set([...effects, ...gameState.effects])
     }, gameState, setGameState)
+    if (gameState.currentEvent == PUNISHMENT) {
+      setTaskRoll(null)
+    }
   }
 
   function rollPunishment() {
