@@ -1,11 +1,11 @@
 'use client'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
-import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, bpmToPercent, BREEDER, CLEANER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, EffectExpiration, eventDetails, events, findDecision, GameState, HUMILIATION, INSATIABLE, LIMP, LOCKED, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PERMALOCKED, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
-import { ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Modal, Popover, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Switch, Table, Tabs, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
-import { useDisclosure, useElementSize, useHover, useLocalStorage, useViewportSize } from "@mantine/hooks"
-import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh, IconRestore, IconSettings } from "@tabler/icons-react"
-import React, { useContext, useEffect, useMemo, useState } from "react"
+import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, bpmToPercent, BREEDER, CLEANER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, EffectExpiration, eventDetails, events, findDecision, GameHistory, GameLogRecord, GameState, HUMILIATION, INSATIABLE, LIMP, LOCKED, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PERMALOCKED, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
+import { Accordion, ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Modal, Popover, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Switch, Table, Tabs, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
+import { useDisclosure, useElementSize, useHover, useLocalStorage, useScrollIntoView, useViewportSize } from "@mantine/hooks"
+import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh, IconRestore, IconSettings, IconTemperature } from "@tabler/icons-react"
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react"
 import { PageContext } from '@/IFR/club-bambi'
 
 dayjs.extend(duration)
@@ -45,13 +45,18 @@ export default function Home() {
     defaultValue: defaultGameState,
     getInitialValueInEffect: true,
     serialize: (value) => {
-      const {effects, ...rest} = value
-      return JSON.stringify({effects: [...effects], ...rest})
+      const { effects, ...rest } = value
+      return JSON.stringify({ effects: [...effects], ...rest })
     },
     deserialize: (value) => {
-      const {effects, ...rest} = JSON.parse(value)
-      return {effects: new Set(effects as Effect[]), ...rest}
+      const { effects, ...rest } = JSON.parse(value)
+      return { effects: new Set(effects as Effect[]), ...rest }
     }
+  })
+
+  const [gameHistory, setGameHistory] = useLocalStorage<GameLogRecord[]>({
+    key: 'club-bambi-history',
+    defaultValue: [],
   })
 
   useEffect(() => {
@@ -63,67 +68,67 @@ export default function Home() {
   let event = null
   switch (gameState.currentEvent) {
     case DIFFICULTY:
-      event = (<DifficultyEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<DifficultyEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case UNIFORM:
-      event = (<UniformEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<UniformEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case CLIENT:
-      event = (<ClientEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<ClientEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case BONDAGE:
-      event = (<BondageEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<BondageEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case OUTFIT:
-      event = (<OutfitEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<OutfitEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case STARTING_TASK:
-      event = (<StartingTaskEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<StartingTaskEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case ORAL_POSITION:
     case ORAL_MODIFIER:
-      event = (<OralEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<OralEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case ORAL_TASK:
-      event = (<OralTaskEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<OralTaskEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case ORAL_NEXT:
-      event = (<OralNextEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<OralNextEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case ORAL_CUM:
-      event = (<OralCumEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<OralCumEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case ANAL_POSITION:
     case ANAL_MODIFIER:
-      event = (<AnalEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<AnalEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case ANAL_TASK:
-      event = (<AnalTaskEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<AnalTaskEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case ANAL_NEXT:
-      event = (<AnalNextEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<AnalNextEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case ANAL_CUM:
-      event = (<AnalCumEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<AnalCumEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case HUMILIATION:
-      event = (<HumiliationEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<HumiliationEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case PUNISHMENT:
-      event = (<PunishmentEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<PunishmentEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case CUM_NEXT:
-      event = (<CumNextEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<CumNextEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case PAYMENT:
-      event = (<PaymentEvent gameState={gameState} setGameState={setGameState} />)
+      event = (<PaymentEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
   }
 
   return (
     <>
-      <SidePanel gameState={gameState} setGameState={setGameState} />
-      <StatusBar gameState={gameState} setGameState={setGameState} />
+      <SidePanel gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />
+      <StatusBar gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />
       <AppShell.Main mt="md">
         <Container fluid>
           <Group grow preventGrowOverflow={false}>
@@ -140,7 +145,7 @@ export default function Home() {
   )
 }
 
-function SidePanel({ gameState, setGameState }: { gameState: GameState, setGameState: any }) {
+function SidePanel({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   function filterExpiration(expiration: EffectExpiration) {
     return function (effect) {
       return effectDetails[effect].expiration == expiration
@@ -152,10 +157,13 @@ function SidePanel({ gameState, setGameState }: { gameState: GameState, setGameS
   const currentClientEffects: Effect[] = useMemo(() => activeEffects.filter(filterExpiration('client')), [activeEffects])
   const currentGameEffects: Effect[] = useMemo(() => activeEffects.filter(filterExpiration('game')), [activeEffects])
 
+  const { ref: asideRef, height: asideHeight } = useElementSize()
+  const { ref: tabListRef, height: tabListHeight } = useElementSize()
+
   return (
-    <AppShell.Aside >
+    <AppShell.Aside ref={asideRef}>
       <Tabs variant='pills' defaultValue='effects'>
-        <Tabs.List grow p='xs'>
+        <Tabs.List grow p='xs' ref={tabListRef}>
           <Tabs.Tab value='effects' fz='h5'>
             Effects
           </Tabs.Tab>
@@ -163,59 +171,116 @@ function SidePanel({ gameState, setGameState }: { gameState: GameState, setGameS
             History
           </Tabs.Tab>
         </Tabs.List>
+
+        {/* Effects Panel */}
         <Tabs.Panel value='effects' p='xs'>
-          <Stack gap={0}>
-            {/* Task Effects */}
-            <Text fw='bold'>Task Effects</Text>
-            <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current task</Text>
-            {currentTaskEffects.length > 0
-              ? <EffectDisplayGroup effects={currentTaskEffects} />
-              : <Text ta='center' fw='lighter'> No active task effects!</Text>}
-            <Divider my='sm' />
+          <ScrollArea.Autosize mah={asideHeight - tabListHeight - 30} offsetScrollbars='y' type='hover'>
+            <Stack gap={0}>
+              {/* Outfit & Bondage */}
+              <Accordion variant='contained' mb='sm'>
+                <Accordion.Item value='bondage'>
+                  <Accordion.Control>Bondage</Accordion.Control>
+                  <Accordion.Panel>
+                    <DecisionTable activeRoll={gameState.bondage} cumulative={true} decisionSet={eventDetails[BONDAGE]} />
+                  </Accordion.Panel>
+                </Accordion.Item>
+                <Accordion.Item value='outfit'>
+                  <Accordion.Control>Outfit</Accordion.Control>
+                  <Accordion.Panel>
+                    <DecisionTable activeRoll={gameState.outfit} cumulative={true} decisionSet={eventDetails[OUTFIT]} />
+                  </Accordion.Panel>
+                </Accordion.Item>
+              </Accordion>
 
-            {/* Client Effects */}
-            <Text fw='bold'>Client Effects</Text>
-            <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current client</Text>
-            {currentClientEffects.length > 0
-              ? <EffectDisplayGroup effects={currentClientEffects} />
-              : <Text ta='center' fw='lighter'> No active client effects!</Text>}
-            <Divider my='sm' />
+              {/* Task Effects */}
+              <Text fw='bold'>Task Effects</Text>
+              <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current task</Text>
+              {currentTaskEffects.length > 0
+                ? <EffectDisplayGroup effects={currentTaskEffects} />
+                : <Text ta='center' fw='lighter'> No active task effects!</Text>}
+              <Divider my='sm' />
 
-            {/* Game Effects */}
-            <Text fw='bold'>Game Effects</Text>
-            <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current game</Text>
-            {currentGameEffects.length > 0
-              ? <EffectDisplayGroup effects={currentGameEffects} />
-              : <Text ta='center' fw='lighter'> No active game effects!</Text>}
-          </Stack>
+              {/* Client Effects */}
+              <Text fw='bold'>Client Effects</Text>
+              <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current client</Text>
+              {currentClientEffects.length > 0
+                ? <EffectDisplayGroup effects={currentClientEffects} />
+                : <Text ta='center' fw='lighter'> No active client effects!</Text>}
+              <Divider my='sm' />
+
+              {/* Game Effects */}
+              <Text fw='bold'>Game Effects</Text>
+              <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current game</Text>
+              {currentGameEffects.length > 0
+                ? <EffectDisplayGroup effects={currentGameEffects} />
+                : <Text ta='center' fw='lighter'> No active game effects!</Text>}
+            </Stack>
+          </ScrollArea.Autosize>
+        </Tabs.Panel>
+
+        {/* History Panel */}
+        <Tabs.Panel value='history' p='xs' >
+          <ScrollArea.Autosize mah={asideHeight - tabListHeight - 30} offsetScrollbars='y' type='hover'>
+            <Timeline active={gameHistory.length - 1} color={clubBambiTextColor} radius='md'>
+              {gameHistory.map((log, idx) => {
+                const [title, task] = LogItemProps(log)
+                return (
+                  <Timeline.Item key={idx} mt='sm' title={title}>
+                    <Text>{task}</Text>
+                  </Timeline.Item>
+                )
+              })}
+              <Timeline.Item mt='sm' title={LogItemProps({ event: gameState.currentEvent })[0]}>
+                <Text>{LogItemProps({ event: gameState.currentEvent })[1]}</Text>
+              </Timeline.Item>
+            </Timeline>
+          </ScrollArea.Autosize>
         </Tabs.Panel>
       </Tabs>
     </AppShell.Aside>
   )
 }
 
-function EventItem({ category, event, subevent }) {
-  let decision = null
-  if (subevent) {
-    decision = findDecision(events.indexOf(event) + 1, eventDetails[category][event][subevent]).task
-  } else {
-    decision = findDecision(events.indexOf(event) + 1, eventDetails[category][event]).task
+function LogItemProps(log: GameLogRecord) {
+  let task = null
+  if (log.roll) {
+    if (log.event == 'Client') {
+      task = Clients[log.roll - 1].name
+    } else if (log.event == 'Bondage' || log.event == 'Outfit') {
+      task = ''
+    } else if (eventDetails[log.event].length) {
+      let decision: Decision = findDecision(log.roll, eventDetails[log.event])
+      task = decision.name ?? decision.task ?? ''
+    } else {
+
+    }
   }
 
-  return (
-    <Timeline.Item title={<Text>{event}</Text>} bullet={Bullet(events.indexOf(event) + 1)}>
-      <Text c='dimmed'>{decision}</Text>
-    </Timeline.Item>
+  let rollBadge = null
+  if (log.roll) {
+    rollBadge = (
+      <Group justify='flex-end'>
+        <Tooltip label='Roll'>
+          <Badge radius='sm' color={clubBambiTextColor}>
+            <Text fz='sm' fw='bold'>{log.roll}</Text>
+          </Badge>
+        </Tooltip>
+      </Group>
+
+    )
+  }
+
+  let title = (
+    <Group grow preventGrowOverflow={false} mr='xs'>
+      <Text c={clubBambiTextColor}>{log.event}</Text>
+      {rollBadge}
+    </Group>
   )
+
+  return [title, task]
 }
 
-function Bullet(text) {
-  return (
-    <Text style={{ cursor: "pointer" }}>{text}</Text>
-  )
-}
-
-function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameState: (gameState: GameState) => void }) {
+function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const theme = useMantineTheme()
   const { hovered: uniformHovered, ref: uniformRef } = useHover()
   const { hovered: clientHovered, ref: clientRef } = useHover()
@@ -234,6 +299,12 @@ function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameS
     if (gameState.outfit >= 7) {
       uniformBonus += 1
     }
+  }
+
+  function resetGame() {
+    setGameState(defaultGameState)
+    setGameHistory([])
+    resetModalHandlers.close()
   }
 
   function adjustOption(option: string, value: any) {
@@ -358,7 +429,7 @@ function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameS
           <Text>Are you sure you want to reset your game state, progress, and options? This <strong>cannot</strong> be undone.</Text>
           <Group justify='flex-end' mt='sm' gap='xs'>
             <Button variant='default' onClick={resetModalHandlers.close}>Cancel</Button>
-            <Button color='red' onClick={() => { setGameState(defaultGameState); resetModalHandlers.close() }}>Confirm Reset</Button>
+            <Button color='red' onClick={resetGame}>Confirm Reset</Button>
           </Group>
         </Modal>
 
@@ -486,7 +557,12 @@ function BasicEvent({ children, name, canContinue, nextEvent, image, ratio }: { 
     </Group>
   )
 }
-type EventInput = { gameState: GameState, setGameState: (gameState: GameState) => void }
+type EventInput = {
+  gameState: GameState,
+  setGameState: (gameState: GameState) => void
+  gameHistory: GameLogRecord[],
+  setGameHistory: (gameHistory: GameLogRecord[]) => void
+}
 
 function DifficultyEvent({ gameState, setGameState }: EventInput) {
   const [difficultyChoice, setDifficultyChoice] = useState<'750' | '1500' | '2500'>('750')
@@ -500,6 +576,7 @@ function DifficultyEvent({ gameState, setGameState }: EventInput) {
       'debt': parseInt(difficultyChoice),
       'currentEvent': UNIFORM
     }, gameState, setGameState)
+
   }
 
   const data = [
@@ -522,7 +599,7 @@ function DifficultyEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function UniformEvent({ gameState, setGameState }: EventInput) {
+function UniformEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [uniformRoll, setUniformRoll] = useState<number | null>(null) //eslint-disable-line react-hooks/rules-of-hooks
 
   function setUniform(roll: number) {
@@ -531,6 +608,7 @@ function UniformEvent({ gameState, setGameState }: EventInput) {
   }
 
   function nextEvent() {
+    generateLogRecord({ event: gameState.currentEvent, roll: uniformRoll }, gameHistory, setGameHistory)
     modifyState({ 'currentEvent': CLIENT }, gameState, setGameState)
   }
 
@@ -557,14 +635,14 @@ function UniformEvent({ gameState, setGameState }: EventInput) {
       </Card.Section>
       <Card.Section p='xs'>
         <Center>
-          <Roller roll={uniformRoll} setRoll={setUniform} rollFn={r10} />
+          <Roller roll={uniformRoll} setRoll={setUniform} rollFn={() => randRange(1, 6)} />
         </Center>
       </Card.Section>
     </BasicEvent>
   )
 }
 
-function ClientEvent({ gameState, setGameState }: EventInput) {
+function ClientEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [clientRoll, setClientRoll] = useState<number | null>(null)
 
   function rollClient() {
@@ -583,6 +661,7 @@ function ClientEvent({ gameState, setGameState }: EventInput) {
   }
 
   function nextEvent() {
+    generateLogRecord({ event: gameState.currentEvent, roll: clientRoll }, gameHistory, setGameHistory)
     modifyState({ 'currentEvent': BONDAGE }, gameState, setGameState)
   }
 
@@ -612,7 +691,7 @@ function ClientEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function BondageEvent({ gameState, setGameState }: EventInput) {
+function BondageEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [bondageRoll, setBondageRoll] = useState<number | null>(null)
   const attributeDetail: AttributeDetail = Attributes['Kinky']
 
@@ -627,6 +706,7 @@ function BondageEvent({ gameState, setGameState }: EventInput) {
   }
 
   function nextEvent() {
+    generateLogRecord({ event: gameState.currentEvent, roll: bondageRoll }, gameHistory, setGameHistory)
     modifyState({ 'currentEvent': OUTFIT }, gameState, setGameState)
   }
 
@@ -644,7 +724,7 @@ function BondageEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function OutfitEvent({ gameState, setGameState }: EventInput) {
+function OutfitEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [outfitRoll, setOutfitRoll] = useState<number | null>(null)
   const attributeDetail: AttributeDetail = Attributes['Cosplay']
 
@@ -673,6 +753,7 @@ function OutfitEvent({ gameState, setGameState }: EventInput) {
   }
 
   function nextEvent() {
+    generateLogRecord({ event: gameState.currentEvent, roll: outfitRoll }, gameHistory, setGameHistory)
     modifyState({ 'currentEvent': STARTING_TASK }, gameState, setGameState)
   }
 
@@ -690,13 +771,13 @@ function OutfitEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function StartingTaskEvent({ gameState, setGameState }: EventInput) {
+function StartingTaskEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[STARTING_TASK]
 
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
-
+    generateLogRecord({ event: gameState.currentEvent, roll: taskRoll }, gameHistory, setGameHistory)
     modifyState({ 'currentEvent': decision.task }, gameState, setGameState)
   }
 
@@ -712,12 +793,14 @@ function StartingTaskEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function OralEvent({ gameState, setGameState }: EventInput) {
+function OralEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const throating = gameState.effects.has(A2M_THROATING)
   const [positionRoll, setPositionRoll] = useState<number | null>(throating ? 10 : null)
   const [modifierRoll, setModifierRoll] = useState<number | null>(throating ? 10 : null)
 
   function nextEvent() {
+    generateLogRecord({ event: ORAL_POSITION, roll: positionRoll }, gameHistory, setGameHistory)
+    generateLogRecord({ event: ORAL_MODIFIER, roll: modifierRoll }, gameHistory, setGameHistory)
     modifyState({
       'currentEvent': ORAL_TASK,
       'currentTask': {
@@ -749,11 +832,13 @@ function OralEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function AnalEvent({ gameState, setGameState }: EventInput) {
+function AnalEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [positionRoll, setPositionRoll] = useState<number | null>(null)
   const [modifierRoll, setModifierRoll] = useState<number | null>(null)
 
   function nextEvent() {
+    generateLogRecord({ event: ANAL_POSITION, roll: positionRoll }, gameHistory, setGameHistory)
+    generateLogRecord({ event: ANAL_MODIFIER, roll: modifierRoll }, gameHistory, setGameHistory)
     modifyState({
       'currentEvent': ANAL_TASK,
       'currentTask': {
@@ -785,7 +870,7 @@ function AnalEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function OralTaskEvent({ gameState, setGameState }: EventInput) {
+function OralTaskEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [timerFinished, { open: finishTimer }] = useDisclosure(false)
 
   const currentTask = gameState.currentTask
@@ -856,7 +941,7 @@ function OralTaskEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function AnalTaskEvent({ gameState, setGameState }: EventInput) {
+function AnalTaskEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [timerFinished, { open: finishTimer }] = useDisclosure(false)
 
   const currentTask = gameState.currentTask
@@ -945,12 +1030,13 @@ function AnalTaskEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function OralNextEvent({ gameState, setGameState }: EventInput) {
+function OralNextEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[ORAL_NEXT]
 
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
+    generateLogRecord({ event: gameState.currentEvent, roll: taskRoll }, gameHistory, setGameHistory)
     modifyState({ 'currentEvent': decision.task }, gameState, setGameState)
   }
 
@@ -967,12 +1053,13 @@ function OralNextEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function AnalNextEvent({ gameState, setGameState }: EventInput) {
+function AnalNextEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[ANAL_NEXT]
 
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
+    generateLogRecord({ event: gameState.currentEvent, roll: taskRoll }, gameHistory, setGameHistory)
     modifyState({ 'currentEvent': decision.task }, gameState, setGameState)
   }
 
@@ -988,7 +1075,7 @@ function AnalNextEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function OralCumEvent({ gameState, setGameState }: EventInput) {
+function OralCumEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [cumRoll, setCumRoll] = useState<number | null>(null)
 
   let cumMultiplier = 1
@@ -999,6 +1086,7 @@ function OralCumEvent({ gameState, setGameState }: EventInput) {
   }
 
   function nextEvent() {
+    generateLogRecord({ event: gameState.currentEvent, roll: cumRoll }, gameHistory, setGameHistory)
     modifyState({
       'currentEvent': CUM_NEXT,
       'satisfaction': gameState.satisfaction + 1 + satisfactionBonus
@@ -1033,7 +1121,7 @@ function OralCumEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function AnalCumEvent({ gameState, setGameState }: EventInput) {
+function AnalCumEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [cumRoll, setCumRoll] = useState<number | null>(null)
 
   let cumMultiplier = 1
@@ -1044,6 +1132,7 @@ function AnalCumEvent({ gameState, setGameState }: EventInput) {
   }
 
   function nextEvent() {
+    generateLogRecord({ event: gameState.currentEvent, roll: cumRoll }, gameHistory, setGameHistory)
     modifyState({
       'currentEvent': CUM_NEXT,
       'satisfaction': gameState.satisfaction + 1 + satisfactionBonus
@@ -1078,7 +1167,7 @@ function AnalCumEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function CumNextEvent({ gameState, setGameState }: EventInput) {
+function CumNextEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[CUM_NEXT]
 
@@ -1088,6 +1177,7 @@ function CumNextEvent({ gameState, setGameState }: EventInput) {
 
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
+    generateLogRecord({ event: gameState.currentEvent, roll: taskRoll }, gameHistory, setGameHistory)
     modifyState({ 'currentEvent': decision.task }, gameState, setGameState)
   }
 
@@ -1114,7 +1204,7 @@ function CumNextEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function HumiliationEvent({ gameState, setGameState }: EventInput) {
+function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[HUMILIATION]
 
@@ -1128,6 +1218,7 @@ function HumiliationEvent({ gameState, setGameState }: EventInput) {
     })
     const effects = [mainEffect, ...attributeEffects].filter((e) => e)
 
+    generateLogRecord({ event: gameState.currentEvent, roll: taskRoll }, gameHistory, setGameHistory)
     modifyState({
       'currentEvent': decision.next,
       'effects': new Set([...effects, ...gameState.effects])
@@ -1181,7 +1272,7 @@ function HumiliationEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function PunishmentEvent({ gameState, setGameState }: EventInput) {
+function PunishmentEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[PUNISHMENT]
 
@@ -1195,6 +1286,7 @@ function PunishmentEvent({ gameState, setGameState }: EventInput) {
     })
     const effects = [mainEffect, ...attributeEffects].filter((e) => e)
 
+    generateLogRecord({ event: gameState.currentEvent, roll: taskRoll }, gameHistory, setGameHistory)
     modifyState({
       'currentEvent': decision.next,
       'effects': new Set([...effects, ...gameState.effects])
@@ -1264,7 +1356,7 @@ function PunishmentEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function PaymentEvent({ gameState, setGameState }: EventInput) {
+function PaymentEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [paymentRoll, setPaymentRoll] = useState<number | null>(null)
   const [canContinue, { open: allowContinue }] = useDisclosure(!!paymentRoll)
   const decisionSet = eventDetails[PAYMENT]
@@ -1286,6 +1378,7 @@ function PaymentEvent({ gameState, setGameState }: EventInput) {
       payment = 50
     }
 
+    generateLogRecord({ event: gameState.currentEvent, roll: paymentRoll }, gameHistory, setGameHistory)
     modifyState({
       'currentEvent': CLIENT,
       'debtPaid': gameState.debtPaid + payment,
@@ -1589,6 +1682,19 @@ function modifyState(changes: { [attribute: string]: any }, gameState: GameState
   }
 
   setGameState(newGameState)
+}
+
+function generateLogRecord(record: GameLogRecord, gameHistory: GameHistory, setGameHistory: (gameHistory: GameHistory) => void) {
+  // if (record.event == CLIENT) {
+  //   gameHistory.push([record])
+  // } else if (record.event == UNIFORM) {
+  //   gameHistory.push(record)
+  // } else {
+  //   let currentClient = gameHistory[gameHistory.length - 1];
+  //   (currentClient as GameLogRecord[]).push(record)
+  // }
+  gameHistory.push(record)
+  setGameHistory(gameHistory)
 }
 
 function expireEffects(effects: Set<Effect>, expiration: 'task' | 'client' | 'game') {

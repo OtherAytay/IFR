@@ -32,7 +32,7 @@ export const theme = mergeMantineTheme(DEFAULT_THEME, themeOverride)
 
 
 export const Uniform = [
-  'Collar',
+  'Day Collar',
   'Panties & Bra',
   'Stockings',
   'Dress or Skirt & Top',
@@ -272,9 +272,9 @@ export const eventDetails: { [key in Event]: Decision[] } = {
   [CLIENT]: [],
   [BONDAGE]: [
     { min: 1, max: 3, task: 'Do nothing.' },
-    { min: 4, max: 5, task: 'Add a leash and tie it to something.' },
+    { min: 4, max: 5, task: 'Replace your day collar with a normal (wider) collar.' },
     { min: 6, max: 6, task: 'Add nipple clamps.' },
-    { min: 7, max: 7, task: 'Tie your hands behind your back.' },
+    { min: 7, max: 7, task: 'Tie your hands together.' },
     { min: 8, max: 8, task: 'Add butt plug when your ass is not in use.' },
     { min: 9, max: 9, task: 'Add gag when your mouth is not in use.' },
     { min: 10, max: 10, task: 'Tie your feet together.' },
@@ -818,6 +818,16 @@ export interface GameState {
 
   // Stats
   clientsServed: number;
+}
+
+export type GameHistory = (GameLogRecord | GameLogRecord[])[];
+// export interface GameHistory {
+
+// }
+
+export interface GameLogRecord {
+  event: Event;
+  roll?: number;
 }
 
 /* UTILITIES */
