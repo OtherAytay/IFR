@@ -131,7 +131,7 @@ export default function Home() {
       <StatusBar gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />
       <AppShell.Main mt="md">
         <Container fluid>
-          <Group grow preventGrowOverflow={false}>
+          <Group gap={0} grow preventGrowOverflow={false} wrap='nowrap'>
             <Container size="lg">
               {event}
             </Container>
