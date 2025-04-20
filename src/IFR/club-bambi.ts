@@ -575,7 +575,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
     {
       min: 6,
       max: 6,
-      task: 'Lock yourself in chastity for rest of this client. Listen to a hypno audio for 3 minutes while slapping your balls with a dildo.',
+      task: 'Lock yourself in chastity for rest of this client. Listen to a hypno audio for 3 minutes while slapping your balls with a dildo. Roll another humiliation.',
       description: 'They make fun of your pathetic clitty and compare it to a real cock.',
       effect: LOCKED,
       attributeEffects: {
@@ -645,7 +645,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
     },
     {
       min: 6,
-      max: 6,
+      max: 7,
       task: 'Insert your largest butt plug. Leave it in during the next oral.',
       description: 'Time to push your ass to its limits.',
       effect: PLUGGED,
@@ -654,16 +654,16 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       },
       next: ORAL_POSITION
     },
-    {
-      min: 7,
-      max: 7,
-      task: 'Tie a 500g weight to a buttplug and insert it. Let the weight hang and hold the plug in without hands for 2 minutes.',
-      description: 'You need to train to squeeze cocks inside your ass.',
-      attributeTasks: {
-        [SADISTIC]: 'Use a 1kg weight instead.'
-      },
-      next: ANAL_POSITION
-    },
+    // {
+    //   min: 7,
+    //   max: 7,
+    //   task: 'Tie a 500g weight to a buttplug and insert it. Let the weight hang and hold the plug in without hands for 2 minutes.',
+    //   description: 'You need to train to squeeze cocks inside your ass.',
+    //   attributeTasks: {
+    //     [SADISTIC]: 'Use a 1kg weight instead.'
+    //   },
+    //   next: ANAL_POSITION
+    // },
     {
       min: 8,
       max: 8,

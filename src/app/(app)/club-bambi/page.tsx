@@ -1306,7 +1306,18 @@ function PunishmentEvent({ gameState, setGameState, gameHistory, setGameHistory 
       roll = randRange(1, 10)
 
       const effects = gameState.effects
-      if (roll == 9) {
+      if (roll == 8) {
+        let uniformBonus = 0
+        if (gameState.client) {
+          if (gameState.outfit >= 3) {
+            uniformBonus += 1
+          }
+          if (gameState.outfit >= 7) {
+            uniformBonus += 1
+          }
+        }
+        valid = (gameState.uniform + uniformBonus >= 9)
+      } else if (roll == 9) {
         valid = !(effects.has(CLEANER))
       } else if (roll == 10) {
         valid = !(effects.has(LOCKED) || effects.has(PERMALOCKED) || effects.has(LIMP))
