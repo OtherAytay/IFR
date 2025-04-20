@@ -37,6 +37,8 @@ const initializeClient: Partial<GameState> = {
   outfit: 1,
 }
 
+const tooltipEvents = {hover: true, focus: true, touch: true}
+
 export default function Home() {
   const collapseContext: CollapseContext | null = useContext(PageContext)
 
@@ -260,7 +262,7 @@ function LogItemProps(log: GameLogRecord) {
   if (log.roll) {
     rollBadge = (
       <Group justify='flex-end'>
-        <Tooltip label='Roll'>
+        <Tooltip label='Roll' events={tooltipEvents}>
           <Badge radius='sm' color={clubBambiTextColor}>
             <Text fz='sm' fw='bold'>{log.roll}</Text>
           </Badge>
@@ -422,7 +424,7 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
         {/* Sexual Satisfaction */}
         {satisfactionStatus}
 
-        <Tooltip label='Reset Game'>
+        <Tooltip label='Reset Game' events={tooltipEvents}>
           <ActionIcon variant='subtle' size='lg' color='red' onClick={resetModalHandlers.open}><IconRestore /></ActionIcon>
         </Tooltip>
         <Modal title='Reset Game' opened={resetModalOpened} onClose={resetModalHandlers.close}>
@@ -436,7 +438,7 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
         {/* Options Popover */}
         <Popover offset={20}>
           <Popover.Target>
-            <Tooltip label='Options'>
+            <Tooltip label='Options' events={tooltipEvents}>
               <ActionIcon size='lg' variant='gradient'><IconSettings /></ActionIcon>
             </Tooltip>
           </Popover.Target>
@@ -454,7 +456,7 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
                 onChange={(value) => adjustOption('strokeSpeedUnit', value)}
                 data={[
                   { label: <Text span>BPM</Text>, value: 'bpm' },
-                  { label: <Tooltip label="Stroke Speed % of a Hismith machine"><Text span>%</Text></Tooltip>, value: 'percent' }]}
+                  { label: <Tooltip label="Stroke Speed % of a Hismith machine" events={tooltipEvents}><Text span>%</Text></Tooltip>, value: 'percent' }]}
               />
 
               {/* Task Time Modifier */}
@@ -525,7 +527,7 @@ function AttributeChip({ attribute }: { attribute: Attribute }) {
   const attributeDetail: AttributeDetail = Attributes[attribute]
 
   return (
-    <Tooltip label={attributeDetail.description} bg={attributeDetail.color} w={200} multiline>
+    <Tooltip label={attributeDetail.description} bg={attributeDetail.color} w={200}  events={tooltipEvents} multiline>
       <Badge radius="md" bg={attributeDetail.color} c='black'>{attribute}</Badge>
     </Tooltip>
   )
@@ -1386,19 +1388,12 @@ function PaymentEvent({ gameState, setGameState, gameHistory, setGameHistory }: 
   }
 
   function nextEvent() {
-    let payment = 0
-    if (paymentRoll == 1) {
-      payment = 150
-    } else if (paymentRoll >= 2 && paymentRoll <= 7) {
-      payment = 100
-    } else if (paymentRoll >= 8) {
-      payment = 50
-    }
+    const decision = findDecision(paymentRoll, decisionSet)
 
     generateLogRecord({ event: gameState.currentEvent, roll: paymentRoll }, gameHistory, setGameHistory)
     modifyState({
       'currentEvent': CLIENT,
-      'debtPaid': gameState.debtPaid + payment,
+      'debtPaid': gameState.debtPaid + decision.amount,
       'effects': expireEffects(gameState.effects, 'client'),
       'clientsServed': gameState.clientsServed + 1,
       ...initializeClient
@@ -1436,7 +1431,7 @@ function EffectBadge({ effect, attribute }: { effect: Effect, attribute?: Attrib
   const color = attribute ? Attributes[attribute].color : clubBambiTextColor
 
   return (
-    <Tooltip label={effectDetail.description}>
+    <Tooltip label={effectDetail.description} events={tooltipEvents}>
       <Badge color={color} radius='md'>{effect}</Badge>
     </Tooltip>
   )
