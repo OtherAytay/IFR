@@ -1266,7 +1266,7 @@ function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory
         </Card.Section>
       </Collapse>
       <Center mt={!taskRoll ? 'md' : 0} mb='md'>
-        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => 6} />
+        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 7)} />
       </Center>
       <Collapse in={!!taskRoll}>
         {humiliation}
