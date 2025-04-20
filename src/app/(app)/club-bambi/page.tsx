@@ -1,11 +1,11 @@
 'use client'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
-import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, bpmToPercent, BREEDER, CLEANER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, eventDetails, events, findDecision, GameState, HUMILIATION, INSATIABLE, LIMP, LOCKED, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PERMALOCKED, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
-import { ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Modal, Popover, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Switch, Table, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
+import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, bpmToPercent, BREEDER, CLEANER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, EffectExpiration, eventDetails, events, findDecision, GameState, HUMILIATION, INSATIABLE, LIMP, LOCKED, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PERMALOCKED, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
+import { ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Modal, Popover, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Switch, Table, Tabs, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
 import { useDisclosure, useElementSize, useHover, useLocalStorage, useViewportSize } from "@mantine/hooks"
 import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh, IconRestore, IconSettings } from "@tabler/icons-react"
-import React, { useContext, useEffect, useState } from "react"
+import React, { useContext, useEffect, useMemo, useState } from "react"
 import { PageContext } from '@/IFR/club-bambi'
 
 dayjs.extend(duration)
@@ -23,10 +23,11 @@ const defaultGameState: GameState = {
   satisfaction: 0,
   bondage: 1,
   outfit: 1,
-  effects: [],
+  effects: new Set(),
   strokeSpeedUnit: 'bpm',
   taskTimeModifier: '1',
-  debugMode: false
+  debugMode: false,
+  clientsServed: 0
 }
 
 const initializeClient: Partial<GameState> = {
@@ -43,6 +44,14 @@ export default function Home() {
     key: 'club-bambi-save',
     defaultValue: defaultGameState,
     getInitialValueInEffect: true,
+    serialize: (value) => {
+      const {effects, ...rest} = value
+      return JSON.stringify({effects: [...effects], ...rest})
+    },
+    deserialize: (value) => {
+      const {effects, ...rest} = JSON.parse(value)
+      return {effects: new Set(effects as Effect[]), ...rest}
+    }
   })
 
   useEffect(() => {
@@ -113,7 +122,7 @@ export default function Home() {
 
   return (
     <>
-      <TaskPanel />
+      <SidePanel gameState={gameState} setGameState={setGameState} />
       <StatusBar gameState={gameState} setGameState={setGameState} />
       <AppShell.Main mt="md">
         <Container fluid>
@@ -131,27 +140,56 @@ export default function Home() {
   )
 }
 
-function TaskPanel({ }) {
-  const [bondageRoll, setBondageRoll] = useState(2)
+function SidePanel({ gameState, setGameState }: { gameState: GameState, setGameState: any }) {
+  function filterExpiration(expiration: EffectExpiration) {
+    return function (effect) {
+      return effectDetails[effect].expiration == expiration
+    }
+  }
+
+  const activeEffects = [...gameState.effects]
+  const currentTaskEffects: Effect[] = useMemo(() => activeEffects.filter(filterExpiration('task')), [activeEffects])
+  const currentClientEffects: Effect[] = useMemo(() => activeEffects.filter(filterExpiration('client')), [activeEffects])
+  const currentGameEffects: Effect[] = useMemo(() => activeEffects.filter(filterExpiration('game')), [activeEffects])
 
   return (
     <AppShell.Aside >
-      <AppShell.Section p='xs'>
-        <Title ta='center' fz='h3'>Tasks</Title>
-      </AppShell.Section>
-      <Divider />
-      <AppShell.Section component={ScrollArea}>
-        {/* {Object.entries(eventCategories).map(([category, eventsInCategory], idx) => (
-          <AppShell.Section py='xs' px='md' key={idx}>
-            <Title ta='center' fz='h4'>{category}</Title>
-            <Timeline mt='xs' radius='sm' active={0} bulletSize={28}>
-              {eventsInCategory.map((event, idx) => (
-                <EventItem key={idx} category={category} event={event} subevent={event == CUM ? 'Oral' : undefined} />
-              ))}
-            </Timeline>
-          </AppShell.Section>
-        ))} */}
-      </AppShell.Section>
+      <Tabs variant='pills' defaultValue='effects'>
+        <Tabs.List grow p='xs'>
+          <Tabs.Tab value='effects' fz='h5'>
+            Effects
+          </Tabs.Tab>
+          <Tabs.Tab value='history' fz='h5'>
+            History
+          </Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value='effects' p='xs'>
+          <Stack gap={0}>
+            {/* Task Effects */}
+            <Text fw='bold'>Task Effects</Text>
+            <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current task</Text>
+            {currentTaskEffects.length > 0
+              ? <EffectDisplayGroup effects={currentTaskEffects} />
+              : <Text ta='center' fw='lighter'> No active task effects!</Text>}
+            <Divider my='sm' />
+
+            {/* Client Effects */}
+            <Text fw='bold'>Client Effects</Text>
+            <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current client</Text>
+            {currentClientEffects.length > 0
+              ? <EffectDisplayGroup effects={currentClientEffects} />
+              : <Text ta='center' fw='lighter'> No active client effects!</Text>}
+            <Divider my='sm' />
+
+            {/* Game Effects */}
+            <Text fw='bold'>Game Effects</Text>
+            <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current game</Text>
+            {currentGameEffects.length > 0
+              ? <EffectDisplayGroup effects={currentGameEffects} />
+              : <Text ta='center' fw='lighter'> No active game effects!</Text>}
+          </Stack>
+        </Tabs.Panel>
+      </Tabs>
     </AppShell.Aside>
   )
 }
@@ -314,20 +352,22 @@ function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameS
         {satisfactionStatus}
 
         <Tooltip label='Reset Game'>
-          <ActionIcon variant='filled' size='lg' color='red' onClick={resetModalHandlers.open}><IconRestore /></ActionIcon>
+          <ActionIcon variant='subtle' size='lg' color='red' onClick={resetModalHandlers.open}><IconRestore /></ActionIcon>
         </Tooltip>
         <Modal title='Reset Game' opened={resetModalOpened} onClose={resetModalHandlers.close}>
           <Text>Are you sure you want to reset your game state, progress, and options? This <strong>cannot</strong> be undone.</Text>
           <Group justify='flex-end' mt='sm' gap='xs'>
             <Button variant='default' onClick={resetModalHandlers.close}>Cancel</Button>
-            <Button color='red' onClick={() => {setGameState(defaultGameState); resetModalHandlers.close()}}>Confirm Reset</Button>
+            <Button color='red' onClick={() => { setGameState(defaultGameState); resetModalHandlers.close() }}>Confirm Reset</Button>
           </Group>
         </Modal>
 
         {/* Options Popover */}
         <Popover offset={20}>
           <Popover.Target>
-            <ActionIcon size='lg' variant='gradient'><IconSettings /></ActionIcon>
+            <Tooltip label='Options'>
+              <ActionIcon size='lg' variant='gradient'><IconSettings /></ActionIcon>
+            </Tooltip>
           </Popover.Target>
           <Popover.Dropdown>
             <Title mb='sm'>
@@ -365,7 +405,7 @@ function StatusBar({ gameState, setGameState }: { gameState: GameState, setGameS
                   onChange={(event) => adjustOption('debugMode', event.currentTarget.checked)}
                 />
               </Center>
-              
+
             </SimpleGrid>
           </Popover.Dropdown>
         </Popover>
@@ -471,8 +511,11 @@ function DifficultyEvent({ gameState, setGameState }: EventInput) {
   return (
     <BasicEvent name='Difficulty' canContinue={true} nextEvent={nextEvent} image='club-bambi/mistress-stella.png' ratio={2 / 3}>
       <Card.Section p='xs'>
-        <Center>
+        <SimpleGrid cols={2}>
+          <Center><Text fz='h3'>Debt for Freedom</Text></Center>
           <SegmentedControl size='lg' data={data} value={difficultyChoice} onChange={setDifficulty} />
+        </SimpleGrid>
+        <Center>
         </Center>
       </Card.Section>
     </BasicEvent>
@@ -524,6 +567,16 @@ function UniformEvent({ gameState, setGameState }: EventInput) {
 function ClientEvent({ gameState, setGameState }: EventInput) {
   const [clientRoll, setClientRoll] = useState<number | null>(null)
 
+  function rollClient() {
+    if (gameState.clientsServed == 0) {
+      return randRange(1, 6) // Include only clients with small or medium size
+    } else if (gameState.clientsServed == 1) {
+      return randRange(1, Clients.length - 1) // exclude clients with huge size
+    } else {
+      return randRange(1, Clients.length)
+    }
+  }
+
   function setClient(roll: number) {
     setClientRoll(roll)
     modifyState({ 'client': roll }, gameState, setGameState)
@@ -551,7 +604,7 @@ function ClientEvent({ gameState, setGameState }: EventInput) {
         ))}
       </SimpleGrid>
       <Center>
-        <Roller roll={clientRoll} setRoll={setClient} rollFn={() => randRange(1, Clients.length)} />
+        <Roller roll={clientRoll} setRoll={setClient} rollFn={rollClient} />
         <Button display={!clientRoll ? 'none' : undefined} ml='sm' variant='gradient' gradient={clubBambiGradient} onClick={nextEvent}>Continue</Button>
       </Center>
     </Stack>
@@ -660,7 +713,7 @@ function StartingTaskEvent({ gameState, setGameState }: EventInput) {
 }
 
 function OralEvent({ gameState, setGameState }: EventInput) {
-  const throating = gameState.effects.includes(A2M_THROATING)
+  const throating = gameState.effects.has(A2M_THROATING)
   const [positionRoll, setPositionRoll] = useState<number | null>(throating ? 10 : null)
   const [modifierRoll, setModifierRoll] = useState<number | null>(throating ? 10 : null)
 
@@ -773,7 +826,8 @@ function OralTaskEvent({ gameState, setGameState }: EventInput) {
     speed = `${bpmToPercent(position.speed + speedBonus)} %`
   }
 
-  let duration = position.duration * parseFloat(gameState.taskTimeModifier ?? '1')
+  let taskTimeModifier = parseFloat(gameState.debugMode ? '0.01' : gameState.taskTimeModifier ?? '1')
+  let duration = position.duration * taskTimeModifier
   let durationDisplay = `${duration} min`
 
   return (
@@ -791,11 +845,12 @@ function OralTaskEvent({ gameState, setGameState }: EventInput) {
               leftChildren='Speed'
               rightChildren={<Text span c={speedBonus ? Attributes[INSATIABLE].color : undefined}>{speed}</Text>} />
             : null}
+          {position.depth ? <StatusGroup leftChildren='Depth' rightChildren={position.depth} /> : null}
         </Group>
         <Divider />
         <Text>{modifier.task}</Text>
         <Divider />
-        <TaskTimer duration={duration} finishCallback={finishTimer} debug={gameState.debugMode}/>
+        <TaskTimer duration={duration} finishCallback={finishTimer} debug={gameState.debugMode} />
       </Stack>
     </BasicEvent>
   )
@@ -841,7 +896,7 @@ function AnalTaskEvent({ gameState, setGameState }: EventInput) {
 
   function nextEvent() {
     let nextEvent = ANAL_NEXT
-    if (gameState.effects.includes(A2M)) {
+    if (gameState.effects.has(A2M)) {
       nextEvent = ORAL_POSITION
     }
 
@@ -859,7 +914,8 @@ function AnalTaskEvent({ gameState, setGameState }: EventInput) {
     speed = `${bpmToPercent(position.speed + speedBonus)} %`
   }
 
-  let duration = position.duration * parseFloat(gameState.taskTimeModifier ?? '1')
+  let taskTimeModifier = parseFloat(gameState.debugMode ? '0.01' : gameState.taskTimeModifier ?? '1')
+  let duration = position.duration * taskTimeModifier
   let durationDisplay = `${duration} min`
 
   return (
@@ -877,12 +933,13 @@ function AnalTaskEvent({ gameState, setGameState }: EventInput) {
               leftChildren='Speed'
               rightChildren={<Text span c={speedBonus ? Attributes[INSATIABLE].color : undefined}>{speed}</Text>} />
             : null}
+          {position.depth ? <StatusGroup leftChildren='Depth' rightChildren={position.depth} /> : null}
         </Group>
         <Divider />
         <Text>{modifier.task}</Text>
         {modifierAttributeTasks}
         <Divider />
-        <TaskTimer duration={duration} finishCallback={finishTimer} debug={gameState.debugMode}/>
+        <TaskTimer duration={duration} finishCallback={finishTimer} debug={gameState.debugMode} />
       </Stack>
     </BasicEvent>
   )
@@ -1073,35 +1130,25 @@ function HumiliationEvent({ gameState, setGameState }: EventInput) {
 
     modifyState({
       'currentEvent': decision.next,
-      'effects': gameState.effects.concat(effects)
+      'effects': new Set([...effects, ...gameState.effects])
     }, gameState, setGameState)
   }
 
   let humiliation = null
   if (taskRoll) {
     const decision = findDecision(taskRoll, decisionSet)
-    const mainEffect = decision.effect ?? undefined
-    const attributeEffects = Object.entries(decision.attributeEffects ?? {}).map(([attribute, effect]: [Attribute, Effect]) => {
-      if (Clients[gameState.client - 1].attributes.includes(attribute)) {
-        return effect
-      }
-    })
-    const effects = [mainEffect, ...attributeEffects].filter((e) => e)
+    const attributes = Clients[gameState.client - 1].attributes
 
     humiliation = (
       <Stack gap='xs'>
         <Text>{decision.description}</Text>
         <Divider />
-        <Text fw='bold'>{decision.task}</Text>
+        <TaskDisplayGroup tasks={[decision.task]} attributes={attributes} attributeTasks={decision.attributeTasks} />
         <Divider />
-        {effects.length ?
+        {decision.effect || Object.keys(decision.attributeEffects ?? {}).length ?
           <>
             <Text ta='center' fz='h4' fw='bold'>Effects</Text>
-            <Group justify='center'>
-              {effects.map((effect, idx) => (
-                <EffectBadge key={idx} effect={effect} />
-              ))}
-            </Group>
+            <EffectDisplayGroup effects={[decision.effect]} attributes={attributes} attributeEffects={decision.attributeEffects} />
             <Divider />
           </>
           : null}
@@ -1150,7 +1197,7 @@ function PunishmentEvent({ gameState, setGameState }: EventInput) {
 
     modifyState({
       'currentEvent': decision.next,
-      'effects': gameState.effects.concat(effects)
+      'effects': new Set([...effects, ...gameState.effects])
     }, gameState, setGameState)
   }
 
@@ -1160,11 +1207,11 @@ function PunishmentEvent({ gameState, setGameState }: EventInput) {
     while (!valid) {
       roll = randRange(1, 10)
 
-      const e = gameState.effects
+      const effects = gameState.effects
       if (roll == 9) {
-        valid = !(e.includes(CLEANER))
+        valid = !(effects.has(CLEANER))
       } else if (roll == 10) {
-        valid = !(e.includes(LOCKED) || e.includes(PERMALOCKED) || e.includes(LIMP))
+        valid = !(effects.has(LOCKED) || effects.has(PERMALOCKED) || effects.has(LIMP))
       } else {
         valid = true
       }
@@ -1175,42 +1222,18 @@ function PunishmentEvent({ gameState, setGameState }: EventInput) {
   let punishment = null
   if (taskRoll) {
     const decision = findDecision(taskRoll, decisionSet)
-    const mainEffect = decision.effect ?? undefined
-    const attributeEffects = Object.entries(decision.attributeEffects ?? {}).map(([attribute, effect]: [Attribute, Effect]) => {
-      if (Clients[gameState.client - 1].attributes.includes(attribute)) {
-        return effect
-      }
-    })
-    const effects = [mainEffect, ...attributeEffects].filter((e) => e)
-
     const attributes = Clients[gameState.client - 1].attributes
-    let attributeTasks = []
-    if (decision.attributeTasks) {
-      for (const [attribute, task] of Object.entries(decision.attributeTasks as { [key in Attribute]?: string })) {
-        if (attributes.includes(attribute as Attribute)) {
-          const attributeDetail = Attributes[attribute]
-          attributeTasks.push((
-            <Text key={attribute} c={attributeDetail.color}>{task}</Text>
-          ))
-        }
-      }
-    }
 
     punishment = (
       <Stack gap='xs'>
         <Text>{decision.description}</Text>
         <Divider />
-        <Text fw='bold'>{decision.task}</Text>
-        {attributeTasks}
+        <TaskDisplayGroup tasks={[decision.task]} attributes={attributes} attributeTasks={decision.attributeTasks} />
         <Divider />
-        {effects.length ?
+        {decision.effect || Object.keys(decision.attributeEffects ?? {}).length ?
           <>
             <Text ta='center' fz='h4' fw='bold'>Effects</Text>
-            <Group justify='center'>
-              {effects.map((effect, idx) => (
-                <EffectBadge key={idx} effect={effect} />
-              ))}
-            </Group>
+            <EffectDisplayGroup effects={[decision.effect]} attributes={attributes} attributeEffects={decision.attributeEffects} />
             <Divider />
           </>
           : null}
@@ -1267,6 +1290,7 @@ function PaymentEvent({ gameState, setGameState }: EventInput) {
       'currentEvent': CLIENT,
       'debtPaid': gameState.debtPaid + payment,
       'effects': expireEffects(gameState.effects, 'client'),
+      'clientsServed': gameState.clientsServed + 1,
       ...initializeClient
     }, gameState, setGameState)
   }
@@ -1278,7 +1302,7 @@ function PaymentEvent({ gameState, setGameState }: EventInput) {
         <Divider mt='sm' />
         <Text>Put on a mouth gag, chastity, and buttplug. Put yourself in a hogtie for 10 minutes.</Text>
         <Card.Section p='sm'>
-          <TaskTimer duration={10} finishCallback={allowContinue} debug={gameState.debugMode}/>
+          <TaskTimer duration={10} finishCallback={allowContinue} debug={gameState.debugMode} />
         </Card.Section>
       </>
     )
@@ -1297,13 +1321,70 @@ function PaymentEvent({ gameState, setGameState }: EventInput) {
   )
 }
 
-function EffectBadge({ effect }: { effect: Effect }) {
+function EffectBadge({ effect, attribute }: { effect: Effect, attribute?: Attribute }) {
   const effectDetail: EffectDetail = effectDetails[effect]
+  const color = attribute ? Attributes[attribute].color : clubBambiTextColor
 
   return (
     <Tooltip label={effectDetail.description}>
-      <Badge color='grape' radius='md'>{effect}</Badge>
+      <Badge color={color} radius='md'>{effect}</Badge>
     </Tooltip>
+  )
+}
+
+function EffectDisplayGroup({ effects, attributes, attributeEffects }: { effects?: Effect[], attributes?: Attribute[], attributeEffects?: { [key in Attribute]?: Effect } }) {
+  let effectDisplay = []
+  if (effects) {
+    effectDisplay = effects.map((effect, idx) => (
+      <EffectBadge key={idx} effect={effect} />
+    ))
+  }
+
+  let attributeEffectDisplay = []
+  if (attributes && attributeEffects) {
+    for (const attribute of attributes) {
+      if (attribute in attributeEffects) {
+        attributeEffectDisplay.push(
+          <EffectBadge key={attribute} effect={attributeEffects[attribute]} attribute={attribute} />
+        )
+      }
+    }
+  }
+
+  return (
+    <Group justify='center'>
+      {effectDisplay}
+      {attributeEffectDisplay}
+    </Group>
+  )
+}
+
+function TaskDisplayGroup({ tasks, attributes, attributeTasks }: { tasks?: string[], attributes?: Attribute[], attributeTasks?: { [key in Attribute]?: string } }) {
+
+  let tasksDisplay = []
+  if (tasks) {
+    for (const task of tasks) {
+      tasksDisplay.push(<Text fw='bold'>{task}</Text>)
+    }
+  }
+
+  let attributeTasksDisplay = []
+  if (attributes && attributeTasks) {
+    for (const attribute of attributes) {
+      if (attribute in attributeTasks) {
+        const attributeDetail = Attributes[attribute]
+        attributeTasksDisplay.push((
+          <Text key={attribute} c={attributeDetail.color}>{attributeTasks[attribute]}</Text>
+        ))
+      }
+    }
+  }
+
+  return (
+    <Stack gap='xs'>
+      {tasks}
+      {attributeTasksDisplay}
+    </Stack>
   )
 }
 
@@ -1324,7 +1405,7 @@ function TaskTimer({ duration, finishCallback, debug }: { duration: number, fini
   useEffect(() => {
     if (timerRunning) {
       const interval = setInterval(() => {
-        if (dayjs(now) > dayjs(startTime).add(duration, 'minutes')) {
+        if (dayjs(new Date()) > dayjs(startTime).add(duration, 'minutes')) {
           stopTimer()
           if (finishCallback) { finishCallback() }
         } else {
@@ -1353,7 +1434,7 @@ function TaskTimer({ duration, finishCallback, debug }: { duration: number, fini
     progressElement = (
       <Group>
         <Text flex={0}>{elapsedTime}</Text>
-        <Progress flex={1} radius='sm' color='grape' size='xl' value={progress} animated={timerRunning} />
+        <Progress flex={1} radius='sm' color='grape' size='xl' value={timerRunning ? progress : 100} animated={timerRunning} />
         <Text flex={0}>{remainingTime}</Text>
       </Group>
     )
@@ -1510,6 +1591,6 @@ function modifyState(changes: { [attribute: string]: any }, gameState: GameState
   setGameState(newGameState)
 }
 
-function expireEffects(effects: Effect[], expiration: 'task' | 'client' | 'game') {
-  return effects.filter((effect) => effectDetails[effect].expiration != expiration)
+function expireEffects(effects: Set<Effect>, expiration: 'task' | 'client' | 'game') {
+  return new Set([...effects].filter((effect) => effectDetails[effect].expiration != expiration))
 }

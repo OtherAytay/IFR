@@ -234,11 +234,13 @@ export const events = [
   PAYMENT
 ]
 
+export type PenetrationDepth = 'Just the Head' | 'Halfway' | 'Balls Deep'
 export interface PenetrationTask {
   min: number;
   max: number;
   duration: number;
   speed?: number;
+  depth?: PenetrationDepth;
   name: string;
   task: string;
   description: string;
@@ -297,6 +299,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 2,
       duration: 8,
       speed: 60,
+      depth: 'Halfway',
       name: 'On Your Back',
       task: 'Fuck your ass while on your back, with your legs in the air.',
       description: 'They pick you up and throw you down on the bed. Grabbing your ankles and holding them over your head. There is a couple seconds where you hold your breath in anticipation but you can\'t help but moan as they enter your ass.'
@@ -306,6 +309,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 4,
       duration: 8,
       speed: 90,
+      depth: 'Balls Deep',
       name: 'Doggy Style',
       task: 'Fuck your ass doggy style.',
       description: 'You are forced onto all fours like a dog. They grab you by your hips and you yelp as they push their entire length inside you with no warning. Your mind short-circuits as they continue their assault on your ass.'
@@ -315,6 +319,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 6,
       duration: 5,
       speed: 120,
+      depth: 'Halfway',
       name: 'Bent Over',
       task: 'Bend over and fuck your ass.',
       description: 'They bend you over a table with your ass sticking out. Then they grab you by the hair and start pounding away. The only sounds; your moans mixed with a rythmic slapping sound as their balls smack against your ass.',
@@ -327,6 +332,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 8,
       duration: 8,
       speed: 90,
+      depth: 'Halfway',
       name: 'Cow Girl',
       task: 'Ride a Dildo.',
       description: 'They lie on their back, their throbbing cock standing right at attention. You climb on top of them and position your butt right over it, sinking down on its girthy length with a gasp, then starting to bounce up and down, gradually picking up speed.'
@@ -336,6 +342,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 9,
       duration: 10,
       speed: 40,
+      depth: 'Halfway',
       name: 'On Your Side',
       task: 'While on your side, steadily fuck your ass.',
       description: 'They turn you onto your side with your clitty tucked between your legs and spread your ass and inspect your hole before slowly fucking your ass like the bitch you are.'
@@ -345,6 +352,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 10,
       duration: 5,
       speed: 100,
+      depth: 'Balls Deep',
       name: 'Prone',
       task: 'Fuck your ass in the prone position.',
       description: 'They manhandle you to the bed, with a firm hand on your back pinning you down on your stomach. Your useless clitty smothered on the sheets. They lean over you and plunge their cock deep into your ass over and over again.'
@@ -394,14 +402,16 @@ export const eventDetails: { [key in Event]: Decision[] } = {
   [ANAL_NEXT]: [
     { min: 1, max: 5, task: ANAL_CUM },
     { min: 6, max: 6, task: ANAL_POSITION },
-    { min: 7, max: 8, task: HUMILIATION },
-    { min: 9, max: 10, task: PUNISHMENT }
+    { min: 7, max: 8, task: ORAL_POSITION },
+    { min: 9, max: 9, task: HUMILIATION },
+    { min: 10, max: 10, task: PUNISHMENT }
   ],
   [ORAL_POSITION]: [
     {
       min: 1,
       max: 2,
       duration: 5,
+      depth: 'Just the Head',
       name: 'Worship Cock',
       task: 'Attach a dildo to the wall and get on your kness. Rub your face all over it including the balls, then lick the head and up down the shaft worshipping it.',
       description: 'They grab the back of your head and rub your face all over their cock and balls, ordering you to worship it.',
@@ -410,11 +420,13 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       min: 3,
       max: 4,
       duration: 5,
+      speed: 60,
+      depth: 'Halfway',
       name: 'In Your Place',
       task: 'While on all fours, suck a dildo.',
       description: 'They sit down and tell you to begin. You crawl over on all fours between their legs, take their cock into your mouth and timidly begin sucking.',
       attributeTasks: {
-        [KINKY]: 'If you are wearing a leash, they sit on it, preventing you from taking the head of their cock out of your mouth.'
+        [KINKY]: 'They hold you close, preventing you from taking the head of their cock out of your mouth.'
       }
     },
     {
@@ -422,11 +434,13 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 6,
       duration: 5,
       speed: 60,
+      depth: 'Halfway',
       name: 'On Your Knees',
       task: 'Get on your knees with your hands behind your back. Stick a dildo to a wall and suck it.',
       description: 'They take hold of your head and force you to your knees. Sliding their hard cock between your lips over and over again.',
       attributeTasks: {
-        [TRAINER]: 'Have a picture of your client above the dildo and maintain eye contact.'
+        [TRAINER]: 'Have a picture of your client above the dildo and maintain eye contact.',
+        [KINKY]: 'Cuff your hands behind your back.'
       }
     },
     {
@@ -434,15 +448,20 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       max: 8,
       duration: 5,
       speed: 60,
+      depth: 'Halfway',
       name: 'Service Cock',
       task: 'Lick up and down the shaft every now and then, and use your hands while sucking the dildo.',
       description: 'They take hold of your head and force you to your knees. Sliding their hard cock between your lips over and over again.',
+      attributeTasks: {
+        [KINKY]: 'Insert an anal hook (or butt plug) and tie it to your collar during the blowjob.'
+      }
     },
     {
       min: 9,
       max: 9,
       duration: 4,
-      speed: 60,
+      speed: 90,
+      depth: 'Balls Deep',
       name: 'No Escape',
       task: 'Get on your knees with your back against the wall and fuck your throat. Afterwards, deepthroat 5 times for as long as you can.',
       description: 'They drag you to your knees by your hair and push you up against a wall. There will be no escape while he tests your deepthroating limits.',
@@ -455,13 +474,13 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       min: 10,
       max: 10,
       duration: 5,
-      speed: 90,
+      speed: 120,
+      depth: 'Balls Deep',
       name: 'Throat Fucked',
       task: 'Hang your head off the edge of a bed and fuck your throat, do not swallow any spit.',
       description: 'The shove you onto the bed with your head hanging off the edge. Then, they proceed to throat fuck you with a passion giving you no chance to catch your breath.',
       attributeTasks: {
         [COSPLAY]: 'Apply heavy eye makeup, including mascara, before getting fucked.',
-        [KINKY]: 'Insert an anal hook (or butt plug) and tie it to your collar while getting fucked.'
       }
     },
   ],
@@ -474,12 +493,18 @@ export const eventDetails: { [key in Event]: Decision[] } = {
     {
       min: 3,
       max: 4,
-      task: 'Every 1 minute, hold a deepthroat for as long as you can before continuing.'
+      task: 'Every 1 minute, hold a deepthroat for 5 seconds.',
+      attributeTasks: {
+        [ROUGH]: 'Hold the deepthroat until you gag.',
+      }
     },
     {
       min: 5,
       max: 6,
-      task: 'Occasionally spit on their cock.'
+      task: 'Occasionally spit on their cock.',
+      attributeTasks: {
+        [SADISTIC]: 'Do not swallow any spit during the blowjob.'
+      }
     },
     {
       min: 7,
@@ -492,9 +517,9 @@ export const eventDetails: { [key in Event]: Decision[] } = {
     {
       min: 9,
       max: 10,
-      task: 'The cock may never leave your mouth. You must keep some part of the cock / balls in your mouth at all times.',
+      task: 'Your lips must touch some part of the cock / balls at all times.',
       attributeTasks: {
-        [TRAINER]: 'They force your clitty into chastity while you are getting fucked.'
+        [TRAINER]: 'They force your clitty into chastity during the blowjob.'
       }
     },
   ],
@@ -502,7 +527,8 @@ export const eventDetails: { [key in Event]: Decision[] } = {
   [ORAL_NEXT]: [
     { min: 1, max: 5, task: ORAL_CUM },
     { min: 6, max: 7, task: ANAL_POSITION },
-    { min: 8, max: 9, task: HUMILIATION },
+    { min: 8, max: 8, task: ORAL_POSITION },
+    { min: 9, max: 9, task: HUMILIATION },
     { min: 10, max: 10, task: PUNISHMENT }
   ],
   [HUMILIATION]: [
@@ -661,6 +687,12 @@ export const eventDetails: { [key in Event]: Decision[] } = {
       min: 10,
       max: 10,
       task: 'Smack your clitty limp whenever it gets hard for the rest of this client.',
+      attributeTasks: {
+        [TRAINER]: 'Smack your clitty limp right now and lock in chastity for the rest of this client.'
+      },
+      attributeEffects: {
+        [TRAINER]: LOCKED
+      },
       description: 'Good girls know that their clitty is useless now and should stay limp at all times.',
       effect: LIMP,
       next: PUNISHMENT
@@ -695,9 +727,10 @@ export const eventDetails: { [key in Event]: Decision[] } = {
   ],
 }
 
+export type EffectExpiration = 'task' | 'client' | 'game'
 export interface EffectDetail {
   description: string;
-  expiration: 'task' | 'client' | 'game'
+  expiration: EffectExpiration
 }
 
 export const effectDetails: { [name in Effect]: EffectDetail } = {
@@ -774,14 +807,17 @@ export interface GameState {
   bondage: number | null;
   outfit: number | null;
 
-  //Task
+  // Task
   currentTask?: {
     task: Event
     position?: number
     modifier?: number
   }
 
-  effects: Effect[]
+  effects: Set<Effect>
+
+  // Stats
+  clientsServed: number;
 }
 
 /* UTILITIES */
