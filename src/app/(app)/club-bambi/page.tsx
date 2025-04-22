@@ -703,9 +703,19 @@ function ClientEvent({ gameState, setGameState, gameHistory, setGameHistory }: E
   )
 }
 
+function reroll(useReroll: () => void, gameState: GameState, setGameState: (gameState: GameState) => void) {
+  useReroll()
+  if (gameState.taskLeniency == 'client') {
+    modifyState({'rerollsRemaining': gameState.rerollsRemaining - 1}, gameState, setGameState)
+  }
+}
+
 function BondageEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [bondageRoll, setBondageRoll] = useState<number | null>(null)
   const attributeDetail: AttributeDetail = Attributes['Kinky']
+
+  const initialRerolls = gameState.taskLeniency == 'client' ? gameState.rerollsRemaining : gameState.taskLeniency == 'task' ? 1 : 0 
+  const [rerolls, {decrement: useReroll}] = useCounter(initialRerolls, {min: 0})
 
   let bondageBonus = 0
   if (Clients[gameState.client - 1].attributes.includes('Kinky')) {
@@ -728,7 +738,7 @@ function BondageEvent({ gameState, setGameState, gameHistory, setGameHistory }: 
         <DecisionTable activeRoll={bondageRoll ? bondageRoll + bondageBonus : null} cumulative={true} decisionSet={eventDetails[BONDAGE]} />
         <Center mt='sm'>
           <Indicator label={`+${bondageBonus}`} disabled={!bondageBonus} color={attributeDetail.color} size={14}>
-            <Roller roll={bondageRoll} setRoll={setBondage} rollFn={r10} />
+            <Roller roll={bondageRoll} setRoll={setBondage} rollFn={r10} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
           </Indicator>
         </Center>
       </Card.Section>
@@ -739,6 +749,9 @@ function BondageEvent({ gameState, setGameState, gameHistory, setGameHistory }: 
 function OutfitEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [outfitRoll, setOutfitRoll] = useState<number | null>(null)
   const attributeDetail: AttributeDetail = Attributes['Cosplay']
+
+  const initialRerolls = gameState.taskLeniency == 'client' ? gameState.rerollsRemaining : gameState.taskLeniency == 'task' ? 1 : 0 
+  const [rerolls, {decrement: useReroll}] = useCounter(initialRerolls, {min: 0})
 
   let outfitBonus = 0
   if (Clients[gameState.client - 1].attributes.includes('Cosplay')) {
@@ -775,7 +788,7 @@ function OutfitEvent({ gameState, setGameState, gameHistory, setGameHistory }: E
         <DecisionTable activeRoll={outfitRoll ? outfitRoll + outfitBonus : null} cumulative={true} decisionSet={eventDetails[OUTFIT]} />
         <Center mt='sm'>
           <Indicator label={`+${outfitBonus}`} disabled={!outfitBonus} color={attributeDetail.color} size={14}>
-            <Roller roll={outfitRoll} setRoll={setOutfit} rollFn={r10} />
+            <Roller roll={outfitRoll} setRoll={setOutfit} rollFn={r10} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
           </Indicator>
         </Center>
       </Card.Section>
@@ -786,6 +799,9 @@ function OutfitEvent({ gameState, setGameState, gameHistory, setGameHistory }: E
 function StartingTaskEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[STARTING_TASK]
+
+  const initialRerolls = gameState.taskLeniency == 'client' ? gameState.rerollsRemaining : gameState.taskLeniency == 'task' ? 1 : 0 
+  const [rerolls, {decrement: useReroll}] = useCounter(initialRerolls, {min: 0})
 
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
@@ -798,7 +814,7 @@ function StartingTaskEvent({ gameState, setGameState, gameHistory, setGameHistor
       <Card.Section>
         <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         <Center mt='sm'>
-          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={r10} />
+          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={r10} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
         </Center>
       </Card.Section>
     </BasicEvent>
@@ -809,6 +825,9 @@ function OralEvent({ gameState, setGameState, gameHistory, setGameHistory }: Eve
   const throating = gameState.effects.has(A2M_THROATING)
   const [positionRoll, setPositionRoll] = useState<number | null>(throating ? 10 : null)
   const [modifierRoll, setModifierRoll] = useState<number | null>(throating ? 10 : null)
+
+  const initialRerolls = gameState.taskLeniency == 'client' ? gameState.rerollsRemaining : gameState.taskLeniency == 'task' ? 1 : 0 
+  const [rerolls, {decrement: useReroll}] = useCounter(initialRerolls, {min: 0})
 
   function nextEvent() {
     generateLogRecord({ event: ORAL_POSITION, roll: positionRoll }, gameHistory, setGameHistory)
@@ -831,13 +850,13 @@ function OralEvent({ gameState, setGameState, gameHistory, setGameHistory }: Eve
         <Text fz='h3' fw='bold' ta='center'>Position</Text>
         <DecisionTable activeRoll={positionRoll} decisionSet={eventDetails[ORAL_POSITION]} />
         <Center>
-          <Roller roll={positionRoll} setRoll={setPositionRoll} rollFn={r10} readOnly={throating} />
+          <Roller roll={positionRoll} setRoll={setPositionRoll} rollFn={r10} readOnly={throating} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
         </Center>
         <Divider my='sm' />
         <Text fz='h3' fw='bold' ta='center'>Modifier</Text>
         <DecisionTable activeRoll={modifierRoll} decisionSet={eventDetails[ORAL_MODIFIER]} />
         <Center>
-          <Roller roll={modifierRoll} setRoll={setModifierRoll} rollFn={r10} readOnly={throating} />
+          <Roller roll={modifierRoll} setRoll={setModifierRoll} rollFn={r10} readOnly={throating} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
         </Center>
       </Stack>
     </BasicEvent>
@@ -847,6 +866,9 @@ function OralEvent({ gameState, setGameState, gameHistory, setGameHistory }: Eve
 function AnalEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [positionRoll, setPositionRoll] = useState<number | null>(null)
   const [modifierRoll, setModifierRoll] = useState<number | null>(null)
+
+  const initialRerolls = gameState.taskLeniency == 'client' ? gameState.rerollsRemaining : gameState.taskLeniency == 'task' ? 1 : 0 
+  const [rerolls, {decrement: useReroll}] = useCounter(initialRerolls, {min: 0})
 
   function nextEvent() {
     generateLogRecord({ event: ANAL_POSITION, roll: positionRoll }, gameHistory, setGameHistory)
@@ -869,13 +891,13 @@ function AnalEvent({ gameState, setGameState, gameHistory, setGameHistory }: Eve
         <Text fz='h3' fw='bold' ta='center'>Position</Text>
         <DecisionTable activeRoll={positionRoll} decisionSet={eventDetails[ANAL_POSITION]} />
         <Center>
-          <Roller roll={positionRoll} setRoll={setPositionRoll} rollFn={r10} />
+          <Roller roll={positionRoll} setRoll={setPositionRoll} rollFn={r10} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
         </Center>
         <Divider my='sm' />
         <Text fz='h3' fw='bold' ta='center'>Modifier</Text>
         <DecisionTable activeRoll={modifierRoll} decisionSet={eventDetails[ANAL_MODIFIER]} />
         <Center>
-          <Roller roll={modifierRoll} setRoll={setModifierRoll} rollFn={r10} />
+          <Roller roll={modifierRoll} setRoll={setModifierRoll} rollFn={r10} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
         </Center>
       </Stack>
     </BasicEvent>
@@ -1046,6 +1068,9 @@ function OralNextEvent({ gameState, setGameState, gameHistory, setGameHistory }:
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[ORAL_NEXT]
 
+  const initialRerolls = gameState.taskLeniency == 'client' ? gameState.rerollsRemaining : gameState.taskLeniency == 'task' ? 1 : 0 
+  const [rerolls, {decrement: useReroll}] = useCounter(initialRerolls, {min: 0})
+
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
     generateLogRecord({ event: gameState.currentEvent, roll: taskRoll }, gameHistory, setGameHistory)
@@ -1058,7 +1083,7 @@ function OralNextEvent({ gameState, setGameState, gameHistory, setGameHistory }:
       <Card.Section>
         <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         <Center mt='sm'>
-          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={r10} />
+          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={r10} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
         </Center>
       </Card.Section>
     </BasicEvent>
@@ -1068,6 +1093,9 @@ function OralNextEvent({ gameState, setGameState, gameHistory, setGameHistory }:
 function AnalNextEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[ANAL_NEXT]
+
+  const initialRerolls = gameState.taskLeniency == 'client' ? gameState.rerollsRemaining : gameState.taskLeniency == 'task' ? 1 : 0 
+  const [rerolls, {decrement: useReroll}] = useCounter(initialRerolls, {min: 0})
 
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
@@ -1080,7 +1108,7 @@ function AnalNextEvent({ gameState, setGameState, gameHistory, setGameHistory }:
       <Card.Section>
         <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         <Center mt='sm'>
-          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={r10} />
+          <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={r10} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
         </Center>
       </Card.Section>
     </BasicEvent>
@@ -1089,6 +1117,9 @@ function AnalNextEvent({ gameState, setGameState, gameHistory, setGameHistory }:
 
 function OralCumEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [cumRoll, setCumRoll] = useState<number | null>(null)
+
+  const initialRerolls = gameState.taskLeniency == 'client' ? gameState.rerollsRemaining : gameState.taskLeniency == 'task' ? 1 : 0 
+  const [rerolls, {decrement: useReroll}] = useCounter(initialRerolls, {min: 0})
 
   let cumMultiplier = 1
   let satisfactionBonus = 0
@@ -1118,7 +1149,7 @@ function OralCumEvent({ gameState, setGameState, gameHistory, setGameHistory }: 
       <Card.Section withBorder={!!cumRoll}>
         <DecisionTable activeRoll={cumRoll} decisionSet={decisionSet} />
         <Center my='sm'>
-          <Roller roll={cumRoll} setRoll={setCumRoll} rollFn={r10} />
+          <Roller roll={cumRoll} setRoll={setCumRoll} rollFn={r10} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
         </Center>
       </Card.Section>
       {cumRoll ?
@@ -1135,6 +1166,9 @@ function OralCumEvent({ gameState, setGameState, gameHistory, setGameHistory }: 
 
 function AnalCumEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [cumRoll, setCumRoll] = useState<number | null>(null)
+
+  const initialRerolls = gameState.taskLeniency == 'client' ? gameState.rerollsRemaining : gameState.taskLeniency == 'task' ? 1 : 0 
+  const [rerolls, {decrement: useReroll}] = useCounter(initialRerolls, {min: 0})
 
   let cumMultiplier = 1
   let satisfactionBonus = 0
@@ -1164,7 +1198,7 @@ function AnalCumEvent({ gameState, setGameState, gameHistory, setGameHistory }: 
       <Card.Section withBorder={!!cumRoll}>
         <DecisionTable activeRoll={cumRoll} decisionSet={decisionSet} />
         <Center my='sm'>
-          <Roller roll={cumRoll} setRoll={setCumRoll} rollFn={r10} />
+          <Roller roll={cumRoll} setRoll={setCumRoll} rollFn={r10} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
         </Center>
       </Card.Section>
       {cumRoll ?
@@ -1219,6 +1253,9 @@ function CumNextEvent({ gameState, setGameState, gameHistory, setGameHistory }: 
 function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[HUMILIATION]
+
+  const initialRerolls = gameState.taskLeniency == 'client' ? gameState.rerollsRemaining : gameState.taskLeniency == 'task' ? 1 : 0 
+  const [rerolls, {decrement: useReroll}] = useCounter(initialRerolls, {min: 0})
 
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
@@ -1279,7 +1316,7 @@ function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory
         </Card.Section>
       </Collapse>
       <Center mt={!taskRoll ? 'md' : 0} mb='md'>
-        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 7)} />
+        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 7)} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
       </Center>
       <Collapse in={!!taskRoll}>
         {humiliation}
@@ -1291,6 +1328,9 @@ function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory
 function PunishmentEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [taskRoll, setTaskRoll] = useState<number | null>(null)
   const decisionSet = eventDetails[PUNISHMENT]
+
+  const initialRerolls = gameState.taskLeniency == 'client' ? gameState.rerollsRemaining : gameState.taskLeniency == 'task' ? 1 : 0 
+  const [rerolls, {decrement: useReroll}] = useCounter(initialRerolls, {min: 0})
 
   function nextEvent() {
     const decision = findDecision(taskRoll, decisionSet)
@@ -1377,7 +1417,7 @@ function PunishmentEvent({ gameState, setGameState, gameHistory, setGameHistory 
         </Card.Section>
       </Collapse>
       <Center mt={!taskRoll ? 'md' : 0} mb='md'>
-        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={rollPunishment} />
+        <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={rollPunishment} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)}/>
       </Center>
       <Collapse in={!!taskRoll}>
         {punishment}
