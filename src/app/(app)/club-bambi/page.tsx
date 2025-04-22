@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
 import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, bpmToPercent, BREEDER, CLEANER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, EffectExpiration, eventDetails, events, findDecision, GameHistory, GameLogRecord, GameState, HUMILIATION, INSATIABLE, LIMP, LOCKED, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PERMALOCKED, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
 import { Accordion, ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Modal, Popover, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Switch, Table, Tabs, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
-import { useDisclosure, useElementSize, useHover, useLocalStorage, useScrollIntoView, useViewportSize } from "@mantine/hooks"
+import { useCounter, useDisclosure, useElementSize, useHover, useLocalStorage, useScrollIntoView, useViewportSize } from "@mantine/hooks"
 import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh, IconRestore, IconSettings, IconTemperature } from "@tabler/icons-react"
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react"
 import { PageContext } from '@/IFR/club-bambi'
@@ -15,10 +15,8 @@ const clubBambiTextColor = 'grape.4'
 
 const defaultGameState: GameState = {
   debtPaid: 0,
-  debt: null,
-  uniform: null,
+  taskLeniency: 'client',
   stage: 1,
-  client: null,
   currentEvent: DIFFICULTY,
   satisfaction: 0,
   bondage: 1,
@@ -134,7 +132,7 @@ export default function Home() {
       <AppShell.Main mt="md">
         <Container fluid>
           <Group gap={0} grow preventGrowOverflow={false} wrap='nowrap'>
-            <Container size="lg">
+            <Container size="xl">
               {event}
             </Container>
             <ActionIcon variant='subtle' flex={0} onClick={collapseContext.toggleStatePanel}>
@@ -568,31 +566,39 @@ type EventInput = {
 
 function DifficultyEvent({ gameState, setGameState }: EventInput) {
   const [difficultyChoice, setDifficultyChoice] = useState<'750' | '1500' | '2500'>('750')
-
-  function setDifficulty(difficulty: '750' | '1500' | '2500') {
-    setDifficultyChoice(difficulty)
-  }
+  const [leniencyChoice, setLeniencyChoice] = useState<'task' | 'client' | 'none'>(defaultGameState['taskLeniency'])
 
   function nextEvent() {
     modifyState({
       'debt': parseInt(difficultyChoice),
+      'taskLeniency': leniencyChoice,
       'currentEvent': UNIFORM
     }, gameState, setGameState)
-
   }
 
-  const data = [
+  const difficultyOptions = [
     { label: '$750', value: '750' },
     { label: '$1500', value: '1500' },
     { label: '$2500', value: '2500' }
+  ]
+
+  const leniencyOptions = [
+    {label: <Tooltip label='Allowed 1 reroll per task'><Text>Per Task</Text></Tooltip>, value: 'task'},
+    {label: <Tooltip label='Allowed 3 rerolls per client'><Text>Per Client</Text></Tooltip>, value: 'client'},
+    {label: <Tooltip label='No rerolls allowed'><Text>None</Text></Tooltip>, value: 'none'},
   ]
 
   return (
     <BasicEvent name='Difficulty' canContinue={true} nextEvent={nextEvent} image='club-bambi/mistress-stella.png' ratio={2 / 3}>
       <Card.Section p='xs'>
         <SimpleGrid cols={2}>
-          <Center><Text fz='h3'>Debt for Freedom</Text></Center>
-          <SegmentedControl size='lg' data={data} value={difficultyChoice} onChange={setDifficulty} />
+          {/* Debt */}
+          <Center><Text fz='h3'>Debt Owed</Text></Center>
+          <SegmentedControl data={difficultyOptions} value={difficultyChoice} onChange={setDifficultyChoice as () => void} />
+
+          {/* Task Leniency */}
+          <Center><Text fz='h3'>Task Leniency</Text></Center>
+          <SegmentedControl data={leniencyOptions} value={leniencyChoice} onChange={setLeniencyChoice as () => void} />
         </SimpleGrid>
         <Center>
         </Center>
@@ -603,6 +609,9 @@ function DifficultyEvent({ gameState, setGameState }: EventInput) {
 
 function UniformEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [uniformRoll, setUniformRoll] = useState<number | null>(null) //eslint-disable-line react-hooks/rules-of-hooks
+
+  const initialRerolls = gameState.taskLeniency == 'task' || gameState.taskLeniency == 'client' ? 1 : 0 
+  const [rerolls, {decrement: reroll}] = useCounter(initialRerolls, {min: 0, max: initialRerolls})
 
   function setUniform(roll: number) {
     setUniformRoll(roll)
@@ -637,7 +646,7 @@ function UniformEvent({ gameState, setGameState, gameHistory, setGameHistory }: 
       </Card.Section>
       <Card.Section p='xs'>
         <Center>
-          <Roller roll={uniformRoll} setRoll={setUniform} rollFn={() => randRange(1, 6)} />
+          <Roller roll={uniformRoll} setRoll={setUniform} rollFn={() => randRange(1, 6)} rerolls={rerolls} reroll={reroll} />
         </Center>
       </Card.Section>
     </BasicEvent>
@@ -659,7 +668,8 @@ function ClientEvent({ gameState, setGameState, gameHistory, setGameHistory }: E
 
   function setClient(roll: number) {
     setClientRoll(roll)
-    modifyState({ 'client': roll }, gameState, setGameState)
+    const rerollsRemaining = gameState.taskLeniency == 'client' ? {rerollsRemaining: 3} : {}
+    modifyState({ 'client': roll, ...rerollsRemaining}, gameState, setGameState)
   }
 
   function nextEvent() {
@@ -1227,6 +1237,7 @@ function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory
     }, gameState, setGameState)
     if (gameState.currentEvent == HUMILIATION) {
       setTaskRoll(null)
+      
     }
   }
 
@@ -1600,22 +1611,25 @@ function DecisionTable({ activeRoll, decisionSet, showDescription = false, cumul
 function Roller({ roll, setRoll, rollFn, rerolls, reroll, readOnly = false }: { roll: number, setRoll: any, rollFn: () => number, rerolls?: number, reroll?: () => void, readOnly?: boolean }) {
   const [rollStarted, { open: startRoll }] = useDisclosure(readOnly)
   const [rollFinished, { open: finishRoll, close: restartRoll }] = useDisclosure(readOnly)
+  const [rolled, {open: flagRoll}] = useDisclosure(readOnly)
 
-  const buttonStyle = rollStarted && rerolls ? undefined : { borderTopRightRadius: '0.5rem', borderBottomRightRadius: '0.5rem' }
+  const rollsLeft = (rerolls ?? 0) + (rolled ? 0 : 1)
+  const buttonStyle = rollStarted && rollsLeft ? undefined : { borderTopRightRadius: '0.5rem', borderBottomRightRadius: '0.5rem' }
 
   function handleRoll() {
-    if (!rollFinished || rerolls) {
+    if (!rollFinished || rollsLeft) {
       startRoll()
 
-      if (rerolls) {
+      if (rollsLeft) {
         restartRoll()
       }
 
       setTimeout(() => {
         setRoll(rollFn())
         finishRoll()
+        flagRoll()
 
-        if (rerolls) {
+        if (rolled && rollsLeft) {
           reroll()
         }
       }, 1500)
@@ -1624,7 +1638,7 @@ function Roller({ roll, setRoll, rollFn, rerolls, reroll, readOnly = false }: { 
 
   let buttonText = <><Text mr='xs'>Roll</Text><IconDice /></>
   if (rollFinished) {
-    if (rerolls) {
+    if (rollsLeft) {
       buttonText = <><Text mr='xs'>Reroll</Text><IconDice /></>
     } else {
       buttonText = <><Text mr='xs'>Rolled</Text><IconLock /></>
@@ -1634,14 +1648,14 @@ function Roller({ roll, setRoll, rollFn, rerolls, reroll, readOnly = false }: { 
   return (
     <Button.Group w='15rem'>
       <Button
-        fullWidth style={{ borderColor: 'violet', ...(!rerolls && !rollStarted && buttonStyle) }}
+        fullWidth style={{ borderColor: 'violet', ...(rollsLeft <= 1 && !rollStarted && buttonStyle) }}
         variant='gradient' gradient={clubBambiGradient}
-        disabled={rollFinished && !rerolls}
+        disabled={rollFinished && !rollsLeft}
         loading={rollStarted && !rollFinished} loaderProps={{ type: 'dots' }}
         onClick={handleRoll}>
         {buttonText}
       </Button>
-      <Button.GroupSection display={rerolls ? undefined : 'none'} variant='default' style={{ borderColor: 'violet', ...(rerolls && buttonStyle) }}>
+      <Button.GroupSection display={rollsLeft > 1 ? undefined : 'none'} variant='default' style={{ borderColor: 'violet', ...(rollsLeft && buttonStyle) }}>
         <Text mr='0.125rem'>{rerolls}</Text><IconRefresh size={18} />
       </Button.GroupSection>
       <Transition

@@ -796,16 +796,18 @@ export interface GameState {
 
   // Globals
   debtPaid: number;
-  debt: number | null;
-  uniform: number | null;
+  debt?: number | null;
+  taskLeniency: 'task' | 'client' | 'none'
+  uniform?: number | null;
   stage: number;
   currentEvent: Event;
 
   // Client
-  client: number | null;
+  client?: number | null;
   satisfaction: number | null;
   bondage: number | null;
   outfit: number | null;
+  rerollsRemaining?: number | null;
 
   // Task
   currentTask?: {
