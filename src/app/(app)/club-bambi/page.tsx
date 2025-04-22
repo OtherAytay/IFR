@@ -611,7 +611,7 @@ function UniformEvent({ gameState, setGameState, gameHistory, setGameHistory }: 
   const [uniformRoll, setUniformRoll] = useState<number | null>(null) //eslint-disable-line react-hooks/rules-of-hooks
 
   const initialRerolls = gameState.taskLeniency == 'task' || gameState.taskLeniency == 'client' ? 1 : 0 
-  const [rerolls, {decrement: reroll}] = useCounter(initialRerolls, {min: 0, max: initialRerolls})
+  const [rerolls, {decrement: reroll}] = useCounter(initialRerolls, {min: 0, max: initialRerolls}) //eslint-disable-line react-hooks/rules-of-hooks
 
   function setUniform(roll: number) {
     setUniformRoll(roll)
@@ -703,8 +703,8 @@ function ClientEvent({ gameState, setGameState, gameHistory, setGameHistory }: E
   )
 }
 
-function reroll(useReroll: () => void, gameState: GameState, setGameState: (gameState: GameState) => void) {
-  useReroll()
+function reroll(consumeReroll: () => void, gameState: GameState, setGameState: (gameState: GameState) => void) {
+  consumeReroll()
   if (gameState.taskLeniency == 'client') {
     modifyState({'rerollsRemaining': gameState.rerollsRemaining - 1}, gameState, setGameState)
   }
