@@ -146,8 +146,10 @@ export default function Home() {
 }
 
 function SidePanel({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
+  const [activeTab, setActiveTab] = useState<string>('Effects')
+
   function filterExpiration(expiration: EffectExpiration) {
-    return function (effect) {
+    return function (effect: Effect) {
       return effectDetails[effect].expiration == expiration
     }
   }
@@ -162,19 +164,21 @@ function SidePanel({ gameState, setGameState, gameHistory, setGameHistory }: Eve
 
   return (
     <AppShell.Aside ref={asideRef}>
-      <Tabs variant='pills' defaultValue='effects'>
-        <Tabs.List grow p='xs' ref={tabListRef}>
-          <Tabs.Tab value='effects' fz='h5'>
-            Effects
-          </Tabs.Tab>
-          <Tabs.Tab value='history' fz='h5'>
-            History
-          </Tabs.Tab>
-        </Tabs.List>
-
+      <SegmentedControl 
+        value={activeTab} 
+        onChange={setActiveTab} 
+        bg='none' 
+        color='violet' 
+        p='sm' 
+        pb={0} 
+        size='md' 
+        data={['Effects', 'History']} 
+        ref={tabListRef}
+      />
+      <Tabs value={activeTab}>
         {/* Effects Panel */}
-        <Tabs.Panel value='effects' p='xs'>
-          <ScrollArea.Autosize mah={asideHeight - tabListHeight - 30} offsetScrollbars='y' type='hover'>
+        <Tabs.Panel value='Effects' p='xs'>
+          <ScrollArea.Autosize mah={asideHeight - tabListHeight - 33} offsetScrollbars='y' type='hover'>
             <Stack gap={0}>
               {/* Outfit & Bondage */}
               <Accordion variant='contained' mb='sm'>
@@ -219,7 +223,7 @@ function SidePanel({ gameState, setGameState, gameHistory, setGameHistory }: Eve
         </Tabs.Panel>
 
         {/* History Panel */}
-        <Tabs.Panel value='history' p='xs' >
+        <Tabs.Panel value='History' p='xs' >
           <ScrollArea.Autosize mah={asideHeight - tabListHeight - 30} offsetScrollbars='y' type='hover'>
             <Timeline active={gameHistory.length - 1} color={clubBambiTextColor} radius='md'>
               {gameHistory.map((log, idx) => {
@@ -594,11 +598,11 @@ function DifficultyEvent({ gameState, setGameState }: EventInput) {
         <SimpleGrid cols={2}>
           {/* Debt */}
           <Center><Text fz='h3'>Debt Owed</Text></Center>
-          <SegmentedControl data={difficultyOptions} value={difficultyChoice} onChange={setDifficultyChoice as () => void} />
+          <SegmentedControl color='violet' data={difficultyOptions} value={difficultyChoice} onChange={setDifficultyChoice as () => void} />
 
           {/* Task Leniency */}
           <Center><Text fz='h3'>Task Leniency</Text></Center>
-          <SegmentedControl data={leniencyOptions} value={leniencyChoice} onChange={setLeniencyChoice as () => void} />
+          <SegmentedControl color='violet' data={leniencyOptions} value={leniencyChoice} onChange={setLeniencyChoice as () => void} />
         </SimpleGrid>
         <Center>
         </Center>
