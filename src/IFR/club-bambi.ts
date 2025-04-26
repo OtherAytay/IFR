@@ -188,7 +188,7 @@ export const Stages: Stage[] = [
 export type Event = (
   'Difficulty' | 'Uniform' | 'Client' | 'Bondage' | 'Outfit' | 'Starting Task'
   | 'Oral Position' | 'Oral Modifier' | 'Oral Next Task' | 'Anal Position' | 'Anal Modifier' | 'Anal Next Task'
-  | 'Humiliation' | 'Punishment' | 'Oral Cum' | 'Anal Cum' | 'Cum Next Task' | 'Payment' | 'Oral Task' | 'Anal Task'
+  | 'Humiliation' | 'Punishment' | 'Oral Cum' | 'Anal Cum' | 'Cum Next Task' | 'Payment' | 'Oral Task' | 'Anal Task' | 'Induction'
 )
 export const DIFFICULTY = 'Difficulty'
 export const UNIFORM = 'Uniform'
@@ -210,11 +210,13 @@ export const ORAL_CUM = 'Oral Cum'
 export const ANAL_CUM = 'Anal Cum'
 export const CUM_NEXT = 'Cum Next Task'
 export const PAYMENT = 'Payment'
+export const INDUCTION = 'Induction'
 
 export const events = [
   DIFFICULTY,
   UNIFORM,
   CLIENT,
+  INDUCTION,
   BONDAGE,
   OUTFIT,
   STARTING_TASK,
@@ -270,6 +272,7 @@ export const eventDetails: { [key in Event]: Decision[] } = {
   [DIFFICULTY]: [],
   [UNIFORM]: [],
   [CLIENT]: [],
+  [INDUCTION]: [],
   [BONDAGE]: [
     { min: 1, max: 3, task: 'Do nothing.' },
     { min: 4, max: 5, task: 'Replace your day collar with a normal (wider) collar.' },

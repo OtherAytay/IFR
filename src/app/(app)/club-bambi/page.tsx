@@ -1,7 +1,7 @@
 'use client'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
-import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, bpmToPercent, BREEDER, CLEANER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, EffectExpiration, eventDetails, events, findDecision, GameHistory, GameLogRecord, GameState, HUMILIATION, INSATIABLE, LIMP, LOCKED, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PERMALOCKED, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
+import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, bpmToPercent, BREEDER, CLEANER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, EffectExpiration, eventDetails, events, findDecision, GameHistory, GameLogRecord, GameState, HUMILIATION, INDUCTION, INSATIABLE, LIMP, LOCKED, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PERMALOCKED, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
 import { Accordion, ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Modal, Popover, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Switch, Table, Tabs, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
 import { useCounter, useDisclosure, useElementSize, useHover, useLocalStorage, useScrollIntoView, useViewportSize } from "@mantine/hooks"
 import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh, IconRestore, IconSettings, IconTemperature } from "@tabler/icons-react"
@@ -75,6 +75,9 @@ export default function Home() {
       break;
     case CLIENT:
       event = (<ClientEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
+      break;
+    case INDUCTION:
+      event = (<InductionEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
       break;
     case BONDAGE:
       event = (<BondageEvent gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />)
@@ -267,8 +270,8 @@ function EventHistoryItem({ log, value }: { log: GameLogRecord, value: string })
 
   return (
     <Accordion.Item value={value}>
-      <Accordion.Control>{title}</Accordion.Control>
-      <Accordion.Panel>{task}</Accordion.Panel>
+      <Accordion.Control style={!task && {'pointerEvents': 'none'}} chevron={!task && <></>}>{title}</Accordion.Control>
+      {task ? <Accordion.Panel>{task}</Accordion.Panel> : null}
     </Accordion.Item>
   )
 }
@@ -704,6 +707,10 @@ function ClientEvent({ gameState, setGameState, gameHistory, setGameHistory }: E
     modifyState({ 'client': roll, ...rerollsRemaining }, gameState, setGameState)
   }
 
+  function induction() {
+    modifyState({ 'currentEvent': INDUCTION }, gameState, setGameState)
+  }
+
   function nextEvent() {
     generateLogRecord({ event: gameState.currentEvent, roll: clientRoll }, gameHistory, setGameHistory)
     modifyState({ 'currentEvent': BONDAGE }, gameState, setGameState)
@@ -726,12 +733,41 @@ function ClientEvent({ gameState, setGameState, gameHistory, setGameHistory }: E
           </Card>
         ))}
       </SimpleGrid>
-      <Center>
+      <Center mb='sm'>
         <Roller roll={clientRoll} setRoll={setClient} rollFn={rollClient} />
         <Button display={!clientRoll ? 'none' : undefined} ml='sm' variant='gradient' gradient={clubBambiGradient} onClick={nextEvent}>Continue</Button>
+        <Button display={clientRoll ? 'none' : undefined} ml='sm' variant='gradient' gradient={clubBambiGradient} onClick={induction}>Request Induction</Button>
       </Center>
     </Stack>
 
+  )
+}
+
+function InductionEvent({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
+  const [timerFinished, { open: finishTimer }] = useDisclosure(false)
+
+  function nextEvent() {
+    if (timerFinished) {
+      generateLogRecord({ event: gameState.currentEvent }, gameHistory, setGameHistory)
+    }
+    modifyState({ 'currentEvent': CLIENT }, gameState, setGameState)
+  }
+
+  return (
+    <BasicEvent name='Induction' canContinue={true} nextEvent={nextEvent} image='club-bambi/induction.png' ratio={33 / 50}>
+      <Stack>
+        <Text>
+          The bambi state of mind converts pain and humiliation into pleasure. 
+          Bambis may request an induction session to induce or reinforce this state of mind to physically and mentally prepare for their next client.
+        </Text>
+        <Divider />
+        <Text>
+          Insert a medium buttplug and listen to <a href="https://bambicloud.com/playlist/5c030156-6009-4262-8e2e-80481ee203b9" target='_blank' rel='noreferrer noopener'>Bambi File</a> titled &quot;Fake Plastic Fuckpuppet&quot;
+        </Text>
+        <Divider />
+        <TaskTimer duration={916 / 60} finishCallback={finishTimer} debug={gameState.debugMode} />
+      </Stack>
+    </BasicEvent>
   )
 }
 
@@ -1785,7 +1821,7 @@ function modifyState(changes: { [attribute: string]: any }, gameState: GameState
 function generateLogRecord(record: GameLogRecord, gameHistory: GameHistory, setGameHistory: (gameHistory: GameHistory) => void) {
   if (record.event == CLIENT) {
     gameHistory.push([record])
-  } else if (record.event == UNIFORM) {
+  } else if ([UNIFORM, INDUCTION].indexOf(record.event) != -1) {
     gameHistory.push(record)
   } else {
     let currentClient = gameHistory[gameHistory.length - 1];
