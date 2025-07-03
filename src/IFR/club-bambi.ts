@@ -810,6 +810,7 @@ export interface GameState {
   satisfaction: number | null;
   bondage: number | null;
   outfit: number | null;
+  previewUniformIncrease: number | null;
   rerollsRemaining?: number | null;
 
   // Task

@@ -21,6 +21,7 @@ const defaultGameState: GameState = {
   satisfaction: 0,
   bondage: 1,
   outfit: 1,
+  previewUniformIncrease: 0,
   effects: new Set(),
   strokeSpeedUnit: 'bpm',
   taskTimeModifier: '1',
@@ -326,12 +327,13 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
   const clientDetail: Client = Clients[gameState.client - 1]
   const stageDetail: Stage = Stages[gameState.stage - 1]
 
+  const uniformValue = gameState.uniform + (gameState.previewUniformIncrease ?? 0)
   let uniformBonus = 0
   if (gameState.client) {
     if (gameState.outfit >= 3) {
       uniformBonus += 1
     }
-    if (gameState.outfit >= 7) {
+    if (gameState.outfit >= 8) {
       uniformBonus += 1
     }
   }
@@ -350,10 +352,10 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
   for (let i = 0; i < Uniform.length / 2; i++) {
     UniformTable.push((
       <Table.Tr key={i}>
-        <Table.Th c={gameState.uniform + uniformBonus >= i + 1 ? 'grape.4' : undefined}>{i + 1}</Table.Th>
-        <Table.Td c={gameState.uniform + uniformBonus >= i + 1 ? 'grape.4' : undefined}>{Uniform[i]}</Table.Td>
-        <Table.Th c={gameState.uniform + uniformBonus >= i + 7 ? 'grape.4' : undefined}>{i + 7}</Table.Th>
-        <Table.Td c={gameState.uniform + uniformBonus >= i + 7 ? 'grape.4' : undefined}>{Uniform[i + 6]}</Table.Td>
+        <Table.Th c={uniformValue + uniformBonus >= i + 1 ? 'grape.4' : undefined}>{i + 1}</Table.Th>
+        <Table.Td c={uniformValue + uniformBonus >= i + 1 ? 'grape.4' : undefined}>{Uniform[i]}</Table.Td>
+        <Table.Th c={uniformValue + uniformBonus >= i + 7 ? 'grape.4' : undefined}>{i + 7}</Table.Th>
+        <Table.Td c={uniformValue + uniformBonus >= i + 7 ? 'grape.4' : undefined}>{Uniform[i + 6]}</Table.Td>
       </Table.Tr>
     ))
   }
@@ -422,7 +424,7 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
                 <Group>
                   <Text>Uniform</Text>
                   <Divider orientation="vertical" />
-                  <Text>{gameState.uniform}</Text>
+                  <Text>{uniformValue.toString()}</Text>
                 </Group>
               </Card>
             </Indicator>
@@ -839,15 +841,30 @@ function OutfitEvent({ gameState, setGameState, gameHistory, setGameHistory }: E
       uniformIncrease++
     }
 
-    modifyState({
-      'uniform': gameState.uniform + uniformIncrease,
-      'outfit': finalRoll
+    return modifyState({
+      'outfit': finalRoll,
+      'previewUniformIncrease': uniformIncrease
     }, gameState, setGameState)
   }
 
   function nextEvent() {
     generateLogRecord({ event: gameState.currentEvent, roll: outfitRoll }, gameHistory, setGameHistory)
-    modifyState({ 'currentEvent': STARTING_TASK }, gameState, setGameState)
+
+    const finalRoll = outfitRoll + outfitBonus
+
+    let uniformIncrease = 0
+    if (finalRoll >= 9) {
+      uniformIncrease++
+    }
+    if (finalRoll >= 10) {
+      uniformIncrease++
+    }
+
+    modifyState({ 
+      'uniform': gameState.uniform + uniformIncrease,
+      'previewUniformIncrease': 0,
+      'currentEvent': STARTING_TASK,
+    }, gameState, setGameState)
   }
 
   return (
@@ -856,7 +873,7 @@ function OutfitEvent({ gameState, setGameState, gameHistory, setGameHistory }: E
         <DecisionTable activeRoll={outfitRoll ? outfitRoll + outfitBonus : null} cumulative={true} decisionSet={eventDetails[OUTFIT]} />
         <Center mt='sm'>
           <Indicator label={`+${outfitBonus}`} disabled={!outfitBonus} color={attributeDetail.color} size={14}>
-            <Roller roll={outfitRoll} setRoll={setOutfit} rollFn={r10} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)} />
+            <Roller roll={outfitRoll} setRoll={setOutfit} rollFn={r10} rerolls={rerolls} reroll={(newGameState) => reroll(useReroll, newGameState, setGameState)} />
           </Indicator>
         </Center>
       </Card.Section>
@@ -1716,7 +1733,7 @@ function DecisionTable({ activeRoll, decisionSet, showDescription = false, cumul
   )
 }
 
-function Roller({ roll, setRoll, rollFn, rerolls, reroll, readOnly = false }: { roll: number, setRoll: any, rollFn: () => number, rerolls?: number, reroll?: () => void, readOnly?: boolean }) {
+function Roller({ roll, setRoll, rollFn, rerolls, reroll, readOnly = false }: { roll: number, setRoll: any, rollFn: () => number, rerolls?: number, reroll?: (newGameState?: GameState) => void, readOnly?: boolean }) {
   const [rollStarted, { open: startRoll }] = useDisclosure(readOnly)
   const [rollFinished, { open: finishRoll, close: restartRoll }] = useDisclosure(readOnly)
   const [rolled, { open: flagRoll }] = useDisclosure(readOnly)
@@ -1733,12 +1750,12 @@ function Roller({ roll, setRoll, rollFn, rerolls, reroll, readOnly = false }: { 
       }
 
       setTimeout(() => {
-        setRoll(rollFn())
+        let newGameState = setRoll(rollFn())
         finishRoll()
         flagRoll()
 
         if (rolled && rollsLeft) {
-          reroll()
+          reroll(newGameState)
         }
       }, 1500)
     }
@@ -1816,6 +1833,7 @@ function modifyState(changes: { [attribute: string]: any }, gameState: GameState
   }
 
   setGameState(newGameState)
+  return newGameState
 }
 
 function generateLogRecord(record: GameLogRecord, gameHistory: GameHistory, setGameHistory: (gameHistory: GameHistory) => void) {
