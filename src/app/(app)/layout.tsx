@@ -15,6 +15,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AppShell
       h="100%"
+      padding={usePathname() === '/create' ? 0 : 'md'}
       header={{ height: "3.5rem", collapsed: false, offset: true }}
       navbar={{ width: "20rem", breakpoint: 'sm', collapsed: { mobile: !opened, desktop: true } }}
       aside={{ width: "20rem", breakpoint: 'sm', collapsed: {mobile: !statePanelOpened, desktop: !statePanelOpened}}}
@@ -24,7 +25,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         statePanelOpened: statePanelOpened, toggleStatePanel: statePanelHandlers.toggle,
         openStatePanel: statePanelHandlers.open, closeStatePanel: statePanelHandlers.close
       }}>
-        {children}
+        <AppShell.Main>
+          {children}
+        </AppShell.Main>
       </PageContext.Provider>
     </AppShell>
   );
@@ -43,7 +46,7 @@ function Nav({ opened, toggle }: { opened: boolean, toggle: () => void }) {
 
   useEffect(() => {
     setActive(path)
-  })
+  }, [path])
 
   const items = links.map((link) => (
     <a
