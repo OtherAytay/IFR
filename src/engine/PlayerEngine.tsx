@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Game, Scene, Block, Edge, ConditionGroup, Mutation, InteractionBlock } from '@/types/game';
-import { Container, Button, Drawer, Stack, Title, Text, Badge, ActionIcon, Transition, Group } from '@mantine/core';
+import { Container, Button, Drawer, Stack, Title, Text, Badge, ActionIcon, Transition, Group, MantineProvider, createTheme } from '@mantine/core';
 import { IconUser } from '@tabler/icons-react';
 import { SceneRenderer } from './SceneRenderer';
 
@@ -10,7 +10,6 @@ export interface PlayerState {
   globalVariables: Record<string, number | string | boolean>;
   localVariables: Record<string, number | string | boolean>;
   tags: string[]; // Active tag IDs
-  rerollPool: number;
   blockRerolls: Record<string, number>;
 }
 
@@ -24,19 +23,39 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
         initialGlobals[v.id] = v.defaultValue;
       });
 
+      if (gameData.settings?.rerollPolicy?.type === 'shared-pool') {
+        if (!('_rerolls' in initialGlobals)) {
+          initialGlobals['_rerolls'] = gameData.settings.rerollPolicy.defaultAllowance || 0;
+        }
+      }
+
       return {
         currentSceneId: gameData.startSceneId,
         globalVariables: initialGlobals,
         localVariables: {},
         tags: [],
-        rerollPool: gameData.settings?.rerollPolicy?.type === 'shared-pool' ? (gameData.settings.rerollPolicy.defaultAllowance || 0) : 0,
         blockRerolls: {}
       };
     }
-    const loadedState = initialSaveData.state as PlayerState;
-    if (!loadedState.blockRerolls) {
-      loadedState.blockRerolls = {};
+    const loadedState = { ...initialSaveData.state } as PlayerState;
+    if (!loadedState.blockRerolls) loadedState.blockRerolls = {};
+    if (!loadedState.globalVariables) loadedState.globalVariables = {};
+    if (!loadedState.localVariables) loadedState.localVariables = {};
+    if (!loadedState.tags) loadedState.tags = [];
+
+    // Backfill missing global variables with default values
+    gameData.globalVariables?.forEach(v => {
+      if (!(v.id in loadedState.globalVariables)) {
+        loadedState.globalVariables[v.id] = v.defaultValue;
+      }
+    });
+
+    if (gameData.settings?.rerollPolicy?.type === 'shared-pool') {
+      if (!('_rerolls' in loadedState.globalVariables)) {
+        loadedState.globalVariables['_rerolls'] = gameData.settings.rerollPolicy.defaultAllowance || 0;
+      }
     }
+
     return loadedState;
   });
 
@@ -117,11 +136,11 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
         valueToCompare = choiceSelected;
       } else if (isBranchIdCondition) {
         valueToCompare = branchRolled;
-      } else if (cond.targetId in playerState.globalVariables) {
+      } else if (playerState.globalVariables && cond.targetId in playerState.globalVariables) {
         valueToCompare = playerState.globalVariables[cond.targetId];
       } else if (evalLocals && cond.targetId in evalLocals) {
         valueToCompare = evalLocals[cond.targetId];
-      } else if (cond.targetId in playerState.localVariables) {
+      } else if (playerState.localVariables && cond.targetId in playerState.localVariables) {
         valueToCompare = playerState.localVariables[cond.targetId];
       } else if (interactionContext && interactionContext.choiceId === cond.targetId) {
         valueToCompare = true;
@@ -168,8 +187,11 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
           case 'divide': newValue = Number(currentValue) / Number(val); break;
         }
 
-        if (mut.targetId in stateDraft.globalVariables) stateDraft.globalVariables[mut.targetId] = newValue;
-        else stateDraft.localVariables[mut.targetId] = newValue;
+        if (stateDraft.globalVariables && mut.targetId in stateDraft.globalVariables) {
+          stateDraft.globalVariables[mut.targetId] = newValue;
+        } else if (stateDraft.localVariables && mut.targetId in stateDraft.localVariables) {
+          stateDraft.localVariables[mut.targetId] = newValue;
+        }
       }
     });
   };
@@ -221,7 +243,11 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
           }
           if (isReroll) {
             if (gameData.settings?.rerollPolicy?.type === 'shared-pool') {
-              nextState.rerollPool = Math.max(0, prev.rerollPool - 1);
+              const currentRerolls = Number(prev.globalVariables['_rerolls']) || 0;
+              nextState.globalVariables = {
+                ...prev.globalVariables,
+                '_rerolls': Math.max(0, currentRerolls - 1)
+              };
             } else {
               nextState.blockRerolls = {
                 ...prev.blockRerolls,
@@ -243,11 +269,19 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
       const edges = gameData.edges ? gameData.edges[playerState.currentSceneId] || [] : [];
       
       const evalLocals = { ...playerState.localVariables };
+      
+      // Ensure all current scene local variables are explicitly populated with default values 
+      // if not already mutated, so they are properly evaluated and inherited
+      currentScene.localVariables?.forEach(v => {
+        if (evalLocals[v.id] === undefined) {
+          evalLocals[v.id] = v.defaultValue;
+        }
+      });
 
       // Filter edges and evaluate them in priority order
       const relevantEdges = edges
         .filter(e => !e.triggerInteractionId || e.triggerInteractionId === interactionBlock.id)
-        .sort((a, b) => a.priority - b.priority);
+        .sort((a, b) => b.priority - a.priority);
 
       let chosenEdge = relevantEdges.find(e => evaluateConditions(e.conditionGroup, context, evalLocals));
       
@@ -306,18 +340,93 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
     }
   };
 
-  // Update Reroll Pool (called by tasks/rolls locally)
-  const useReroll = () => {
-    if (playerState.rerollPool > 0) {
-      setPlayerState(prev => ({...prev, rerollPool: prev.rerollPool - 1}));
-      return true;
+  const exportSave = () => {
+    const raw = localStorage.getItem(`ifr_save_${saveId}`);
+    if (raw) {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(raw);
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", `save_${saveId}.json`);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
     }
-    return false;
   };
 
   if (!currentScene) {
     return <Container><Title c="red">Error: Scene {playerState.currentSceneId} not found.</Title></Container>;
   }
+
+  const hexToHsl = (hex: string) => {
+    let r = parseInt(hex.substring(1, 3), 16) / 255;
+    let g = parseInt(hex.substring(3, 5), 16) / 255;
+    let b = parseInt(hex.substring(5, 7), 16) / 255;
+    let max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+      let d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return { h: h * 360, s: s * 100, l: l * 100 };
+  };
+
+  const generatePalette = (hex: string): any => {
+    try {
+      const { h, s } = hexToHsl(hex);
+      const shades = [];
+      for (let i = 0; i < 10; i++) {
+        const l = 95 - i * 8.5;
+        shades.push(`hsl(${Math.round(h)}, ${Math.round(s)}%, ${Math.round(l)}%)`);
+      }
+      return shades;
+    } catch (e) {
+      return Array(10).fill(hex);
+    }
+  };
+
+  const primaryColorSetting = gameData.settings?.theme?.primaryColor || 'violet';
+  let primaryColorKey = 'violet';
+  let customColors: any = undefined;
+
+  if (primaryColorSetting.startsWith('#')) {
+    const colorMap: Record<string, string> = {
+      '#25262b': 'dark',
+      '#868e96': 'gray',
+      '#fa5252': 'red',
+      '#e64980': 'pink',
+      '#be4bdb': 'grape',
+      '#7950f2': 'violet',
+      '#4c6ef5': 'indigo',
+      '#228be6': 'blue',
+      '#15aabf': 'cyan',
+      '#12b886': 'teal',
+      '#40c057': 'green',
+      '#82c91e': 'lime',
+      '#fab005': 'yellow',
+      '#fd7e14': 'orange'
+    };
+    if (colorMap[primaryColorSetting]) {
+      primaryColorKey = colorMap[primaryColorSetting];
+    } else {
+      primaryColorKey = 'brand';
+      customColors = {
+        brand: generatePalette(primaryColorSetting)
+      };
+    }
+  } else {
+    primaryColorKey = primaryColorSetting;
+  }
+
+  const customTheme = createTheme({
+    primaryColor: primaryColorKey,
+    ...(customColors ? { colors: customColors } : {})
+  });
 
   return (
     <>
@@ -349,7 +458,7 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
           {gameData.settings?.rerollPolicy?.type === 'shared-pool' && (
             <Group justify="space-between">
               <Text>Rerolls left:</Text>
-              <Text fw={700}>{playerState.rerollPool}</Text>
+              <Text fw={700}>{String(playerState.globalVariables['_rerolls'] ?? 0)}</Text>
             </Group>
           )}
 
@@ -361,13 +470,18 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
               return <Badge key={tId} color="grape">{tagDef?.name || tId}</Badge>;
             })}
           </Group>
+
+          <Button mt="xl" color="green" onClick={exportSave} leftSection={<IconUser size={16}/>}>
+            Export Save
+          </Button>
         </Stack>
       </Drawer>
 
       {/* Main Scene Render with Transition */}
-      <div style={{ opacity: transitioning ? 0 : 1, transition: 'opacity 0.4s ease', minHeight: '100vh' }}>
-        <SceneRenderer 
-          scene={currentScene} 
+      <MantineProvider theme={customTheme} defaultColorScheme="dark">
+        <div style={{ opacity: transitioning ? 0 : 1, transition: 'opacity 0.4s ease', minHeight: '100vh', backgroundColor: 'var(--mantine-color-body)', color: 'var(--mantine-color-text)' }}>
+          <SceneRenderer 
+            scene={currentScene} 
           onInteract={handleInteraction}
           onLocalUpdate={(mutations) => {
             // Apply local mutations without routing
@@ -375,15 +489,15 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
             applyMutations(mutations, draft);
             setPlayerState(draft);
           }}
-          useReroll={gameData.settings?.rerollPolicy?.type === 'shared-pool' ? useReroll : undefined}
           localVariables={playerState.localVariables}
           globalVariables={playerState.globalVariables}
           game={gameData}
           rerollPolicy={gameData.settings?.rerollPolicy}
           blockRerolls={playerState.blockRerolls}
-          rerollPool={playerState.rerollPool}
+          rerollPool={Number(playerState.globalVariables['_rerolls'] || 0)}
         />
-      </div>
+        </div>
+      </MantineProvider>
     </>
   );
 }

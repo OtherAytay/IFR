@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Container, Title, Text, Card, Group, SimpleGrid, Button, ActionIcon, Stack } from '@mantine/core';
 import { Dropzone } from '@mantine/dropzone';
-import { IconUpload, IconFilePlus, IconX, IconDeviceGamepad, IconTrash } from '@tabler/icons-react';
+import { IconUpload, IconFilePlus, IconX, IconDeviceGamepad, IconTrash, IconRefresh } from '@tabler/icons-react';
 import '@mantine/dropzone/styles.css';
 import { v4 as uuidv4 } from 'uuid';
 import { useRouter } from 'next/navigation';
@@ -36,15 +36,27 @@ export default function Home() {
     const file = files[0];
     const text = await file.text();
     try {
-      const gameData = JSON.parse(text);
+      const parsedData = JSON.parse(text);
       const newId = uuidv4();
       
-      const saveData = {
-        title: gameData.title || "Untitled Game",
-        lastPlayed: new Date().toISOString(),
-        gameData: gameData, 
-        state: {} // Initial state wrapper
-      };
+      let saveData;
+      if (parsedData.state && parsedData.gameData) {
+        // It's a save.json file
+        saveData = {
+          title: parsedData.title || "Untitled Game",
+          lastPlayed: new Date().toISOString(),
+          gameData: parsedData.gameData,
+          state: parsedData.state
+        };
+      } else {
+        // It's a game.json file
+        saveData = {
+          title: parsedData.title || "Untitled Game",
+          lastPlayed: new Date().toISOString(),
+          gameData: parsedData, 
+          state: {} // Initial state wrapper
+        };
+      }
       
       localStorage.setItem(`ifr_save_${newId}`, JSON.stringify(saveData));
       router.push(`/play/${newId}`);
@@ -58,6 +70,23 @@ export default function Home() {
     if (confirm("Are you sure you want to delete this save?")) {
       localStorage.removeItem(`ifr_save_${id}`);
       setSavedGames(savedGames.filter(g => g.id !== id));
+    }
+  };
+
+  const restartSave = (id: string) => {
+    if (confirm("Are you sure you want to restart this game? All progress will be lost.")) {
+      const raw = localStorage.getItem(`ifr_save_${id}`);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          parsed.state = {};
+          parsed.lastPlayed = new Date().toISOString();
+          localStorage.setItem(`ifr_save_${id}`, JSON.stringify(parsed));
+          router.push(`/play/${id}`);
+        } catch (e) {
+          console.error(e);
+        }
+      }
     }
   };
 
@@ -90,10 +119,10 @@ export default function Home() {
 
             <div>
               <Text size="xl" inline>
-                Drag and drop a <Text span c="violet" fw={700}>game.json</Text> file here
+                Drag and drop a <Text span c="violet" fw={700}>game.json</Text> or <Text span c="violet" fw={700}>save.json</Text> here
               </Text>
               <Text size="sm" c="dimmed" inline mt={7}>
-                Attach the game file to create a new save slot and begin playing
+                Attach a game file to create a new slot, or a save file to resume progress
               </Text>
             </div>
           </Group>
@@ -120,6 +149,9 @@ export default function Home() {
                     <Button style={{flexGrow: 1}} variant="light" color="violet" onClick={() => router.push(`/play/${game.id}`)}>
                       Resume
                     </Button>
+                    <ActionIcon variant="light" color="orange" size={36} onClick={() => restartSave(game.id)}>
+                      <IconRefresh size={20} />
+                    </ActionIcon>
                     <ActionIcon variant="light" color="red" size={36} onClick={() => deleteSave(game.id)}>
                       <IconTrash size={20} />
                     </ActionIcon>

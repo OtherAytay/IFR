@@ -834,6 +834,15 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
             )}
             {block.interactionType === 'roll' && (
               <Stack gap="xs">
+                <NumberInput
+                  size="xs"
+                  label="Rerolls Granted (Override)"
+                  description="Leave empty to use global default"
+                  variant="filled"
+                  value={block.rerollsGranted ?? ''}
+                  onChange={(val) => updateBlock(sceneId, block.id, { rerollsGranted: typeof val === 'number' ? val : undefined })}
+                  min={0}
+                />
                 <Switch
                   size="xs"
                   label="Mapped Distribution"
@@ -995,6 +1004,7 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
 
   const mutationTargetOptions = [
     ...uniqueAvailableLocalsOptions.map(v => ({ ...v, group: 'Local Variables' })),
+    { value: '_rerolls', label: 'Shared Rerolls', type: 'number', group: 'System Variables' },
     ...(game.globalVariables || []).map(v => ({ value: v.id, label: v.name, type: v.type || typeof v.defaultValue, group: 'Global Variables' })),
     ...(game.tags || []).map(t => ({ value: t.name, label: t.name, type: 'tag', group: 'Tags' }))
   ];
@@ -1523,6 +1533,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
 
   const conditionTargetOptions = [
     ...uniqueAvailableLocalsOptions.map(v => ({ ...v, group: 'Local Variables' })),
+    { value: '_rerolls', label: 'Shared Rerolls', type: 'number', group: 'System Variables' },
     ...(game.globalVariables || []).map(v => ({ value: v.id, label: v.name, type: v.type || typeof v.defaultValue, group: 'Global Variables' })),
     ...(game.tags || []).map(t => ({ value: t.name, label: t.name, type: 'tag', group: 'Tags' })),
     ...choiceAndRollOptions
@@ -1894,14 +1905,26 @@ export function Inspector() {
           '#40c057', '#82c91e', '#fab005', '#fd7e14'
         ]}
       />
-      <ColorInput 
-        label="Background Color" 
-        value={game.settings.theme.backgroundColor}
-        onChange={(val) => setGame({ ...game, settings: { ...game.settings, theme: { ...game.settings.theme, backgroundColor: val } } })}
-        swatches={[
-          '#ffffff', '#f8f9fa', '#f1f3f5', '#e9ecef', '#dee2e6',
-          '#25262b', '#1c1c1e', '#141517', '#101113'
+
+
+      <Divider />
+
+      <Title order={5}>Reroll Mechanics</Title>
+      <Select
+        label="Reroll Policy Type"
+        data={[
+          { value: 'per-task', label: 'Per-Task' },
+          { value: 'shared-pool', label: 'Shared Pool' }
         ]}
+        value={game.settings.rerollPolicy?.type || 'per-task'}
+        onChange={(val) => setGame({ ...game, settings: { ...game.settings, rerollPolicy: { ...game.settings.rerollPolicy, type: val as 'per-task' | 'shared-pool' } } })}
+      />
+      <NumberInput
+        label="Default Allowance"
+        description={game.settings.rerollPolicy?.type === 'shared-pool' ? "Starting global reroll pool" : "Default rerolls per roll block"}
+        value={game.settings.rerollPolicy?.defaultAllowance ?? 1}
+        onChange={(val) => setGame({ ...game, settings: { ...game.settings, rerollPolicy: { ...game.settings.rerollPolicy, defaultAllowance: typeof val === 'number' ? val : undefined } } })}
+        min={0}
       />
 
       <Divider />
