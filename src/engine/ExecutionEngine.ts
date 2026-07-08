@@ -22,15 +22,28 @@ export class ExecutionEngine {
       
       let choiceSelected = false;
       let isChoiceIdCondition = false;
+      let branchRolled = false;
+      let isBranchIdCondition = false;
       const sceneBlocks = this.game.scenes[state.currentSceneId]?.blocks || [];
       sceneBlocks.forEach(b => {
-        if (b.type === 'interaction' && b.interactionType === 'choice') {
-          const isChoiceOfThisBlock = b.choices?.some(c => c.id === cond.targetId);
-          if (isChoiceOfThisBlock) {
-            isChoiceIdCondition = true;
-            const selectedId = state.localVariables[`choice_${b.id}`];
-            if (selectedId === cond.targetId) {
-              choiceSelected = true;
+        if (b.type === 'interaction') {
+          if (b.interactionType === 'choice') {
+            const isChoiceOfThisBlock = b.choices?.some(c => c.id === cond.targetId);
+            if (isChoiceOfThisBlock) {
+              isChoiceIdCondition = true;
+              const selectedId = state.localVariables[`choice_${b.id}`];
+              if (selectedId === cond.targetId) {
+                choiceSelected = true;
+              }
+            }
+          } else if (b.interactionType === 'roll' && b.isMappedRoll) {
+            const isBranchOfThisBlock = b.rollBranches?.some(br => br.id === cond.targetId);
+            if (isBranchOfThisBlock) {
+              isBranchIdCondition = true;
+              const rolledBranchId = state.localVariables[`rollBranch_${b.id}`];
+              if (rolledBranchId === cond.targetId) {
+                branchRolled = true;
+              }
             }
           }
         }
@@ -40,6 +53,8 @@ export class ExecutionEngine {
         valueInState = state.activeTags[cond.targetId] !== undefined;
       } else if (isChoiceIdCondition) {
         valueInState = choiceSelected;
+      } else if (isBranchIdCondition) {
+        valueInState = branchRolled;
       } else {
         // Try local then global
         valueInState = state.localVariables[cond.targetId];

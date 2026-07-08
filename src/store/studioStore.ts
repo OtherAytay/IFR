@@ -220,15 +220,15 @@ export const useStudioStore = create<StudioStore>()(
       if (type === 'roll') {
         newBlock.maxRoll = 10;
         newLocalVariables.push({
-          id: `roll_${newBlock.id}`,
-          name: `roll_outcome`,
+          id: `rollValue_${newBlock.id}`,
+          name: `roll_value`,
           type: 'number',
           defaultValue: 0
         });
       } else if (type === 'choice') {
         newLocalVariables.push({
-          id: `choice_${newBlock.id}`,
-          name: `selected_choice`,
+          id: `choiceValue_${newBlock.id}`,
+          name: `selected_choice_text`,
           type: 'string',
           defaultValue: ''
         });
@@ -272,30 +272,45 @@ export const useStudioStore = create<StudioStore>()(
     const block = scene.blocks.find(b => b.id === blockId);
     let additionalUpdates = {};
 
-    if (block && block.type === 'interaction' && updates.interactionType !== undefined) {
-      const currentInteractionType = (block as any).interactionType;
-      const newInteractionType = updates.interactionType;
+    if (block && block.type === 'interaction') {
+      if (updates.interactionType !== undefined) {
+        const currentInteractionType = (block as any).interactionType;
+        const newInteractionType = updates.interactionType;
 
-      if (currentInteractionType !== 'roll' && newInteractionType === 'roll') {
-        additionalUpdates = { maxRoll: 10, choices: undefined };
-        newLocalVariables.push({
-          id: `roll_${blockId}`,
-          name: `roll_outcome`,
-          type: 'number',
-          defaultValue: 0
-        });
-        newLocalVariables = newLocalVariables.filter(v => v.id !== `choice_${blockId}`);
-      } else if (currentInteractionType !== 'choice' && newInteractionType === 'choice') {
-        additionalUpdates = { choices: [{ id: uuidv4(), label: 'Option 1' }], maxRoll: undefined };
-        newLocalVariables.push({
-          id: `choice_${blockId}`,
-          name: `selected_choice`,
-          type: 'string',
-          defaultValue: ''
-        });
-        newLocalVariables = newLocalVariables.filter(v => v.id !== `roll_${blockId}`);
-      } else if (newInteractionType === 'continue') {
-        newLocalVariables = newLocalVariables.filter(v => v.id !== `roll_${blockId}` && v.id !== `choice_${blockId}`);
+        if (currentInteractionType !== 'roll' && newInteractionType === 'roll') {
+          additionalUpdates = { maxRoll: 10, choices: undefined, isMappedRoll: false, rollBranches: undefined };
+          newLocalVariables.push({
+            id: `rollValue_${blockId}`,
+            name: `roll_value`,
+            type: 'number',
+            defaultValue: 0
+          });
+          newLocalVariables = newLocalVariables.filter(v => v.id !== `choiceValue_${blockId}`);
+        } else if (currentInteractionType !== 'choice' && newInteractionType === 'choice') {
+          additionalUpdates = { choices: [{ id: uuidv4(), label: 'Option 1' }], maxRoll: undefined, isMappedRoll: undefined, rollBranches: undefined };
+          newLocalVariables.push({
+            id: `choiceValue_${blockId}`,
+            name: `selected_choice_text`,
+            type: 'string',
+            defaultValue: ''
+          });
+          newLocalVariables = newLocalVariables.filter(v => !v.id.startsWith(`rollValue_${blockId}`) && !v.id.startsWith(`rollOutcome_${blockId}`));
+        } else if (newInteractionType === 'continue') {
+          newLocalVariables = newLocalVariables.filter(v => !v.id.startsWith(`rollValue_${blockId}`) && !v.id.startsWith(`rollOutcome_${blockId}`) && !v.id.startsWith(`choiceValue_${blockId}`));
+        }
+      }
+
+      if (updates.isMappedRoll !== undefined) {
+        if (updates.isMappedRoll) {
+          newLocalVariables.push({
+            id: `rollOutcome_${blockId}`,
+            name: `roll_outcome`,
+            type: 'string',
+            defaultValue: ''
+          });
+        } else {
+          newLocalVariables = newLocalVariables.filter(v => v.id !== `rollOutcome_${blockId}`);
+        }
       }
     }
 
@@ -327,9 +342,9 @@ export const useStudioStore = create<StudioStore>()(
 
     if (block && block.type === 'interaction') {
       if ((block as any).interactionType === 'roll') {
-        newLocalVariables = newLocalVariables.filter(v => v.id !== `roll_${blockId}`);
+        newLocalVariables = newLocalVariables.filter(v => !v.id.startsWith(`rollValue_${blockId}`) && !v.id.startsWith(`rollOutcome_${blockId}`));
       } else if ((block as any).interactionType === 'choice') {
-        newLocalVariables = newLocalVariables.filter(v => v.id !== `choice_${blockId}`);
+        newLocalVariables = newLocalVariables.filter(v => v.id !== `choiceValue_${blockId}`);
       }
     }
 

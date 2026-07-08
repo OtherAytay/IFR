@@ -78,18 +78,31 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
     const results = conditionGroup.conditions.map(cond => {
       let valueToCompare: any = null;
       
-      // Determine if the targetId is actually a choice ID in a choice block (for backward compatibility)
+      // Determine if the targetId is actually a choice ID or roll branch ID
       let choiceSelected = false;
       let isChoiceIdCondition = false;
+      let branchRolled = false;
+      let isBranchIdCondition = false;
       const sceneBlocks = gameData.scenes[playerState.currentSceneId]?.blocks || [];
       sceneBlocks.forEach(b => {
-        if (b.type === 'interaction' && b.interactionType === 'choice') {
-          const isChoiceOfThisBlock = b.choices?.some(c => c.id === cond.targetId);
-          if (isChoiceOfThisBlock) {
-            isChoiceIdCondition = true;
-            const selectedId = evalLocals ? evalLocals[`choice_${b.id}`] : playerState.localVariables[`choice_${b.id}`];
-            if (selectedId === cond.targetId) {
-              choiceSelected = true;
+        if (b.type === 'interaction') {
+          if (b.interactionType === 'choice') {
+            const isChoiceOfThisBlock = b.choices?.some(c => c.id === cond.targetId);
+            if (isChoiceOfThisBlock) {
+              isChoiceIdCondition = true;
+              const selectedId = evalLocals ? evalLocals[`choice_${b.id}`] : playerState.localVariables[`choice_${b.id}`];
+              if (selectedId === cond.targetId) {
+                choiceSelected = true;
+              }
+            }
+          } else if (b.interactionType === 'roll' && b.isMappedRoll) {
+            const isBranchOfThisBlock = b.rollBranches?.some(br => br.id === cond.targetId);
+            if (isBranchOfThisBlock) {
+              isBranchIdCondition = true;
+              const rolledBranchId = evalLocals ? evalLocals[`rollBranch_${b.id}`] : playerState.localVariables[`rollBranch_${b.id}`];
+              if (rolledBranchId === cond.targetId) {
+                branchRolled = true;
+              }
             }
           }
         }
@@ -102,6 +115,8 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
       
       if (isChoiceIdCondition) {
         valueToCompare = choiceSelected;
+      } else if (isBranchIdCondition) {
+        valueToCompare = branchRolled;
       } else if (cond.targetId in playerState.globalVariables) {
         valueToCompare = playerState.globalVariables[cond.targetId];
       } else if (evalLocals && cond.targetId in evalLocals) {
@@ -109,6 +124,8 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
       } else if (cond.targetId in playerState.localVariables) {
         valueToCompare = playerState.localVariables[cond.targetId];
       } else if (interactionContext && interactionContext.choiceId === cond.targetId) {
+        valueToCompare = true;
+      } else if (interactionContext && interactionContext.rollBranchId === cond.targetId) {
         valueToCompare = true;
       }
 
@@ -159,19 +176,49 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
 
   // Called by the SceneRenderer when the player interacts
   const handleInteraction = (interactionBlock: InteractionBlock, context?: any) => {
-    if (interactionBlock.interactionType === 'roll') {
-      const rollResult = context?.rollResult;
-      const isReroll = context?.isReroll;
-      
-      if (rollResult !== undefined) {
+    if (interactionBlock.interactionType === 'choice') {
+      const choiceId = context?.choiceId;
+      const choiceLabel = context?.choiceLabel;
+      if (choiceId !== undefined) {
         setPlayerState(prev => {
           const nextState = {
             ...prev,
             localVariables: {
               ...prev.localVariables,
-              [`roll_${interactionBlock.id}`]: rollResult
+              [`choice_${interactionBlock.id}`]: choiceId
             }
           };
+          if (choiceLabel !== undefined) {
+            nextState.localVariables[`choiceValue_${interactionBlock.id}`] = choiceLabel;
+          }
+          saveState(nextState);
+          return nextState;
+        });
+      }
+      return;
+    }
+
+    if (interactionBlock.interactionType === 'roll') {
+      const rollValue = context?.rollValue;
+      const rollOutcome = context?.rollOutcome;
+      const rollBranchId = context?.rollBranchId;
+      const isReroll = context?.isReroll;
+      
+      if (rollValue !== undefined) {
+        setPlayerState(prev => {
+          const nextState = {
+            ...prev,
+            localVariables: {
+              ...prev.localVariables,
+              [`rollValue_${interactionBlock.id}`]: rollValue
+            }
+          };
+          if (rollOutcome !== undefined) {
+            nextState.localVariables[`rollOutcome_${interactionBlock.id}`] = rollOutcome;
+          }
+          if (rollBranchId !== undefined) {
+            nextState.localVariables[`rollBranch_${interactionBlock.id}`] = rollBranchId;
+          }
           if (isReroll) {
             if (gameData.settings?.rerollPolicy?.type === 'shared-pool') {
               nextState.rerollPool = Math.max(0, prev.rerollPool - 1);
@@ -189,23 +236,7 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
       return;
     }
 
-    if (interactionBlock.interactionType === 'choice') {
-      const choiceId = context?.choiceId;
-      if (choiceId !== undefined) {
-        setPlayerState(prev => {
-          const nextState = {
-            ...prev,
-            localVariables: {
-              ...prev.localVariables,
-              [`choice_${interactionBlock.id}`]: choiceId
-            }
-          };
-          saveState(nextState);
-          return nextState;
-        });
-      }
-      return;
-    }
+
 
     if (interactionBlock.interactionType === 'continue') {
       // Find Edges originating from currentScene
@@ -346,6 +377,8 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
           }}
           useReroll={gameData.settings?.rerollPolicy?.type === 'shared-pool' ? useReroll : undefined}
           localVariables={playerState.localVariables}
+          globalVariables={playerState.globalVariables}
+          game={gameData}
           rerollPolicy={gameData.settings?.rerollPolicy}
           blockRerolls={playerState.blockRerolls}
           rerollPool={playerState.rerollPool}

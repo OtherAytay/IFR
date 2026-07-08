@@ -1,7 +1,8 @@
 'use client';
 
-import { Paper, Title, Text, Stack, TextInput, Divider, Button, Menu, ActionIcon, Group, NativeSelect, NumberInput, Textarea, Card, ColorInput, Checkbox, Select, Input, Tooltip, ThemeIcon, Badge, Autocomplete, Switch } from '@mantine/core';
-import { IconTrash, IconPlus, IconSettings, IconGripVertical, IconAlertCircle, IconUpload, IconExternalLink, IconPhoto, IconAlignLeft, IconClock, IconHandClick, IconVariable, IconTag, IconTagOff, IconPencil, IconFilter } from '@tabler/icons-react';
+import React, { useState } from 'react';
+import { Paper, Title, Text, Stack, TextInput, Divider, Button, Menu, ActionIcon, Group, NativeSelect, NumberInput, Textarea, Card, ColorInput, Checkbox, Select, Input, Tooltip, ThemeIcon, Badge, Autocomplete, Switch, Collapse } from '@mantine/core';
+import { IconTrash, IconPlus, IconSettings, IconGripVertical, IconAlertCircle, IconUpload, IconExternalLink, IconPhoto, IconAlignLeft, IconClock, IconHandClick, IconVariable, IconTag, IconTagOff, IconPencil, IconFilter, IconChevronDown, IconChevronUp, IconLock } from '@tabler/icons-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useStudioStore } from '../../store/studioStore';
 import { Block, LayoutPreset, Edge, Scene } from '../../types/game';
@@ -20,30 +21,48 @@ const MUTATION_CONFIG = {
   remove_tag: { label: 'Remove Tag',   color: 'pink',   Icon: IconTagOff   },
 } as const;
 
+export function getCleanVariableLabel(vId: string, vName: string, scene: Scene | undefined) {
+  if (vName && vName.trim() !== '' && vName !== 'roll_value' && vName !== 'roll_outcome' && vName !== 'roll_branch' && vName !== 'selected_choice_id' && vName !== 'selected_choice_text') {
+    return vName;
+  }
+  if (scene) {
+    if (vId.startsWith('choiceValue_')) {
+      const blockId = vId.replace('choiceValue_', '');
+      const block = scene.blocks.find(b => b.id === blockId);
+      return `${(block as any)?.label || 'Choice'} Text`;
+    }
+    if (vId.startsWith('choice_')) {
+      const blockId = vId.replace('choice_', '');
+      const block = scene.blocks.find(b => b.id === blockId);
+      return `${(block as any)?.label || 'Choice'} ID`;
+    }
+    if (vId.startsWith('rollValue_')) {
+      const blockId = vId.replace('rollValue_', '');
+      const block = scene.blocks.find(b => b.id === blockId);
+      return `${(block as any)?.label || 'Roll'} Value`;
+    }
+    if (vId.startsWith('rollOutcome_')) {
+      const blockId = vId.replace('rollOutcome_', '');
+      const block = scene.blocks.find(b => b.id === blockId);
+      return `${(block as any)?.label || 'Roll'} Outcome`;
+    }
+    if (vId.startsWith('rollBranch_')) {
+      const blockId = vId.replace('rollBranch_', '');
+      const block = scene.blocks.find(b => b.id === blockId);
+      return `${(block as any)?.label || 'Roll'} Branch ID`;
+    }
+  }
+  return vName || vId;
+}
+
 export function getIncomingVariablesForScene(
   game: any, 
   targetSceneId: string, 
   visited: Set<string> = new Set()
-): Map<string, { sourceScene: string, name: string, type?: string }> {
-  const vars = new Map<string, { sourceScene: string, name: string, type?: string }>();
+): Map<string, { sourceScene: string, name: string, type?: string, defaultValue?: any }> {
+  const vars = new Map<string, { sourceScene: string, name: string, type?: string, defaultValue?: any }>();
   if (visited.has(targetSceneId)) return vars;
   visited.add(targetSceneId);
-
-  const getCleanLabel = (vId: string, vName: string, scene: Scene | undefined) => {
-    if (scene) {
-      if (vId.startsWith('choice_')) {
-        const blockId = vId.replace('choice_', '');
-        const block = scene.blocks.find(b => b.id === blockId);
-        return `${(block as any)?.label || 'Choice'} Result`;
-      }
-      if (vId.startsWith('roll_')) {
-        const blockId = vId.replace('roll_', '');
-        const block = scene.blocks.find(b => b.id === blockId);
-        return `${(block as any)?.label || 'Roll'} Result`;
-      }
-    }
-    return vName || vId;
-  };
 
   Object.values(game.edges).flat().forEach((edge: any) => {
     if (edge.targetSceneId === targetSceneId) {
@@ -51,12 +70,13 @@ export function getIncomingVariablesForScene(
       if (!sourceScene) return;
 
       // Variables naturally defined in the source scene
-      const sourceVars = new Map<string, { sourceScene: string, name: string, type?: string }>();
+      const sourceVars = new Map<string, { sourceScene: string, name: string, type?: string, defaultValue?: any }>();
       (sourceScene.localVariables || []).forEach((v: any) => {
         sourceVars.set(v.id, { 
           sourceScene: sourceScene.name, 
-          name: getCleanLabel(v.id, v.name, sourceScene), 
-          type: v.type 
+          name: getCleanVariableLabel(v.id, v.name, sourceScene),
+          type: v.type,
+          defaultValue: v.defaultValue
         });
       });
 
@@ -77,7 +97,8 @@ export function getIncomingVariablesForScene(
         vars.set(m.targetId, { 
           sourceScene: sourceScene.name, 
           name: srcVar ? srcVar.name : m.sourceId, 
-          type: srcVar?.type 
+          type: srcVar?.type,
+          defaultValue: srcVar?.defaultValue
         });
       });
 
@@ -86,7 +107,8 @@ export function getIncomingVariablesForScene(
         vars.set(m.targetId, { 
           sourceScene: sourceScene.name, 
           name: srcVar ? srcVar.name : m.sourceId, 
-          type: srcVar?.type 
+          type: srcVar?.type,
+          defaultValue: srcVar?.defaultValue
         });
       });
     }
@@ -99,7 +121,7 @@ export function getIncomingVariablesForScene(
 
 // ─── Shared card-style header helper ──────────────────────────────────────────
 function CardHeader({
-  color, Icon, label, badge, onDelete, children, dragHandleProps,
+  color, Icon, label, badge, onDelete, children, dragHandleProps, iconTooltip
 }: {
   color: string;
   Icon: React.ComponentType<{ size?: number }>;
@@ -108,6 +130,7 @@ function CardHeader({
   onDelete?: () => void;
   children?: React.ReactNode;
   dragHandleProps?: any;
+  iconTooltip?: string;
 }) {
   return (
     <Group
@@ -125,9 +148,17 @@ function CardHeader({
             <IconGripVertical size={14} />
           </div>
         )}
-        <ThemeIcon size="xs" variant="transparent" color={color}>
-          <Icon size={13} />
-        </ThemeIcon>
+        {iconTooltip ? (
+          <Tooltip label={iconTooltip} position="top" withArrow>
+            <ThemeIcon size="xs" variant="transparent" color={color}>
+              <Icon size={13} />
+            </ThemeIcon>
+          </Tooltip>
+        ) : (
+          <ThemeIcon size="xs" variant="transparent" color={color}>
+            <Icon size={13} />
+          </ThemeIcon>
+        )}
         <Text size="xs" fw={700} c={`${color}.8`} style={{ letterSpacing: '0.03em', textTransform: 'uppercase' }}>
           {label}
         </Text>
@@ -151,6 +182,8 @@ function VariableCard({
   color = 'teal',
   isIncoming = false,
   isReadonly = false,
+  isFullyReadonly = false,
+  isAutoVariable = false,
   onChangeName,
   onChangeType,
   onChangeDefault,
@@ -160,6 +193,8 @@ function VariableCard({
   color?: string;
   isIncoming?: boolean;
   isReadonly?: boolean;
+  isFullyReadonly?: boolean;
+  isAutoVariable?: boolean;
   onChangeName: (name: string) => void;
   onChangeType: (type: string) => void;
   onChangeDefault: (val: any) => void;
@@ -178,7 +213,8 @@ function VariableCard({
     >
       <CardHeader
         color={isIncoming ? 'blue' : color}
-        Icon={IconVariable}
+        Icon={isAutoVariable ? IconLock : IconVariable}
+        iconTooltip={isAutoVariable ? "This variable is linked to a block interaction and cannot be manually modified." : undefined}
         label={variable.name || 'Variable'}
         badge={
           <Badge size="xs" variant="light" color={isIncoming ? 'blue' : color} radius="sm">
@@ -199,6 +235,7 @@ function VariableCard({
             variant="filled"
             value={variable.name}
             onChange={(e) => onChangeName(e.currentTarget.value)}
+            disabled={isFullyReadonly}
             style={{ flex: 1 }}
           />
           <NativeSelect
@@ -212,7 +249,7 @@ function VariableCard({
             ]}
             value={variable.type}
             onChange={(e) => onChangeType(e.currentTarget.value)}
-            disabled={isReadonly}
+            disabled={isFullyReadonly || isReadonly}
             style={{ width: 95 }}
           />
           {variable.type === 'boolean' ? (
@@ -223,6 +260,7 @@ function VariableCard({
                   radius="sm"
                   checked={variable.defaultValue as boolean}
                   onChange={(e) => onChangeDefault(e.currentTarget.checked)}
+                  disabled={isFullyReadonly}
                 />
               </div>
             </Input.Wrapper>
@@ -237,6 +275,7 @@ function VariableCard({
                 if (variable.type === 'number') val = Number(val) || 0;
                 onChangeDefault(val);
               }}
+              disabled={isFullyReadonly}
               style={{ width: 68 }}
             />
           )}
@@ -794,16 +833,103 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
               />
             )}
             {block.interactionType === 'roll' && (
-              <NumberInput
-                size="xs"
-                label="Maximum Roll Value"
-                description="Random roll range will be 1 to X (max 100)"
-                variant="filled"
-                min={2}
-                max={100}
-                value={block.maxRoll !== undefined ? block.maxRoll : 10}
-                onChange={(val) => updateBlock(sceneId, block.id, { maxRoll: val === '' ? 10 : Math.min(100, Math.max(2, Number(val) || 10)) })}
-              />
+              <Stack gap="xs">
+                <Switch
+                  size="xs"
+                  label="Mapped Distribution"
+                  checked={block.isMappedRoll || false}
+                  onChange={(e) => updateBlock(sceneId, block.id, { isMappedRoll: e.currentTarget.checked })}
+                />
+                
+                {!block.isMappedRoll ? (
+                  <NumberInput
+                    size="xs"
+                    label="Maximum Roll Value"
+                    description="Random roll range will be 1 to X (max 100)"
+                    variant="filled"
+                    min={2}
+                    max={100}
+                    value={block.maxRoll !== undefined ? block.maxRoll : 10}
+                    onChange={(val) => updateBlock(sceneId, block.id, { maxRoll: val === '' ? 10 : Math.min(100, Math.max(2, Number(val) || 10)) })}
+                  />
+                ) : (
+                  <Stack gap="xs">
+                    <Text size="xs" fw={600} c="dimmed" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>Distribution Branches</Text>
+                    {(block.rollBranches || []).map((branch, idx) => (
+                      <Group key={branch.id} gap="xs" wrap="nowrap" align="flex-end">
+                        <NumberInput
+                          size="xs"
+                          label="Weight"
+                          variant="filled"
+                          min={1}
+                          value={branch.weight || 1}
+                          onChange={(val) => {
+                            const newBranches = [...(block.rollBranches || [])];
+                            newBranches[idx] = { ...branch, weight: Number(val) || 1 };
+                            let currentMin = 1;
+                            const computedBranches = newBranches.map(b => {
+                              const w = Math.max(1, b.weight || 1);
+                              const min = currentMin;
+                              const max = currentMin + w - 1;
+                              currentMin = max + 1;
+                              return { ...b, weight: w, min, max };
+                            });
+                            updateBlock(sceneId, block.id, { rollBranches: computedBranches });
+                          }}
+                          style={{ width: 60 }}
+                        />
+                        <TextInput
+                          size="xs"
+                          label={branch.min === branch.max ? `Roll ${branch.min}` : `Roll ${branch.min}-${branch.max}`}
+                          variant="filled"
+                          placeholder="Outcome text"
+                          value={branch.label}
+                          style={{ flex: 1 }}
+                          onChange={(e) => {
+                            const newBranches = [...(block.rollBranches || [])];
+                            newBranches[idx] = { ...branch, label: e.currentTarget.value };
+                            updateBlock(sceneId, block.id, { rollBranches: newBranches });
+                          }}
+                        />
+                        <ActionIcon size="sm" color="red" variant="subtle" mb={4} onClick={() => {
+                          const newBranches = (block.rollBranches || []).filter(b => b.id !== branch.id);
+                          let currentMin = 1;
+                          const computedBranches = newBranches.map(b => {
+                            const w = Math.max(1, b.weight || 1);
+                            const min = currentMin;
+                            const max = currentMin + w - 1;
+                            currentMin = max + 1;
+                            return { ...b, weight: w, min, max };
+                          });
+                          updateBlock(sceneId, block.id, { rollBranches: computedBranches });
+                        }}>
+                          <IconTrash size={13} />
+                        </ActionIcon>
+                      </Group>
+                    ))}
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="violet"
+                      leftSection={<IconPlus size={12} />}
+                      onClick={() => {
+                        const newBranches = [...(block.rollBranches || []), { id: crypto.randomUUID(), weight: 1, min: 1, max: 1, label: 'New Outcome' }];
+                        let currentMin = 1;
+                        const computedBranches = newBranches.map(b => {
+                          const w = Math.max(1, b.weight || 1);
+                          const min = currentMin;
+                          const max = currentMin + w - 1;
+                          currentMin = max + 1;
+                          return { ...b, weight: w, min, max };
+                        });
+                        updateBlock(sceneId, block.id, { rollBranches: computedBranches });
+                      }}
+                    >
+                      Add Outcome
+                    </Button>
+                  </Stack>
+                )}
+              </Stack>
             )}
             {block.interactionType === 'choice' && (
               <Stack gap="xs">
@@ -853,6 +979,7 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
 
 function SceneInspector({ sceneId }: { sceneId: string }) {
   const { game, updateScene, addBlock, setGame } = useStudioStore();
+  const [incomingVarsExpanded, setIncomingVarsExpanded] = useState(false);
   const scene = game.scenes[sceneId];
   if (!scene) return null;
 
@@ -955,16 +1082,74 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
 
       <Stack gap="xs">
         {incomingVars.size > 0 && (
-          <Group gap={6} wrap="wrap">
-            <Text size="xs" c="blue.7" fw={500}>Incoming:</Text>
-            {Array.from(incomingVars.values()).map(v => (
-              <Badge key={v.name} size="xs" variant="light" color="blue">{v.name}</Badge>
-            ))}
-          </Group>
+          <Card
+            withBorder
+            shadow="sm"
+            radius="md"
+            p={0}
+            style={{
+              borderLeft: `3px solid var(--mantine-color-blue-6)`,
+              overflow: 'hidden',
+              cursor: 'pointer'
+            }}
+            onClick={() => setIncomingVarsExpanded(!incomingVarsExpanded)}
+          >
+            <Group
+              justify="space-between"
+              px="sm"
+              py={8}
+              style={{
+                background: `var(--mantine-color-blue-light)`,
+              }}
+            >
+              <Group gap="xs">
+                <ThemeIcon size="xs" variant="transparent" color="blue">
+                  <IconVariable size={14} />
+                </ThemeIcon>
+                <Text size="xs" fw={700} c="blue.8" style={{ textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                  Detected Incoming Variables
+                </Text>
+              </Group>
+              <Group gap={6}>
+                {Array.from(incomingVars.values()).slice(0, 3).map(v => (
+                  <Badge key={v.name} size="xs" variant="filled" color="blue" tt="none">{v.name}</Badge>
+                ))}
+                {incomingVars.size > 3 && (
+                  <Badge size="xs" variant="filled" color="blue" tt="none">+{incomingVars.size - 3}</Badge>
+                )}
+                <ActionIcon size="sm" variant="transparent" color="blue">
+                  {incomingVarsExpanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+                </ActionIcon>
+              </Group>
+            </Group>
+            
+            <Collapse in={incomingVarsExpanded}>
+              <Stack gap="xs" p="sm" style={{ borderTop: '1px solid var(--mantine-color-blue-light-hover)' }}>
+                {Array.from(incomingVars.values()).map(v => (
+                  <VariableCard
+                    key={v.name}
+                    variable={{ 
+                      id: v.name, 
+                      name: v.name, 
+                      type: v.type || 'number', 
+                      defaultValue: v.defaultValue !== undefined ? v.defaultValue : (v.type === 'boolean' ? false : v.type === 'string' ? '' : 0) 
+                    }}
+                    color="blue"
+                    isIncoming={true}
+                    isReadonly={true}
+                    isFullyReadonly={true}
+                    onChangeName={() => {}}
+                    onChangeType={() => {}}
+                    onChangeDefault={() => {}}
+                  />
+                ))}
+              </Stack>
+            </Collapse>
+          </Card>
         )}
         {(scene.localVariables || []).map((variable, idx) => {
           const isIncoming = incomingVars.has(variable.id) || Array.from(incomingVars.values()).some(v => v.name === variable.name);
-          const isAutoVariable = variable.id.startsWith('roll_') || variable.id.startsWith('choice_');
+          const isAutoVariable = variable.id.startsWith('rollValue_') || variable.id.startsWith('rollOutcome_') || variable.id.startsWith('rollBranch_') || variable.id.startsWith('choice_') || variable.id.startsWith('choiceValue_');
           return (
             <VariableCard
               key={variable.id}
@@ -972,6 +1157,7 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
               color={isAutoVariable ? "violet" : "cyan"}
               isIncoming={isIncoming}
               isReadonly={isAutoVariable}
+              isAutoVariable={isAutoVariable}
               onChangeName={(name) => {
                 const newVars = [...scene.localVariables];
                 newVars[idx] = { ...variable, name };
@@ -1303,36 +1489,43 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
   const sourceScene = game.scenes[sourceId];
   const incomingVars = getIncomingVariablesForScene(game, sourceId);
   
-  const getCleanLabel = (vId: string, vName: string, scene: Scene | undefined) => {
-    if (scene) {
-      if (vId.startsWith('choice_')) {
-        const blockId = vId.replace('choice_', '');
-        const block = scene.blocks.find(b => b.id === blockId);
-        return `${(block as any)?.label || 'Choice'} Result`;
-      }
-      if (vId.startsWith('roll_')) {
-        const blockId = vId.replace('roll_', '');
-        const block = scene.blocks.find(b => b.id === blockId);
-        return `${(block as any)?.label || 'Roll'} Result`;
-      }
-    }
-    return vName;
-  };
-
   const availableLocalsOptions = [
     ...(sourceScene?.localVariables || []).map(v => ({ 
       value: v.id, 
-      label: getCleanLabel(v.id, v.name, sourceScene), 
+      label: getCleanVariableLabel(v.id, v.name, sourceScene), 
       type: v.type 
     })),
     ...Array.from(incomingVars.entries()).map(([id, data]) => ({ value: id, label: `${data.name} (from ${data.sourceScene})`, type: data.type }))
   ];
   const uniqueAvailableLocalsOptions = availableLocalsOptions.filter((v, i, a) => a.findIndex(t => (t.value === v.value)) === i);
 
+  const interactionBlocks = sourceScene?.blocks.filter(b => b.type === 'interaction') || [];
+  const choiceAndRollOptions = interactionBlocks.flatMap(b => {
+    const block = b as any;
+    if (block.interactionType === 'choice' && block.choices) {
+      return block.choices.map((c: any) => ({
+        value: c.id,
+        label: `${block.label || 'Choice'}: ${c.label}`,
+        type: 'boolean',
+        group: 'Choices'
+      }));
+    }
+    if (block.interactionType === 'roll' && block.isMappedRoll && block.rollBranches) {
+      return block.rollBranches.map((br: any) => ({
+        value: br.id,
+        label: `${block.label || 'Roll'}: ${br.label}`,
+        type: 'boolean',
+        group: 'Roll Outcomes'
+      }));
+    }
+    return [];
+  });
+
   const conditionTargetOptions = [
     ...uniqueAvailableLocalsOptions.map(v => ({ ...v, group: 'Local Variables' })),
     ...(game.globalVariables || []).map(v => ({ value: v.id, label: v.name, type: v.type || typeof v.defaultValue, group: 'Global Variables' })),
-    ...(game.tags || []).map(t => ({ value: t.name, label: t.name, type: 'tag', group: 'Tags' }))
+    ...(game.tags || []).map(t => ({ value: t.name, label: t.name, type: 'tag', group: 'Tags' })),
+    ...choiceAndRollOptions
   ];
 
   return (

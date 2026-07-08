@@ -66,11 +66,21 @@ export interface InteractionChoice {
   label: string;
 }
 
+export interface RollBranch {
+  id: string;
+  weight: number;
+  min: number;
+  max: number;
+  label: string;
+}
+
 export interface InteractionBlock extends BaseBlock {
   type: 'interaction';
   interactionType: InteractionType;
   label?: string; // For continue or roll
   choices?: InteractionChoice[]; // For choice
+  rollBranches?: RollBranch[]; // For mapped distribution roll
+  isMappedRoll?: boolean; // If true, uses mapped distribution instead of simple integer
   rerollsGranted?: number; // Override default rerolls for this block
   maxRoll?: number; // Maximum roll value (default: 10, capped at 100)
   isRequired?: boolean; // If true, must be interacted with before continuing
@@ -94,7 +104,7 @@ export type ConditionOperator = '==' | '!=' | '>' | '<' | '>=' | '<=' | 'has_tag
 
 export interface Condition {
   id: string;
-  targetId: string; // Variable ID or Tag ID or interaction choice ID
+  targetId: string; // Variable ID or Tag ID or interaction choice ID or roll branch ID
   operator: ConditionOperator;
   value?: number | string | boolean;
 }

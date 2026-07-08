@@ -31,6 +31,7 @@ To clarify nomenclature: what were previously referred to as "nodes" in rigid en
 2. **Content Block:** Text descriptions utilizing a templating engine to inject variables (e.g., "Your debt is ${{debt}}").
 3. **Task Block (Native):** A native UI component featuring a countdown timer and visual/audio metronome (BPM).
 4. **Interaction Block:** The required action to progress. Can be a `Continue` button, a `Choice` (multiple buttons), or a `Roll` (RNG).
+   - **Rolls** support two modes: **Simple Integer** (returns 1 to maxRoll) and **Mapped Distribution**. In Mapped Distribution mode, creators define branches with specific weights and text labels (e.g., 1-3 is "Do a flip"). The engine handles calculating ranges and rendering a visual table of outcomes. Upon rolling, the local variable stores the mapped text label directly, avoiding the need for multiple edge mutations.
 
 **Layout Presets:**
 Nodes feature a `layoutPreset` (e.g., "Standard Split", "Grid", "Fullscreen Media", "Stacked"). The engine reads this preset and automatically organizes the arrays of blocks gracefully.
@@ -41,7 +42,7 @@ Edges connect nodes and dictate the flow of the game. **Multiple distinct edges 
 **Evaluation & Routing:**
 - Edges extending from an Interaction Block (like a Roll or Choice) are evaluated in a strict, **creator-defined priority order**.
 - To prevent dead-ends, every branching interaction must designate exactly one **Default/Fallback Edge** that is taken if no other edge conditions are met.
-- **Conditions:** Built using a simple list builder. Creators choose if the list evaluates via `Logical AND` (all conditions true) or `Logical OR` (any condition true).
+- **Conditions:** Built using a simple list builder. Creators choose if the list evaluates via `Logical AND` (all conditions true) or `Logical OR` (any condition true). Edge conditions can be bound directly to **Choice IDs** or **Roll Branch IDs** to efficiently route outcomes.
 
 **Mutations:**
 Multiple mutations (e.g., adding a Tag, `debt += 50`) can be attached to a single **Edge** or directly to the **Scene** itself.
