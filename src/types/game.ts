@@ -72,6 +72,8 @@ export interface InteractionBlock extends BaseBlock {
   label?: string; // For continue or roll
   choices?: InteractionChoice[]; // For choice
   rerollsGranted?: number; // Override default rerolls for this block
+  maxRoll?: number; // Maximum roll value (default: 10, capped at 100)
+  isRequired?: boolean; // If true, must be interacted with before continuing
 }
 
 export type Block = MediaBlock | TextBlock | TaskBlock | InteractionBlock;
@@ -88,7 +90,7 @@ export interface Mutation {
   value?: number | string | boolean; // Omitted for add_tag/remove_tag
 }
 
-export type ConditionOperator = '==' | '!=' | '>' | '<' | '>=' | '<=' | 'has_tag' | 'missing_tag';
+export type ConditionOperator = '==' | '!=' | '>' | '<' | '>=' | '<=' | 'has_tag' | 'missing_tag' | 'contains' | 'is_in';
 
 export interface Condition {
   id: string;

@@ -154,7 +154,7 @@ export function StudioCanvas() {
       >
         <Background />
         <Controls />
-        <Panel position="top-left">
+        <Panel position="top-left" style={{ zIndex: 200 }}>
           <Button onClick={() => addScene(100, 100)}>Add Scene</Button>
         </Panel>
       </ReactFlow>

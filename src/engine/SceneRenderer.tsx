@@ -1,6 +1,6 @@
 'use client'
-import { Scene, Block, MediaBlock, TextBlock, TaskBlock, InteractionBlock } from '@/types/game';
-import { Container, Grid, Stack, Image, Text, Button, Paper, Group, Center, SimpleGrid } from '@mantine/core';
+import { Scene, Block, MediaBlock, TextBlock, TaskBlock, InteractionBlock, RerollPolicy } from '@/types/game';
+import { Container, Grid, Stack, Image, Text, Button, Paper, Group, Center, SimpleGrid, Box } from '@mantine/core';
 import { Carousel } from '@mantine/carousel';
 import { useState, useEffect } from 'react';
 
@@ -8,12 +8,20 @@ export function SceneRenderer({
   scene, 
   onInteract, 
   onLocalUpdate, 
-  useReroll 
+  useReroll,
+  localVariables,
+  rerollPolicy,
+  blockRerolls,
+  rerollPool
 }: { 
   scene: Scene, 
   onInteract: (block: InteractionBlock, context?: any) => void,
   onLocalUpdate: (mutations: any[]) => void,
-  useReroll?: () => boolean
+  useReroll?: () => boolean,
+  localVariables?: Record<string, number | string | boolean>,
+  rerollPolicy?: RerollPolicy,
+  blockRerolls?: Record<string, number>,
+  rerollPool?: number
 }) {
   
   // Group blocks by type
@@ -40,6 +48,19 @@ export function SceneRenderer({
     );
   };
 
+  const isContinueDisabled = scene.blocks.some(b => {
+    if (b.type !== 'interaction') return false;
+    const ib = b as InteractionBlock;
+    if (!ib.isRequired) return false;
+    if (ib.interactionType === 'choice') {
+      return !localVariables?.[`choice_${ib.id}`];
+    }
+    if (ib.interactionType === 'roll') {
+      return !localVariables?.[`roll_${ib.id}`];
+    }
+    return false;
+  });
+
   // Helper to render content/task/interaction side
   const renderContent = () => {
     return (
@@ -60,14 +81,31 @@ export function SceneRenderer({
         )}
 
         <Group justify="center" mt="xl">
-          {interactionBlocks.map(b => (
-            <InteractionRenderer 
-              key={b.id} 
-              block={b} 
-              onInteract={onInteract}
-              useReroll={useReroll}
-            />
-          ))}
+          {interactionBlocks.map(b => {
+            let rerollsLeft = 0;
+            if (b.interactionType === 'roll') {
+              if (rerollPolicy?.type === 'shared-pool') {
+                rerollsLeft = rerollPool ?? 0;
+              } else {
+                const maxAllowance = b.rerollsGranted !== undefined 
+                  ? b.rerollsGranted 
+                  : (rerollPolicy?.defaultAllowance !== undefined ? rerollPolicy.defaultAllowance : 1);
+                const used = blockRerolls?.[b.id] ?? 0;
+                rerollsLeft = Math.max(0, maxAllowance - used);
+              }
+            }
+            return (
+              <InteractionRenderer 
+                key={b.id} 
+                block={b} 
+                onInteract={onInteract}
+                useReroll={useReroll}
+                localVariables={localVariables}
+                rerollsLeft={rerollsLeft}
+                isContinueDisabled={isContinueDisabled}
+              />
+            );
+          })}
         </Group>
       </Stack>
     );
@@ -140,42 +178,88 @@ function MediaRenderer({ block }: { block: MediaBlock }) {
 function InteractionRenderer({ 
   block, 
   onInteract, 
-  useReroll 
+  useReroll,
+  localVariables,
+  rerollsLeft,
+  isContinueDisabled
 }: { 
   block: InteractionBlock, 
   onInteract: (block: InteractionBlock, context?: any) => void,
-  useReroll?: () => boolean
+  useReroll?: () => boolean,
+  localVariables?: Record<string, number | string | boolean>,
+  rerollsLeft?: number,
+  isContinueDisabled?: boolean
 }) {
   
   if (block.interactionType === 'continue') {
     return (
-      <Button size="xl" color="violet" onClick={() => onInteract(block)}>
+      <Button size="xl" color="violet" onClick={() => onInteract(block)} disabled={isContinueDisabled}>
         {block.label || 'Continue'}
       </Button>
     );
   }
 
   if (block.interactionType === 'choice') {
+    const selectedChoiceId = localVariables ? localVariables[`choice_${block.id}`] : undefined;
     return (
       <Stack w="100%">
-        {block.choices?.map(c => (
-          <Button key={c.id} variant="outline" size="lg" color="violet" onClick={() => onInteract(block, { choiceId: c.id })}>
-            {c.label}
-          </Button>
-        ))}
+        {block.choices?.map(c => {
+          const isSelected = selectedChoiceId === c.id;
+          return (
+            <Button 
+              key={c.id} 
+              variant={isSelected ? 'filled' : 'outline'} 
+              size="lg" 
+              color="violet" 
+              onClick={() => onInteract(block, { choiceId: c.id })}
+            >
+              {c.label}
+            </Button>
+          );
+        })}
       </Stack>
     );
   }
 
   if (block.interactionType === 'roll') {
+    const maxRoll = block.maxRoll !== undefined ? block.maxRoll : 10;
+    const rollResult = localVariables ? localVariables[`roll_${block.id}`] : undefined;
+    const hasRolled = rollResult !== undefined && Number(rollResult) > 0;
+    
     return (
-      <Stack align="center">
-        <Button size="xl" color="violet" onClick={() => {
-          const result = Math.floor(Math.random() * 100) + 1; // 1-100
-          onInteract(block, { rollResult: result });
-        }}>
-          {block.label || 'Roll Dice'}
-        </Button>
+      <Stack align="center" gap="xs">
+        {hasRolled && (
+          <Paper withBorder px="md" py="xs" radius="md" bg="violet.0" style={{ borderColor: 'var(--mantine-color-violet-3)' }}>
+            <Text size="xl" fw={800} c="violet.9" ta="center">
+              Rolled: {rollResult}
+            </Text>
+          </Paper>
+        )}
+        
+        {!hasRolled ? (
+          <Button size="xl" color="violet" onClick={() => {
+            const result = Math.floor(Math.random() * maxRoll) + 1;
+            onInteract(block, { rollResult: result });
+          }}>
+            {block.label || 'Roll Dice'}
+          </Button>
+        ) : (
+          (rerollsLeft ?? 0) > 0 ? (
+            <Button 
+              size="md" 
+              color="grape" 
+              variant="light"
+              onClick={() => {
+                const result = Math.floor(Math.random() * maxRoll) + 1;
+                onInteract(block, { rollResult: result, isReroll: true });
+              }}
+            >
+              Reroll ({rerollsLeft} left)
+            </Button>
+          ) : (
+            <Text size="xs" c="dimmed">No rerolls remaining</Text>
+          )
+        )}
       </Stack>
     );
   }

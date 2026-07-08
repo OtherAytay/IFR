@@ -24,7 +24,7 @@ export interface GameState {
   
   updateScene: (id: string, updates: Partial<Scene>) => void;
   deleteScene: (id: string) => void;
-  addBlock: (sceneId: string, blockType: 'media' | 'text' | 'task' | 'interaction') => void;
+  addBlock: (sceneId: string, blockType: 'media' | 'text' | 'task' | 'interaction', interactionType?: 'choice' | 'roll') => void;
   updateBlock: (sceneId: string, blockId: string, updates: any) => void;
   removeBlock: (sceneId: string, blockId: string) => void;
   
@@ -33,6 +33,43 @@ export interface GameState {
 }
 
 export type StudioStore = EditorState & GameState;
+
+export function sanitizeGame(game: Game): Game {
+  if (!game || !game.scenes) return game;
+  const sanitizedScenes = { ...game.scenes };
+  
+  for (const sceneId in sanitizedScenes) {
+    const scene = sanitizedScenes[sceneId];
+    if (!scene) continue;
+    
+    // Separate non-continue blocks and continue blocks
+    const nonContinueBlocks = (scene.blocks || []).filter(
+      b => b.type !== 'interaction' || (b as any).interactionType !== 'continue'
+    );
+    let continueBlock = (scene.blocks || []).find(
+      b => b.type === 'interaction' && (b as any).interactionType === 'continue'
+    );
+    
+    if (!continueBlock) {
+      continueBlock = {
+        id: 'continue_' + uuidv4(),
+        type: 'interaction',
+        interactionType: 'continue',
+        label: 'Continue'
+      };
+    }
+    
+    sanitizedScenes[sceneId] = {
+      ...scene,
+      blocks: [...nonContinueBlocks, continueBlock]
+    };
+  }
+  
+  return {
+    ...game,
+    scenes: sanitizedScenes
+  };
+}
 
 const initialGame: Game = {
   id: uuidv4(),
@@ -65,13 +102,21 @@ export const useStudioStore = create<StudioStore>()(
   // Game State
   game: initialGame,
   
-  setGame: (game) => set({ game }),
+  setGame: (game) => set({ game: sanitizeGame(game) }),
   
   addScene: (x, y) => set((state) => {
+    const continueBlockId = uuidv4();
     const newScene: Scene = {
       id: uuidv4(),
       name: 'New Scene',
-      blocks: [],
+      blocks: [
+        {
+          id: continueBlockId,
+          type: 'interaction',
+          interactionType: 'continue',
+          label: 'Continue'
+        }
+      ],
       layoutPreset: 'standard-split',
       sceneMutations: [],
       localVariables: [],
@@ -152,7 +197,7 @@ export const useStudioStore = create<StudioStore>()(
     };
   }),
 
-  addBlock: (sceneId, blockType) => set((state) => {
+  addBlock: (sceneId, blockType, interactionType) => set((state) => {
     const scene = state.game.scenes[sceneId];
     if (!scene) return state;
     
@@ -160,14 +205,59 @@ export const useStudioStore = create<StudioStore>()(
     if (blockType === 'media') newBlock = { ...newBlock, mediaType: 'image', url: '' };
     if (blockType === 'text') newBlock = { ...newBlock, text: 'New text content' };
     if (blockType === 'task') newBlock = { ...newBlock, durationSeconds: 60 };
-    if (blockType === 'interaction') newBlock = { ...newBlock, interactionType: 'continue', label: 'Continue' };
+    
+    let newLocalVariables = [...(scene.localVariables || [])];
+    if (blockType === 'interaction') {
+      const type = interactionType || 'choice';
+      newBlock = { 
+        ...newBlock, 
+        interactionType: type, 
+        label: type === 'roll' ? 'Roll Dice' : undefined,
+        choices: type === 'choice' ? [{ id: uuidv4(), label: 'Option 1' }] : undefined
+      };
+      
+      if (type === 'roll') {
+        newBlock.maxRoll = 10;
+        newLocalVariables.push({
+          id: `roll_${newBlock.id}`,
+          name: `roll_outcome`,
+          type: 'number',
+          defaultValue: 0
+        });
+      } else if (type === 'choice') {
+        newLocalVariables.push({
+          id: `choice_${newBlock.id}`,
+          name: `selected_choice`,
+          type: 'string',
+          defaultValue: ''
+        });
+      }
+    }
+
+    const blocks = [...scene.blocks];
+    const continueIdx = blocks.findIndex(b => b.type === 'interaction' && (b as any).interactionType === 'continue');
+    if (continueIdx !== -1) {
+      blocks.splice(continueIdx, 0, newBlock);
+    } else {
+      blocks.push(newBlock);
+      blocks.push({
+        id: 'continue_' + uuidv4(),
+        type: 'interaction',
+        interactionType: 'continue',
+        label: 'Continue'
+      });
+    }
 
     return {
       game: {
         ...state.game,
         scenes: {
           ...state.game.scenes,
-          [sceneId]: { ...scene, blocks: [...scene.blocks, newBlock] }
+          [sceneId]: { 
+            ...scene, 
+            blocks,
+            localVariables: newLocalVariables
+          }
         }
       }
     };
@@ -176,6 +266,38 @@ export const useStudioStore = create<StudioStore>()(
   updateBlock: (sceneId, blockId, updates) => set((state) => {
     const scene = state.game.scenes[sceneId];
     if (!scene) return state;
+
+    let newLocalVariables = [...(scene.localVariables || [])];
+    const block = scene.blocks.find(b => b.id === blockId);
+    let additionalUpdates = {};
+
+    if (block && block.type === 'interaction' && updates.interactionType !== undefined) {
+      const currentInteractionType = (block as any).interactionType;
+      const newInteractionType = updates.interactionType;
+
+      if (currentInteractionType !== 'roll' && newInteractionType === 'roll') {
+        additionalUpdates = { maxRoll: 10, choices: undefined };
+        newLocalVariables.push({
+          id: `roll_${blockId}`,
+          name: `roll_outcome`,
+          type: 'number',
+          defaultValue: 0
+        });
+        newLocalVariables = newLocalVariables.filter(v => v.id !== `choice_${blockId}`);
+      } else if (currentInteractionType !== 'choice' && newInteractionType === 'choice') {
+        additionalUpdates = { choices: [{ id: uuidv4(), label: 'Option 1' }], maxRoll: undefined };
+        newLocalVariables.push({
+          id: `choice_${blockId}`,
+          name: `selected_choice`,
+          type: 'string',
+          defaultValue: ''
+        });
+        newLocalVariables = newLocalVariables.filter(v => v.id !== `roll_${blockId}`);
+      } else if (newInteractionType === 'continue') {
+        newLocalVariables = newLocalVariables.filter(v => v.id !== `roll_${blockId}` && v.id !== `choice_${blockId}`);
+      }
+    }
+
     return {
       game: {
         ...state.game,
@@ -183,7 +305,8 @@ export const useStudioStore = create<StudioStore>()(
           ...state.game.scenes,
           [sceneId]: { 
             ...scene, 
-            blocks: scene.blocks.map(b => b.id === blockId ? { ...b, ...updates } : b)
+            blocks: scene.blocks.map(b => b.id === blockId ? { ...b, ...updates, ...additionalUpdates } : b),
+            localVariables: newLocalVariables
           }
         }
       }
@@ -193,6 +316,22 @@ export const useStudioStore = create<StudioStore>()(
   removeBlock: (sceneId, blockId) => set((state) => {
     const scene = state.game.scenes[sceneId];
     if (!scene) return state;
+
+    const block = scene.blocks.find(b => b.id === blockId);
+    if (block && block.type === 'interaction' && (block as any).interactionType === 'continue') {
+      return state; // Prevent removing the continue block
+    }
+
+    let newLocalVariables = scene.localVariables || [];
+
+    if (block && block.type === 'interaction') {
+      if ((block as any).interactionType === 'roll') {
+        newLocalVariables = newLocalVariables.filter(v => v.id !== `roll_${blockId}`);
+      } else if ((block as any).interactionType === 'choice') {
+        newLocalVariables = newLocalVariables.filter(v => v.id !== `choice_${blockId}`);
+      }
+    }
+
     return {
       game: {
         ...state.game,
@@ -200,7 +339,8 @@ export const useStudioStore = create<StudioStore>()(
           ...state.game.scenes,
           [sceneId]: { 
             ...scene, 
-            blocks: scene.blocks.filter(b => b.id !== blockId)
+            blocks: scene.blocks.filter(b => b.id !== blockId),
+            localVariables: newLocalVariables
           }
         }
       }

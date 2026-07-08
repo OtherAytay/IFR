@@ -11,6 +11,7 @@ export interface PlayerState {
   localVariables: Record<string, number | string | boolean>;
   tags: string[]; // Active tag IDs
   rerollPool: number;
+  blockRerolls: Record<string, number>;
 }
 
 export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any, saveId: string }) {
@@ -28,10 +29,15 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
         globalVariables: initialGlobals,
         localVariables: {},
         tags: [],
-        rerollPool: gameData.settings?.rerollPolicy?.type === 'shared-pool' ? (gameData.settings.rerollPolicy.defaultAllowance || 0) : 0
+        rerollPool: gameData.settings?.rerollPolicy?.type === 'shared-pool' ? (gameData.settings.rerollPolicy.defaultAllowance || 0) : 0,
+        blockRerolls: {}
       };
     }
-    return initialSaveData.state as PlayerState;
+    const loadedState = initialSaveData.state as PlayerState;
+    if (!loadedState.blockRerolls) {
+      loadedState.blockRerolls = {};
+    }
+    return loadedState;
   });
 
   const [profileOpened, setProfileOpened] = useState(false);
@@ -66,21 +72,45 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
   }, [gameData.settings?.theme]);
 
   // Evaluates a condition against the current state
-  const evaluateConditions = (conditionGroup?: ConditionGroup, interactionContext?: any): boolean => {
+  const evaluateConditions = (conditionGroup?: ConditionGroup, interactionContext?: any, evalLocals?: Record<string, any>): boolean => {
     if (!conditionGroup || !conditionGroup.conditions || conditionGroup.conditions.length === 0) return true;
     
     const results = conditionGroup.conditions.map(cond => {
       let valueToCompare: any = null;
+      
+      // Determine if the targetId is actually a choice ID in a choice block (for backward compatibility)
+      let choiceSelected = false;
+      let isChoiceIdCondition = false;
+      const sceneBlocks = gameData.scenes[playerState.currentSceneId]?.blocks || [];
+      sceneBlocks.forEach(b => {
+        if (b.type === 'interaction' && b.interactionType === 'choice') {
+          const isChoiceOfThisBlock = b.choices?.some(c => c.id === cond.targetId);
+          if (isChoiceOfThisBlock) {
+            isChoiceIdCondition = true;
+            const selectedId = evalLocals ? evalLocals[`choice_${b.id}`] : playerState.localVariables[`choice_${b.id}`];
+            if (selectedId === cond.targetId) {
+              choiceSelected = true;
+            }
+          }
+        }
+      });
       
       if (cond.operator === 'has_tag' || cond.operator === 'missing_tag') {
         const hasTag = playerState.tags.includes(cond.targetId);
         return cond.operator === 'has_tag' ? hasTag : !hasTag;
       }
       
-      if (cond.targetId in playerState.globalVariables) valueToCompare = playerState.globalVariables[cond.targetId];
-      else if (cond.targetId in playerState.localVariables) valueToCompare = playerState.localVariables[cond.targetId];
-      // Here you would also check interactionContext (e.g. choice ID) if applicable
-      else if (interactionContext && interactionContext.choiceId === cond.targetId) valueToCompare = true;
+      if (isChoiceIdCondition) {
+        valueToCompare = choiceSelected;
+      } else if (cond.targetId in playerState.globalVariables) {
+        valueToCompare = playerState.globalVariables[cond.targetId];
+      } else if (evalLocals && cond.targetId in evalLocals) {
+        valueToCompare = evalLocals[cond.targetId];
+      } else if (cond.targetId in playerState.localVariables) {
+        valueToCompare = playerState.localVariables[cond.targetId];
+      } else if (interactionContext && interactionContext.choiceId === cond.targetId) {
+        valueToCompare = true;
+      }
 
       // Simple evaluation (could be expanded)
       switch (cond.operator) {
@@ -90,6 +120,8 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
         case '<': return Number(valueToCompare) < Number(cond.value);
         case '>=': return Number(valueToCompare) >= Number(cond.value);
         case '<=': return Number(valueToCompare) <= Number(cond.value);
+        case 'contains': return String(valueToCompare).includes(String(cond.value));
+        case 'is_in': return String(cond.value).includes(String(valueToCompare));
         default: return false;
       }
     });
@@ -127,57 +159,120 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
 
   // Called by the SceneRenderer when the player interacts
   const handleInteraction = (interactionBlock: InteractionBlock, context?: any) => {
-    // 1. Find Edges originating from currentScene
-    const edges = gameData.edges ? gameData.edges[playerState.currentSceneId] || [] : [];
-    
-    // Filter edges triggered by this interaction (if specified)
-    // and evaluate them in priority order
-    const relevantEdges = edges
-      .filter(e => !e.triggerInteractionId || e.triggerInteractionId === interactionBlock.id)
-      .sort((a, b) => a.priority - b.priority);
-
-    let chosenEdge = relevantEdges.find(e => evaluateConditions(e.conditionGroup, context));
-    
-    if (!chosenEdge) {
-      chosenEdge = relevantEdges.find(e => e.isDefaultFallback);
-    }
-
-    if (!chosenEdge) {
-      console.warn("No valid routing edge found and no default fallback.");
-      // Just save state if it's a local interaction that doesn't route
-      saveState(playerState);
+    if (interactionBlock.interactionType === 'roll') {
+      const rollResult = context?.rollResult;
+      const isReroll = context?.isReroll;
+      
+      if (rollResult !== undefined) {
+        setPlayerState(prev => {
+          const nextState = {
+            ...prev,
+            localVariables: {
+              ...prev.localVariables,
+              [`roll_${interactionBlock.id}`]: rollResult
+            }
+          };
+          if (isReroll) {
+            if (gameData.settings?.rerollPolicy?.type === 'shared-pool') {
+              nextState.rerollPool = Math.max(0, prev.rerollPool - 1);
+            } else {
+              nextState.blockRerolls = {
+                ...prev.blockRerolls,
+                [interactionBlock.id]: (prev.blockRerolls[interactionBlock.id] || 0) + 1
+              };
+            }
+          }
+          saveState(nextState);
+          return nextState;
+        });
+      }
       return;
     }
 
-    // Prepare next state draft
-    const nextState = JSON.parse(JSON.stringify(playerState)) as PlayerState;
-    
-    // Apply Scene exit mutations
-    if (currentScene.sceneMutations) {
-      applyMutations(currentScene.sceneMutations, nextState);
-    }
-    
-    // Apply Edge traversal mutations
-    if (chosenEdge.edgeMutations) {
-      applyMutations(chosenEdge.edgeMutations, nextState);
+    if (interactionBlock.interactionType === 'choice') {
+      const choiceId = context?.choiceId;
+      if (choiceId !== undefined) {
+        setPlayerState(prev => {
+          const nextState = {
+            ...prev,
+            localVariables: {
+              ...prev.localVariables,
+              [`choice_${interactionBlock.id}`]: choiceId
+            }
+          };
+          saveState(nextState);
+          return nextState;
+        });
+      }
+      return;
     }
 
-    // Handle Local Variables passing logic
-    const nextLocals: Record<string, any> = {};
-    if (chosenEdge.inheritAllLocals || currentScene.inheritAllLocals) {
-      Object.assign(nextLocals, nextState.localVariables);
+    if (interactionBlock.interactionType === 'continue') {
+      // Find Edges originating from currentScene
+      const edges = gameData.edges ? gameData.edges[playerState.currentSceneId] || [] : [];
+      
+      const evalLocals = { ...playerState.localVariables };
+
+      // Filter edges and evaluate them in priority order
+      const relevantEdges = edges
+        .filter(e => !e.triggerInteractionId || e.triggerInteractionId === interactionBlock.id)
+        .sort((a, b) => a.priority - b.priority);
+
+      let chosenEdge = relevantEdges.find(e => evaluateConditions(e.conditionGroup, context, evalLocals));
+      
+      if (!chosenEdge) {
+        chosenEdge = relevantEdges.find(e => e.isDefaultFallback);
+      }
+
+      if (!chosenEdge) {
+        console.warn("No valid routing edge found and no default fallback.");
+        saveState(playerState);
+        return;
+      }
+
+      // Prepare next state draft
+      const nextState = JSON.parse(JSON.stringify(playerState)) as PlayerState;
+      nextState.localVariables = evalLocals;
+      
+      // Apply Scene exit mutations
+      if (currentScene.sceneMutations) {
+        applyMutations(currentScene.sceneMutations, nextState);
+      }
+      
+      // Apply Edge traversal mutations
+      if (chosenEdge.edgeMutations) {
+        applyMutations(chosenEdge.edgeMutations, nextState);
+      }
+
+      // Handle Local Variables passing logic
+      const nextLocals: Record<string, any> = {};
+      if (chosenEdge.inheritAllLocals || currentScene.inheritAllLocals) {
+        Object.assign(nextLocals, nextState.localVariables);
+      } else {
+        // Apply explicit variable mappings
+        const sceneMappings = currentScene.sceneVariableMappings || [];
+        const edgeMappings = chosenEdge.edgeVariableMappings || [];
+        const allMappings = [...sceneMappings, ...edgeMappings];
+        for (const mapping of allMappings) {
+          if (nextState.localVariables[mapping.sourceId] !== undefined) {
+            nextLocals[mapping.targetId] = nextState.localVariables[mapping.sourceId];
+          }
+        }
+      }
+
+      nextState.localVariables = nextLocals;
+      nextState.currentSceneId = chosenEdge.targetSceneId;
+      
+      // Reset blockRerolls for the new scene
+      nextState.blockRerolls = {};
+
+      // Trigger Transition
+      setTransitioning(true);
+      setTimeout(() => {
+        setPlayerState(nextState);
+        setTransitioning(false);
+      }, 400); // 400ms fade transition
     }
-    // ... we would apply explicit variable mappings here if we need them
-
-    nextState.localVariables = nextLocals;
-    nextState.currentSceneId = chosenEdge.targetSceneId;
-
-    // Trigger Transition
-    setTransitioning(true);
-    setTimeout(() => {
-      setPlayerState(nextState);
-      setTransitioning(false);
-    }, 400); // 400ms fade transition
   };
 
   // Update Reroll Pool (called by tasks/rolls locally)
@@ -250,6 +345,10 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
             setPlayerState(draft);
           }}
           useReroll={gameData.settings?.rerollPolicy?.type === 'shared-pool' ? useReroll : undefined}
+          localVariables={playerState.localVariables}
+          rerollPolicy={gameData.settings?.rerollPolicy}
+          blockRerolls={playerState.blockRerolls}
+          rerollPool={playerState.rerollPool}
         />
       </div>
     </>

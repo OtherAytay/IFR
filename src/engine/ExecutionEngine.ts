@@ -20,8 +20,26 @@ export class ExecutionEngine {
       // 1. Resolve variable or tag value
       let valueInState: number | string | boolean | undefined;
       
+      let choiceSelected = false;
+      let isChoiceIdCondition = false;
+      const sceneBlocks = this.game.scenes[state.currentSceneId]?.blocks || [];
+      sceneBlocks.forEach(b => {
+        if (b.type === 'interaction' && b.interactionType === 'choice') {
+          const isChoiceOfThisBlock = b.choices?.some(c => c.id === cond.targetId);
+          if (isChoiceOfThisBlock) {
+            isChoiceIdCondition = true;
+            const selectedId = state.localVariables[`choice_${b.id}`];
+            if (selectedId === cond.targetId) {
+              choiceSelected = true;
+            }
+          }
+        }
+      });
+
       if (cond.operator === 'has_tag' || cond.operator === 'missing_tag') {
         valueInState = state.activeTags[cond.targetId] !== undefined;
+      } else if (isChoiceIdCondition) {
+        valueInState = choiceSelected;
       } else {
         // Try local then global
         valueInState = state.localVariables[cond.targetId];

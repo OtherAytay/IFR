@@ -64,13 +64,14 @@ function Nav({ opened, toggle }: { opened: boolean, toggle: () => void }) {
 
   return (
     <>
-      <AppShell.Header withBorder={false} bg="transparent">
+      <AppShell.Header withBorder={false} bg="transparent" style={{ pointerEvents: 'none' }}>
         <Group justify="center" h="100%" px="md">
           <Group 
             bg="var(--mantine-color-body)" 
             px="md" 
             py="xs" 
             style={{ 
+              pointerEvents: 'auto',
               borderRadius: 'var(--mantine-radius-md)', 
               border: '1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4))',
               boxShadow: 'var(--mantine-shadow-md)'
