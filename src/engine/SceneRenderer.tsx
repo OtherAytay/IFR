@@ -51,7 +51,7 @@ export function SceneRenderer({
   const isContinueDisabled = scene.blocks.some(b => {
     if (b.type !== 'interaction') return false;
     const ib = b as InteractionBlock;
-    if (!ib.isRequired) return false;
+    if (ib.isRequired === false) return false;
     if (ib.interactionType === 'choice') {
       return !localVariables?.[`choice_${ib.id}`];
     }
@@ -241,7 +241,7 @@ function InteractionRenderer({
             const result = Math.floor(Math.random() * maxRoll) + 1;
             onInteract(block, { rollResult: result });
           }}>
-            {block.label || 'Roll Dice'}
+            {block.label || 'Roll'}
           </Button>
         ) : (
           (rerollsLeft ?? 0) > 0 ? (

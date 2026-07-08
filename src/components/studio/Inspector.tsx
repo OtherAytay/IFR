@@ -20,6 +20,83 @@ const MUTATION_CONFIG = {
   remove_tag: { label: 'Remove Tag',   color: 'pink',   Icon: IconTagOff   },
 } as const;
 
+export function getIncomingVariablesForScene(
+  game: any, 
+  targetSceneId: string, 
+  visited: Set<string> = new Set()
+): Map<string, { sourceScene: string, name: string, type?: string }> {
+  const vars = new Map<string, { sourceScene: string, name: string, type?: string }>();
+  if (visited.has(targetSceneId)) return vars;
+  visited.add(targetSceneId);
+
+  const getCleanLabel = (vId: string, vName: string, scene: Scene | undefined) => {
+    if (scene) {
+      if (vId.startsWith('choice_')) {
+        const blockId = vId.replace('choice_', '');
+        const block = scene.blocks.find(b => b.id === blockId);
+        return `${(block as any)?.label || 'Choice'} Result`;
+      }
+      if (vId.startsWith('roll_')) {
+        const blockId = vId.replace('roll_', '');
+        const block = scene.blocks.find(b => b.id === blockId);
+        return `${(block as any)?.label || 'Roll'} Result`;
+      }
+    }
+    return vName || vId;
+  };
+
+  Object.values(game.edges).flat().forEach((edge: any) => {
+    if (edge.targetSceneId === targetSceneId) {
+      const sourceScene = game.scenes[edge.sourceSceneId];
+      if (!sourceScene) return;
+
+      // Variables naturally defined in the source scene
+      const sourceVars = new Map<string, { sourceScene: string, name: string, type?: string }>();
+      (sourceScene.localVariables || []).forEach((v: any) => {
+        sourceVars.set(v.id, { 
+          sourceScene: sourceScene.name, 
+          name: getCleanLabel(v.id, v.name, sourceScene), 
+          type: v.type 
+        });
+      });
+
+      // Variables inherited by the source scene
+      const inheritedBySource = getIncomingVariablesForScene(game, sourceScene.id, new Set(visited));
+      inheritedBySource.forEach((v, id) => {
+        sourceVars.set(id, v);
+      });
+
+      if (edge.inheritAllLocals || sourceScene.inheritAllLocals) {
+        sourceVars.forEach((v, id) => {
+          vars.set(id, v);
+        });
+      }
+
+      (sourceScene.sceneVariableMappings || []).forEach((m: any) => {
+        const srcVar = sourceVars.get(m.sourceId);
+        vars.set(m.targetId, { 
+          sourceScene: sourceScene.name, 
+          name: srcVar ? srcVar.name : m.sourceId, 
+          type: srcVar?.type 
+        });
+      });
+
+      (edge.edgeVariableMappings || []).forEach((m: any) => {
+        const srcVar = sourceVars.get(m.sourceId);
+        vars.set(m.targetId, { 
+          sourceScene: sourceScene.name, 
+          name: srcVar ? srcVar.name : m.sourceId, 
+          type: srcVar?.type 
+        });
+      });
+    }
+  });
+
+  return vars;
+}
+
+
+
 // ─── Shared card-style header helper ──────────────────────────────────────────
 function CardHeader({
   color, Icon, label, badge, onDelete, children, dragHandleProps,
@@ -702,7 +779,7 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
                  size="xs"
                  label="Required Interaction"
                  description="Player must complete this interaction before continuing."
-                 checked={block.isRequired || false}
+                 checked={block.isRequired !== false}
                  onChange={(e) => updateBlock(sceneId, block.id, { isRequired: e.currentTarget.checked })}
                />
              )}
@@ -711,7 +788,7 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
                 size="xs"
                 label="Button Label"
                 variant="filled"
-                placeholder={block.interactionType === 'roll' ? 'Roll Dice' : 'Continue'}
+                placeholder={block.interactionType === 'roll' ? 'Roll' : 'Continue'}
                 value={block.label || ''}
                 onChange={(e) => updateBlock(sceneId, block.id, { label: e.currentTarget.value })}
               />
@@ -722,10 +799,10 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
                 label="Maximum Roll Value"
                 description="Random roll range will be 1 to X (max 100)"
                 variant="filled"
-                min={1}
+                min={2}
                 max={100}
                 value={block.maxRoll !== undefined ? block.maxRoll : 10}
-                onChange={(val) => updateBlock(sceneId, block.id, { maxRoll: val === '' ? 10 : Math.min(100, Math.max(1, Number(val) || 10)) })}
+                onChange={(val) => updateBlock(sceneId, block.id, { maxRoll: val === '' ? 10 : Math.min(100, Math.max(2, Number(val) || 10)) })}
               />
             )}
             {block.interactionType === 'choice' && (
@@ -780,25 +857,7 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
   if (!scene) return null;
 
   // Auto-detect incoming variables
-  const incomingVars = new Map<string, {sourceScene: string, name: string, type?: string}>();
-  Object.values(game.edges).flat().forEach(edge => {
-    if (edge.targetSceneId === scene.id) {
-      const sourceScene = game.scenes[edge.sourceSceneId];
-      if (!sourceScene) return;
-      
-      if (edge.inheritAllLocals || sourceScene.inheritAllLocals) {
-        (sourceScene.localVariables || []).forEach(v => incomingVars.set(v.id, { sourceScene: sourceScene.name, name: v.name, type: v.type }));
-      }
-      (sourceScene.sceneVariableMappings || []).forEach(m => {
-        const srcVar = sourceScene.localVariables?.find(v => v.id === m.sourceId);
-        incomingVars.set(m.targetId, { sourceScene: sourceScene.name, name: m.targetId, type: srcVar?.type });
-      });
-      (edge.edgeVariableMappings || []).forEach(m => {
-        const srcVar = sourceScene.localVariables?.find(v => v.id === m.sourceId);
-        incomingVars.set(m.targetId, { sourceScene: sourceScene.name, name: m.targetId, type: srcVar?.type });
-      });
-    }
-  });
+  const incomingVars = getIncomingVariablesForScene(game, scene.id);
 
   const availableLocalsOptions = [
     ...(scene.localVariables || []).map(v => ({ value: v.id, label: v.name, type: v.type })),
@@ -1175,7 +1234,7 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
       </Group>
       <Checkbox
         size="xs"
-        label="Inherit All Local Variables"
+        label="All Local Variables"
         description="Automatically pass all local variables to the next scene"
         checked={scene.inheritAllLocals || false}
         onChange={(e) => updateScene(scene.id, { inheritAllLocals: e.currentTarget.checked })}
@@ -1241,8 +1300,8 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
   const isDefaultBranch = !edge.conditionGroup || edge.conditionGroup.conditions.length === 0;
 
   // Auto-detect incoming variables for the source scene
-  const incomingVars = new Map<string, {sourceScene: string, name: string, type?: string}>();
   const sourceScene = game.scenes[sourceId];
+  const incomingVars = getIncomingVariablesForScene(game, sourceId);
   
   const getCleanLabel = (vId: string, vName: string, scene: Scene | undefined) => {
     if (scene) {
@@ -1259,32 +1318,6 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
     }
     return vName;
   };
-
-  if (sourceScene) {
-    Object.values(game.edges).flat().forEach(e => {
-      if (e.targetSceneId === sourceId) {
-        const prevScene = game.scenes[e.sourceSceneId];
-        if (!prevScene) return;
-        
-        if (e.inheritAllLocals || prevScene.inheritAllLocals) {
-          (prevScene.localVariables || []).forEach(v => {
-            const cleanName = getCleanLabel(v.id, v.name, prevScene);
-            incomingVars.set(v.id, { sourceScene: prevScene.name, name: cleanName, type: v.type });
-          });
-        }
-        (prevScene.sceneVariableMappings || []).forEach(m => {
-          const srcVar = prevScene.localVariables?.find(v => v.id === m.sourceId);
-          const cleanName = srcVar ? getCleanLabel(srcVar.id, srcVar.name, prevScene) : m.sourceId;
-          incomingVars.set(m.targetId, { sourceScene: prevScene.name, name: cleanName, type: srcVar?.type });
-        });
-        (e.edgeVariableMappings || []).forEach(m => {
-          const srcVar = prevScene.localVariables?.find(v => v.id === m.sourceId);
-          const cleanName = srcVar ? getCleanLabel(srcVar.id, srcVar.name, prevScene) : m.sourceId;
-          incomingVars.set(m.targetId, { sourceScene: prevScene.name, name: cleanName, type: srcVar?.type });
-        });
-      }
-    });
-  }
 
   const availableLocalsOptions = [
     ...(sourceScene?.localVariables || []).map(v => ({ 
@@ -1468,7 +1501,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
       </Group>
       <Checkbox
         size="xs"
-        label="Inherit All Local Variables"
+        label="All Local Variables"
         description="Automatically pass all local variables when this edge is taken"
         checked={edge.inheritAllLocals || false}
         onChange={(e) => updateEdge(sourceId, edgeId, { inheritAllLocals: e.currentTarget.checked })}

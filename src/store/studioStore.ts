@@ -212,8 +212,9 @@ export const useStudioStore = create<StudioStore>()(
       newBlock = { 
         ...newBlock, 
         interactionType: type, 
-        label: type === 'roll' ? 'Roll Dice' : undefined,
-        choices: type === 'choice' ? [{ id: uuidv4(), label: 'Option 1' }] : undefined
+        label: type === 'roll' ? 'Roll' : undefined,
+        choices: type === 'choice' ? [{ id: uuidv4(), label: 'Option 1' }] : undefined,
+        isRequired: true
       };
       
       if (type === 'roll') {

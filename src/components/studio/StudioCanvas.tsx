@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -32,6 +32,20 @@ const nodeTypes = {
 
 export function StudioCanvas() {
   const { game, addScene, updateScenePosition, addEdge, setSelectedNode, setSelectedEdge } = useStudioStore();
+  const [rfInstance, setRfInstance] = useState<any>(null);
+
+  const handleAddScene = useCallback(() => {
+    if (rfInstance) {
+      const center = rfInstance.screenToFlowPosition({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      });
+      // Center the node (assuming ~250px width, ~100px height for default node)
+      addScene(center.x - 125, center.y - 50);
+    } else {
+      addScene(100, 100);
+    }
+  }, [rfInstance, addScene]);
 
   const nodes: Node[] = useMemo(() => {
     return Object.values(game.scenes).map((scene) => ({
@@ -150,12 +164,13 @@ export function StudioCanvas() {
           setSelectedNode(null);
           setSelectedEdge(null);
         }}
+        onInit={setRfInstance}
         fitView
       >
         <Background />
         <Controls />
         <Panel position="top-left" style={{ zIndex: 200 }}>
-          <Button onClick={() => addScene(100, 100)}>Add Scene</Button>
+          <Button onClick={handleAddScene}>Add Scene</Button>
         </Panel>
       </ReactFlow>
     </div>
