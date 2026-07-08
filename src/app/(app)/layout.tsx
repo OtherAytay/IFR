@@ -15,17 +15,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AppShell
       h="100%"
-      padding={usePathname() === '/create' ? 0 : 'md'}
-      header={{ height: "3.5rem", collapsed: false, offset: true }}
+      padding={0}
+      header={{ height: "4.5rem", collapsed: false, offset: false }}
       navbar={{ width: "20rem", breakpoint: 'sm', collapsed: { mobile: !opened, desktop: true } }}
-      aside={{ width: "20rem", breakpoint: 'sm', collapsed: {mobile: !statePanelOpened, desktop: !statePanelOpened}}}
-      footer={{height: "3.5rem", collapsed: false, offset: true}}>
+    >
       <Nav opened={opened} toggle={toggle} />
       <PageContext.Provider value={{
         statePanelOpened: statePanelOpened, toggleStatePanel: statePanelHandlers.toggle,
         openStatePanel: statePanelHandlers.open, closeStatePanel: statePanelHandlers.close
       }}>
-        <AppShell.Main>
+        <AppShell.Main style={{ height: '100dvh', paddingTop: 0, paddingBottom: 0, paddingLeft: 0, paddingRight: 0 }}>
           {children}
         </AppShell.Main>
       </PageContext.Provider>
@@ -39,6 +38,7 @@ function Nav({ opened, toggle }: { opened: boolean, toggle: () => void }) {
   const links = [
     { link: '/', label: 'Home' },
     { link: '/club-bambi', label: 'Club Bambi' },
+    { link: '/create', label: 'Create' },
   ];
 
   const path = usePathname()
@@ -64,25 +64,29 @@ function Nav({ opened, toggle }: { opened: boolean, toggle: () => void }) {
 
   return (
     <>
-      <AppShell.Header>
-        <Container hiddenFrom='xs' size="md" className={classes.inner}>
-          <Group w="100%">
-            <Group justify='flex-start'>
-              <Burger opened={opened} onClick={toggle} size="sm" />
+      <AppShell.Header withBorder={false} bg="transparent">
+        <Group justify="center" h="100%" px="md">
+          <Group 
+            bg="var(--mantine-color-body)" 
+            px="md" 
+            py="xs" 
+            style={{ 
+              borderRadius: 'var(--mantine-radius-md)', 
+              border: '1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4))',
+              boxShadow: 'var(--mantine-shadow-md)'
+            }}
+          >
+            <Group gap="sm" mr="md">
+              <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+              <Anchor href="/" td="none" c={colorScheme == 'dark' ? 'white' : 'black'}>
+                <Text variant='gradient' size="xl" fw="bold">Interactive FR</Text>
+              </Anchor>
             </Group>
-            <Anchor flex={1} href="/" td="none" c={colorScheme == 'dark' ? 'white' : 'black'}>
-              <Text variant='gradient' size="xl" fw="bold">Interactive FR</Text>
-            </Anchor>
+            <Group gap={5} visibleFrom="xs">
+              {items}
+            </Group>
           </Group>
-        </Container>
-        <Container visibleFrom="xs" size="md" className={classes.inner}>
-          <Anchor href="/" td="none" c={colorScheme == 'dark' ? 'white' : 'black'}>
-            <Text variant='gradient' size="xl" fw="bold">Interactive FR</Text>
-          </Anchor>
-          <Group gap={5} mx="auto">
-            {items}
-          </Group>
-        </Container>
+        </Group>
       </AppShell.Header>
       <AppShell.Navbar>
         <Stack p="md" gap={5}>

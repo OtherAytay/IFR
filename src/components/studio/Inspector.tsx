@@ -493,58 +493,7 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
 
       <Divider mt="md" />
       <Group justify="space-between">
-        <Title order={5}>Scene Payload Mapping</Title>
-        <Button size="xs" variant="light" disabled={scene.inheritAllLocals} onClick={() => {
-          updateScene(scene.id, { 
-            sceneVariableMappings: [...(scene.sceneVariableMappings || []), { sourceId: 'sourceVar', targetId: 'targetVar' }] 
-          });
-        }}>Add Mapping</Button>
-      </Group>
-      <Checkbox
-        size="xs"
-        label="Inherit All Local Variables"
-        description="Automatically pass all local variables to the next scene"
-        checked={scene.inheritAllLocals || false}
-        onChange={(e) => updateScene(scene.id, { inheritAllLocals: e.currentTarget.checked })}
-      />
-      {!scene.inheritAllLocals && (scene.sceneVariableMappings || []).map((mapping, idx) => (
-        <Group key={idx} gap="xs" wrap="nowrap" align="center">
-          <Select
-            size="xs"
-            placeholder="Source Var ID"
-            searchable
-            data={uniqueAvailableLocalsOptions}
-            value={mapping.sourceId}
-            onChange={(val) => {
-              const newMap = [...(scene.sceneVariableMappings || [])];
-              newMap[idx] = { ...mapping, sourceId: val || '' };
-              updateScene(scene.id, { sceneVariableMappings: newMap });
-            }}
-            style={{ flex: 1 }}
-          />
-          <Text size="sm" c="dimmed">→</Text>
-          <TextInput
-            size="xs"
-            placeholder="Target Var ID"
-            value={mapping.targetId}
-            onChange={(e) => {
-              const newMap = [...(scene.sceneVariableMappings || [])];
-              newMap[idx] = { ...mapping, targetId: e.currentTarget.value };
-              updateScene(scene.id, { sceneVariableMappings: newMap });
-            }}
-            style={{ flex: 1 }}
-          />
-          <ActionIcon size="sm" color="red" variant="subtle" onClick={() => {
-            updateScene(scene.id, { sceneVariableMappings: (scene.sceneVariableMappings || []).filter((_, i) => i !== idx) });
-          }}>
-            <IconTrash size={14} />
-          </ActionIcon>
-        </Group>
-      ))}
-
-      <Divider mt="md" />
-      <Group justify="space-between">
-        <Title order={5}>Scene Mutations</Title>
+        <Title order={5}>Mutations</Title>
         <Button size="xs" variant="light" color="teal" onClick={() => {
           const newMutations = [...(scene.sceneMutations || []), { id: crypto.randomUUID(), operation: 'set', targetId: 'newVar', value: true }];
           updateScene(scene.id, { sceneMutations: newMutations as any });
@@ -554,7 +503,7 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
       </Group>
 
       {(!scene.sceneMutations || scene.sceneMutations.length === 0) ? (
-        <Text size="sm" c="dimmed">No scene mutations.</Text>
+        <Text size="sm" c="dimmed">No mutations.</Text>
       ) : (
         <Stack gap="sm">
           {scene.sceneMutations.map((mut: any, idx: number) => (
@@ -614,6 +563,57 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
           ))}
         </Stack>
       )}
+
+      <Divider mt="md" />
+      <Group justify="space-between">
+        <Title order={5}>Payload Mapping</Title>
+        <Button size="xs" variant="light" disabled={scene.inheritAllLocals} onClick={() => {
+          updateScene(scene.id, { 
+            sceneVariableMappings: [...(scene.sceneVariableMappings || []), { sourceId: 'sourceVar', targetId: 'targetVar' }] 
+          });
+        }}>Add Mapping</Button>
+      </Group>
+      <Checkbox
+        size="xs"
+        label="Inherit All Local Variables"
+        description="Automatically pass all local variables to the next scene"
+        checked={scene.inheritAllLocals || false}
+        onChange={(e) => updateScene(scene.id, { inheritAllLocals: e.currentTarget.checked })}
+      />
+      {!scene.inheritAllLocals && (scene.sceneVariableMappings || []).map((mapping, idx) => (
+        <Group key={idx} gap="xs" wrap="nowrap" align="center">
+          <Select
+            size="xs"
+            placeholder="Source Var ID"
+            searchable
+            data={uniqueAvailableLocalsOptions}
+            value={mapping.sourceId}
+            onChange={(val) => {
+              const newMap = [...(scene.sceneVariableMappings || [])];
+              newMap[idx] = { ...mapping, sourceId: val || '' };
+              updateScene(scene.id, { sceneVariableMappings: newMap });
+            }}
+            style={{ flex: 1 }}
+          />
+          <Text size="sm" c="dimmed">→</Text>
+          <TextInput
+            size="xs"
+            placeholder="Target Var ID"
+            value={mapping.targetId}
+            onChange={(e) => {
+              const newMap = [...(scene.sceneVariableMappings || [])];
+              newMap[idx] = { ...mapping, targetId: e.currentTarget.value };
+              updateScene(scene.id, { sceneVariableMappings: newMap });
+            }}
+            style={{ flex: 1 }}
+          />
+          <ActionIcon size="sm" color="red" variant="subtle" onClick={() => {
+            updateScene(scene.id, { sceneVariableMappings: (scene.sceneVariableMappings || []).filter((_, i) => i !== idx) });
+          }}>
+            <IconTrash size={14} />
+          </ActionIcon>
+        </Group>
+      ))}
 
     </Stack>
     </DragDropContext>
@@ -911,7 +911,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
 
       <Divider mt="md" />
       <Group justify="space-between">
-        <Title order={5}>Edge Payload Mapping</Title>
+        <Title order={5}>Payload Mapping</Title>
         <Button size="xs" variant="light" disabled={edge.inheritAllLocals} onClick={() => {
           updateEdge(sourceId, edgeId, { 
             edgeVariableMappings: [...(edge?.edgeVariableMappings || []), { sourceId: 'sourceVar', targetId: 'targetVar' }] 
@@ -967,23 +967,44 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
 export function Inspector() {
   const { game, selectedNodeId, selectedEdgeId, setGame } = useStudioStore();
 
+  const wrapInspector = (content: React.ReactNode) => (
+    <div style={{
+      position: 'fixed',
+      top: '4.5rem',
+      right: 0,
+      bottom: '1rem',
+      width: '24rem',
+      padding: '0.75rem 0.75rem 0.75rem 0',
+      zIndex: 200,
+      pointerEvents: 'none',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      <Paper 
+        p="md" 
+        radius="md"
+        bg="var(--mantine-color-body)"
+        style={{ 
+          flex: 1, 
+          overflowY: 'auto', 
+          pointerEvents: 'auto',
+          boxShadow: 'var(--mantine-shadow-md)',
+          border: '1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4))',
+        }}
+      >
+        {content}
+      </Paper>
+    </div>
+  );
+
   if (selectedNodeId) {
     const scene = game.scenes[selectedNodeId];
     if (!scene) return null;
-
-    return (
-      <Paper p="md" style={{ width: 350, height: '100%', overflowY: 'auto', borderLeft: '1px solid var(--mantine-color-default-border)' }}>
-        <SceneInspector sceneId={selectedNodeId} />
-      </Paper>
-    );
+    return wrapInspector(<SceneInspector sceneId={selectedNodeId} />);
   }
 
   if (selectedEdgeId) {
-    return (
-      <Paper p="md" style={{ width: 350, height: '100%', overflowY: 'auto', borderLeft: '1px solid var(--mantine-color-default-border)' }}>
-        <EdgeInspector edgeId={selectedEdgeId} />
-      </Paper>
-    );
+    return wrapInspector(<EdgeInspector edgeId={selectedEdgeId} />);
   }
 
   const hasIntegrityError = Object.values(game.scenes).some(scene => {
@@ -993,213 +1014,211 @@ export function Inspector() {
     return hasOutboundEdges && !hasDefaultEdge;
   });
 
-  return (
-    <Paper p="md" style={{ width: 350, height: '100%', overflowY: 'auto', borderLeft: '1px solid var(--mantine-color-default-border)' }}>
-      <Stack>
-        <Group align="center">
-          <IconSettings size={20} />
-          <Title order={4}>Global Settings</Title>
-        </Group>
-        <TextInput 
-          label="Game Title" 
-          value={game.title}
-          onChange={(e) => setGame({ ...game, title: e.currentTarget.value })}
-        />
-        <TextInput 
-          label="Game Version" 
-          value={game.version}
-          onChange={(e) => setGame({ ...game, version: e.currentTarget.value })}
-        />
-        
-        <Divider />
+  return wrapInspector(
+    <Stack>
+      <Group align="center">
+        <IconSettings size={20} />
+        <Title order={4}>Global Settings</Title>
+      </Group>
+      <TextInput 
+        label="Game Title" 
+        value={game.title}
+        onChange={(e) => setGame({ ...game, title: e.currentTarget.value })}
+      />
+      <TextInput 
+        label="Game Version" 
+        value={game.version}
+        onChange={(e) => setGame({ ...game, version: e.currentTarget.value })}
+      />
+      
+      <Divider />
 
-        <Title order={5}>Global Variables</Title>
-        <Stack gap="xs">
-          {game.globalVariables.map((variable, idx) => (
-            <Card key={variable.id} p="xs" withBorder>
-              <Group gap="xs" wrap="nowrap" align="flex-end">
-                <TextInput
-                  size="xs"
-                  label="Name"
-                  value={variable.name}
-                  onChange={(e) => {
-                    const newVars = [...game.globalVariables];
-                    newVars[idx] = { ...variable, name: e.currentTarget.value };
-                    setGame({ ...game, globalVariables: newVars });
-                  }}
-                  style={{ flex: 1 }}
-                />
-                <NativeSelect
-                  size="xs"
-                  label="Type"
-                  data={['number', 'boolean', 'string']}
-                  value={variable.type || typeof variable.defaultValue}
-                  onChange={(e) => {
-                    const newVars = [...game.globalVariables];
-                    const type = e.currentTarget.value as any;
-                    let defaultValue: any = 0;
-                    if (type === 'boolean') defaultValue = false;
-                    if (type === 'string') defaultValue = '';
-                    newVars[idx] = { ...variable, type, defaultValue };
-                    setGame({ ...game, globalVariables: newVars });
-                  }}
-                  style={{ width: 90 }}
-                />
-                {variable.type === 'boolean' ? (
-                  <Input.Wrapper size="xs" label="Default Value" style={{ width: 80 }}>
-                    <div style={{ height: 30, display: 'flex', alignItems: 'center' }}>
-                      <Checkbox
-                        size="xs"
-                        radius="sm"
-                        checked={variable.defaultValue as boolean}
-                        onChange={(e) => {
-                          const newVars = [...game.globalVariables];
-                          newVars[idx] = { ...variable, defaultValue: e.currentTarget.checked };
-                          setGame({ ...game, globalVariables: newVars });
-                        }}
-                      />
-                    </div>
-                  </Input.Wrapper>
-                ) : (
-                  <TextInput
-                    size="xs"
-                    label="Default Value"
-                    value={String(variable.defaultValue)}
-                    onChange={(e) => {
-                      const newVars = [...game.globalVariables];
-                      let val: any = e.currentTarget.value;
-                      if (variable.type === 'number') val = Number(val) || 0;
-                      newVars[idx] = { ...variable, defaultValue: val };
-                      setGame({ ...game, globalVariables: newVars });
-                    }}
-                    style={{ width: 80 }}
-                  />
-                )}
-                <ActionIcon size="sm" color="red" variant="subtle" mb={4} onClick={() => {
-                  setGame({ ...game, globalVariables: game.globalVariables.filter(v => v.id !== variable.id) });
-                }}>
-                  <IconTrash size={14} />
-                </ActionIcon>
-              </Group>
-            </Card>
-          ))}
-          <Button size="xs" variant="light" onClick={() => {
-            setGame({ 
-              ...game, 
-              globalVariables: [...game.globalVariables, { id: crypto.randomUUID(), name: 'newVar', type: 'number', defaultValue: 0 }] 
-            });
-          }}>
-            Add Variable
-          </Button>
-        </Stack>
-
-        <Divider />
-
-        <Title order={5}>Starting Tags</Title>
-        <Stack gap="xs">
-          {game.tags.map((tag, idx) => (
-            <Group key={tag.id} gap="xs" wrap="nowrap">
+      <Title order={5}>Global Variables</Title>
+      <Stack gap="xs">
+        {game.globalVariables.map((variable, idx) => (
+          <Card key={variable.id} p="xs" withBorder>
+            <Group gap="xs" wrap="nowrap" align="flex-end">
               <TextInput
                 size="xs"
-                value={tag.name}
+                label="Name"
+                value={variable.name}
                 onChange={(e) => {
-                  const newTags = [...game.tags];
-                  newTags[idx] = { ...tag, name: e.currentTarget.value };
-                  setGame({ ...game, tags: newTags });
+                  const newVars = [...game.globalVariables];
+                  newVars[idx] = { ...variable, name: e.currentTarget.value };
+                  setGame({ ...game, globalVariables: newVars });
                 }}
                 style={{ flex: 1 }}
               />
-              <ActionIcon size="sm" color="red" variant="subtle" onClick={() => {
-                setGame({ ...game, tags: game.tags.filter(t => t.id !== tag.id) });
+              <NativeSelect
+                size="xs"
+                label="Type"
+                data={['number', 'boolean', 'string']}
+                value={variable.type || typeof variable.defaultValue}
+                onChange={(e) => {
+                  const newVars = [...game.globalVariables];
+                  const type = e.currentTarget.value as any;
+                  let defaultValue: any = 0;
+                  if (type === 'boolean') defaultValue = false;
+                  if (type === 'string') defaultValue = '';
+                  newVars[idx] = { ...variable, type, defaultValue };
+                  setGame({ ...game, globalVariables: newVars });
+                }}
+                style={{ width: 90 }}
+              />
+              {variable.type === 'boolean' ? (
+                <Input.Wrapper size="xs" label="Default Value" style={{ width: 80 }}>
+                  <div style={{ height: 30, display: 'flex', alignItems: 'center' }}>
+                    <Checkbox
+                      size="xs"
+                      radius="sm"
+                      checked={variable.defaultValue as boolean}
+                      onChange={(e) => {
+                        const newVars = [...game.globalVariables];
+                        newVars[idx] = { ...variable, defaultValue: e.currentTarget.checked };
+                        setGame({ ...game, globalVariables: newVars });
+                      }}
+                    />
+                  </div>
+                </Input.Wrapper>
+              ) : (
+                <TextInput
+                  size="xs"
+                  label="Default Value"
+                  value={String(variable.defaultValue)}
+                  onChange={(e) => {
+                    const newVars = [...game.globalVariables];
+                    let val: any = e.currentTarget.value;
+                    if (variable.type === 'number') val = Number(val) || 0;
+                    newVars[idx] = { ...variable, defaultValue: val };
+                    setGame({ ...game, globalVariables: newVars });
+                  }}
+                  style={{ width: 80 }}
+                />
+              )}
+              <ActionIcon size="sm" color="red" variant="subtle" mb={4} onClick={() => {
+                setGame({ ...game, globalVariables: game.globalVariables.filter(v => v.id !== variable.id) });
               }}>
                 <IconTrash size={14} />
               </ActionIcon>
             </Group>
-          ))}
-          <Button size="xs" variant="light" onClick={() => {
-            setGame({ ...game, tags: [...game.tags, { id: crypto.randomUUID(), name: 'new_tag' }] });
-          }}>
-            Add Tag
-          </Button>
-        </Stack>
-
-        <Divider />
-
-        <Title order={5}>Theme Settings</Title>
-        <ColorInput 
-          label="Primary Color" 
-          value={game.settings.theme.primaryColor}
-          onChange={(val) => setGame({ ...game, settings: { ...game.settings, theme: { ...game.settings.theme, primaryColor: val } } })}
-          swatches={[
-            '#25262b', '#868e96', '#fa5252', '#e64980', '#be4bdb', 
-            '#7950f2', '#4c6ef5', '#228be6', '#15aabf', '#12b886', 
-            '#40c057', '#82c91e', '#fab005', '#fd7e14'
-          ]}
-        />
-        <ColorInput 
-          label="Background Color" 
-          value={game.settings.theme.backgroundColor}
-          onChange={(val) => setGame({ ...game, settings: { ...game.settings, theme: { ...game.settings.theme, backgroundColor: val } } })}
-          swatches={[
-            '#ffffff', '#f8f9fa', '#f1f3f5', '#e9ecef', '#dee2e6',
-            '#25262b', '#1c1c1e', '#141517', '#101113'
-          ]}
-        />
-
-        <Divider />
-
-        {hasIntegrityError && (
-          <Group gap="xs" style={{ background: 'var(--mantine-color-red-light)', padding: '8px 10px', borderRadius: 6 }} wrap="nowrap">
-            <IconAlertCircle size={16} color="var(--mantine-color-red-filled)" style={{ flexShrink: 0 }} />
-            <Text size="xs" c="red.9" fw={500} style={{ lineHeight: 1.3 }}>
-              Fix all &quot;No default branch&quot; errors on the canvas before exporting.
-            </Text>
-          </Group>
-        )}
-
-        <Button 
-          color="green" 
-          mt={hasIntegrityError ? "sm" : "xl"}
-          disabled={hasIntegrityError}
-          onClick={() => {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(game, null, 2));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href",     dataStr);
-            downloadAnchorNode.setAttribute("download", "game.json");
-            document.body.appendChild(downloadAnchorNode);
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
-          }}
-        >
-          Export game.json
-        </Button>
-        <Button
-          color="blue"
-          variant="light"
-          onClick={() => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'application/json';
-            input.onchange = (e) => {
-              const file = (e.target as HTMLInputElement).files?.[0];
-              if (!file) return;
-              const reader = new FileReader();
-              reader.onload = (event) => {
-                try {
-                  const importedGame = JSON.parse(event.target?.result as string);
-                  setGame(importedGame);
-                } catch (err) {
-                  alert("Failed to parse JSON file");
-                }
-              };
-              reader.readAsText(file);
-            };
-            input.click();
-          }}
-        >
-          Import game.json
+          </Card>
+        ))}
+        <Button size="xs" variant="light" onClick={() => {
+          setGame({ 
+            ...game, 
+            globalVariables: [...game.globalVariables, { id: crypto.randomUUID(), name: 'newVar', type: 'number', defaultValue: 0 }] 
+          });
+        }}>
+          Add Variable
         </Button>
       </Stack>
-    </Paper>
+
+      <Divider />
+
+      <Title order={5}>Starting Tags</Title>
+      <Stack gap="xs">
+        {game.tags.map((tag, idx) => (
+          <Group key={tag.id} gap="xs" wrap="nowrap">
+            <TextInput
+              size="xs"
+              value={tag.name}
+              onChange={(e) => {
+                const newTags = [...game.tags];
+                newTags[idx] = { ...tag, name: e.currentTarget.value };
+                setGame({ ...game, tags: newTags });
+              }}
+              style={{ flex: 1 }}
+            />
+            <ActionIcon size="sm" color="red" variant="subtle" onClick={() => {
+              setGame({ ...game, tags: game.tags.filter(t => t.id !== tag.id) });
+            }}>
+              <IconTrash size={14} />
+            </ActionIcon>
+          </Group>
+        ))}
+        <Button size="xs" variant="light" onClick={() => {
+          setGame({ ...game, tags: [...game.tags, { id: crypto.randomUUID(), name: 'new_tag' }] });
+        }}>
+          Add Tag
+        </Button>
+      </Stack>
+
+      <Divider />
+
+      <Title order={5}>Theme Settings</Title>
+      <ColorInput 
+        label="Primary Color" 
+        value={game.settings.theme.primaryColor}
+        onChange={(val) => setGame({ ...game, settings: { ...game.settings, theme: { ...game.settings.theme, primaryColor: val } } })}
+        swatches={[
+          '#25262b', '#868e96', '#fa5252', '#e64980', '#be4bdb', 
+          '#7950f2', '#4c6ef5', '#228be6', '#15aabf', '#12b886', 
+          '#40c057', '#82c91e', '#fab005', '#fd7e14'
+        ]}
+      />
+      <ColorInput 
+        label="Background Color" 
+        value={game.settings.theme.backgroundColor}
+        onChange={(val) => setGame({ ...game, settings: { ...game.settings, theme: { ...game.settings.theme, backgroundColor: val } } })}
+        swatches={[
+          '#ffffff', '#f8f9fa', '#f1f3f5', '#e9ecef', '#dee2e6',
+          '#25262b', '#1c1c1e', '#141517', '#101113'
+        ]}
+      />
+
+      <Divider />
+
+      {hasIntegrityError && (
+        <Group gap="xs" style={{ background: 'var(--mantine-color-red-light)', padding: '8px 10px', borderRadius: 6 }} wrap="nowrap">
+          <IconAlertCircle size={16} color="var(--mantine-color-red-filled)" style={{ flexShrink: 0 }} />
+          <Text size="xs" c="red.9" fw={500} style={{ lineHeight: 1.3 }}>
+            Fix all &quot;No default branch&quot; errors on the canvas before exporting.
+          </Text>
+        </Group>
+      )}
+
+      <Button 
+        color="green" 
+        mt={hasIntegrityError ? "sm" : "xl"}
+        disabled={hasIntegrityError}
+        onClick={() => {
+          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(game, null, 2));
+          const downloadAnchorNode = document.createElement('a');
+          downloadAnchorNode.setAttribute("href",     dataStr);
+          downloadAnchorNode.setAttribute("download", "game.json");
+          document.body.appendChild(downloadAnchorNode);
+          downloadAnchorNode.click();
+          downloadAnchorNode.remove();
+        }}
+      >
+        Export game.json
+      </Button>
+      <Button
+        color="blue"
+        variant="light"
+        onClick={() => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'application/json';
+          input.onchange = (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              try {
+                const importedGame = JSON.parse(event.target?.result as string);
+                setGame(importedGame);
+              } catch (err) {
+                alert("Failed to parse JSON file");
+              }
+            };
+            reader.readAsText(file);
+          };
+          input.click();
+        }}
+      >
+        Import game.json
+      </Button>
+    </Stack>
   );
 }

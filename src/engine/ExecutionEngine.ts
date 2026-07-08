@@ -153,7 +153,7 @@ export class ExecutionEngine {
     let nextState = this.applyMutations(combinedMutations, currentState);
     
     // Process local variable inheritance and explicit mappings
-    const oldLocals = currentState.localVariables;
+    const oldLocals = nextState.localVariables;
     const inheritedLocals: Record<string, number | string | boolean> = {};
 
     if (currentScene?.inheritAllLocals || edge.inheritAllLocals) {
