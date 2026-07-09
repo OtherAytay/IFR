@@ -196,7 +196,7 @@ function SidePanel({ gameState, setGameState, gameHistory, setGameHistory }: Eve
       >
         <SegmentedControl
           value={activeTab}
-          onChange={setActiveTab}
+          onChange={(val) => setActiveTab(val)}
           bg='none'
           color='violet'
           p='sm'
@@ -393,8 +393,8 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
   if (clientDetail) {
     clientStatus = (
       <HoverCard offset={20} transitionProps={{ transition: 'pop' }}>
-        <HoverCard.Target ref={clientRef}>
-          <Card display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={clientHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
+        <HoverCard.Target>
+          <Card ref={clientRef} display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={clientHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
             <Group>
               <Text>Client</Text>
               <Divider orientation="vertical" />
@@ -410,8 +410,8 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
     sizeStatus = (<StatusGroup display={gameState.client ? undefined : 'none'} leftChildren='Size' rightChildren={clientDetail.size} />)
     satisfactionStatus = (
       <HoverCard offset={20} transitionProps={{ transition: 'pop' }}>
-        <HoverCard.Target ref={satisfactionRef}>
-          <Card display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={satisfactionHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
+        <HoverCard.Target>
+          <Card ref={satisfactionRef} display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={satisfactionHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
             <Group>
               <Text>Satisfaction</Text>
               <Divider orientation="vertical" />
@@ -461,8 +461,8 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
 
         {/* Uniform */}
         <HoverCard offset={20} transitionProps={{ transition: 'pop' }}>
-          <HoverCard.Target ref={uniformRef}>
-            <Indicator label={`+${uniformBonus}`} disabled={!uniformBonus || !gameState.uniform} color='grape' size={14}>
+          <HoverCard.Target>
+            <Indicator ref={uniformRef} label={`+${uniformBonus}`} disabled={!uniformBonus || !gameState.uniform} color='grape' size={14}>
               <Card display={gameState.uniform ? undefined : 'none'} withBorder py="0.25rem" bg={uniformHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
                 <Group>
                   <Text>Uniform</Text>
@@ -1439,7 +1439,7 @@ function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory
 
   return (
     <BasicEvent name='Humiliation' canContinue={!!taskRoll} nextEvent={nextEvent} image={image} ratio={2 / 3}>
-      <Collapse in={!taskRoll}>
+      <Collapse expanded={!taskRoll}>
         <Card.Section>
           <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         </Card.Section>
@@ -1447,7 +1447,7 @@ function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory
       <Center mt={!taskRoll ? 'md' : 0} mb='md'>
         <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 7)} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)} />
       </Center>
-      <Collapse in={!!taskRoll}>
+      <Collapse expanded={!!taskRoll}>
         {humiliation}
       </Collapse>
     </BasicEvent>
@@ -1540,7 +1540,7 @@ function PunishmentEvent({ gameState, setGameState, gameHistory, setGameHistory 
 
   return (
     <BasicEvent name='Punishment' canContinue={!!taskRoll} nextEvent={nextEvent} image={image} ratio={2 / 3}>
-      <Collapse in={!taskRoll}>
+      <Collapse expanded={!taskRoll}>
         <Card.Section>
           <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         </Card.Section>
@@ -1548,7 +1548,7 @@ function PunishmentEvent({ gameState, setGameState, gameHistory, setGameHistory 
       <Center mt={!taskRoll ? 'md' : 0} mb='md'>
         <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={rollPunishment} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)} />
       </Center>
-      <Collapse in={!!taskRoll}>
+      <Collapse expanded={!!taskRoll}>
         {punishment}
       </Collapse>
     </BasicEvent>

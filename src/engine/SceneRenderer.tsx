@@ -300,7 +300,7 @@ export function SceneRenderer({
   switch (scene.layoutPreset) {
     case 'standard-split':
       return (
-        <Grid gutter={0} style={{ minHeight: '100vh', margin: 0 }}>
+        <Grid gap={0} style={{ minHeight: '100vh', margin: 0 }}>
           {mediaBlocks.length > 0 && (
             <Grid.Col span={{ base: 12, md: 6 }} style={{ minHeight: '50vh', backgroundColor: 'var(--mantine-color-gray-1)' }}>
               {renderMedia()}
@@ -478,7 +478,7 @@ function InteractionRenderer({
     return (
       <Stack align="center" gap="xs">
         <Roller 
-          roll={hasRolled ? rollValue : null}
+          roll={hasRolled ? (rollValue as number) : null}
           setRoll={(val) => {
             onInteract(block, { rollValue: val, isReroll: hasRolled });
           }}

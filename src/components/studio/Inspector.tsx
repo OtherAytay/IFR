@@ -1133,7 +1133,7 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
               </Group>
             </Group>
             
-            <Collapse in={incomingVarsExpanded}>
+            <Collapse expanded={incomingVarsExpanded}>
               <Stack gap="xs" p="sm" style={{ borderTop: '1px solid var(--mantine-color-blue-light-hover)' }}>
                 {Array.from(incomingVars.values()).map(v => (
                   <VariableCard
