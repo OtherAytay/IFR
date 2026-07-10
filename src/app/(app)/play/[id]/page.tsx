@@ -33,7 +33,7 @@ export default function PlayPage({ params }: { params: Promise<{ id: string }> }
   }, [id, router]);
 
   if (loading) {
-    return <Center h="100vh"><Loader size="xl" color="violet" /></Center>;
+    return <Center h="100%"><Loader size="xl" color="violet" /></Center>;
   }
 
   if (!saveData) {

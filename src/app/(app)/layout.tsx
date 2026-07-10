@@ -11,12 +11,13 @@ import { PageContext } from '@/IFR/club-bambi';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [opened, { toggle }] = useDisclosure(false)
   const [statePanelOpened, statePanelHandlers] = useDisclosure(false)
+  const path = usePathname()
 
   return (
     <AppShell
       h="100%"
       padding={0}
-      header={{ height: "4.5rem", collapsed: false, offset: false }}
+      header={{ height: "4.5rem", collapsed: false, offset: path?.startsWith('/create') ? false : true }}
       navbar={{ width: "20rem", breakpoint: 'sm', collapsed: { mobile: !opened, desktop: true } }}
       aside={{ width: "20rem", breakpoint: 'sm', collapsed: { desktop: !statePanelOpened, mobile: !statePanelOpened } }}
     >

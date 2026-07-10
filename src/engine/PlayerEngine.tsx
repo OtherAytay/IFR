@@ -86,10 +86,18 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
   useEffect(() => {
     if (gameData.settings?.theme) {
       const root = document.documentElement;
-      const { primaryColor, backgroundColor, fontFamily } = gameData.settings.theme;
+      const { primaryColor, fontFamily } = gameData.settings.theme;
+      
+      const prevPrimary = root.style.getPropertyValue('--mantine-primary-color-filled');
+      const prevFont = root.style.getPropertyValue('--mantine-font-family');
+
       if (primaryColor) root.style.setProperty('--mantine-primary-color-filled', primaryColor);
-      if (backgroundColor) root.style.setProperty('--mantine-color-body', backgroundColor);
       if (fontFamily) root.style.setProperty('--mantine-font-family', fontFamily);
+
+      return () => {
+        if (primaryColor) root.style.setProperty('--mantine-primary-color-filled', prevPrimary);
+        if (fontFamily) root.style.setProperty('--mantine-font-family', prevFont);
+      };
     }
   }, [gameData.settings?.theme]);
 
@@ -648,7 +656,7 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
 
       {/* Main Scene Render with Transition */}
       <MantineProvider theme={customTheme} defaultColorScheme="dark">
-        <div style={{ opacity: transitioning ? 0 : 1, transition: 'opacity 0.4s ease', minHeight: '100vh', backgroundColor: 'var(--mantine-color-body)', color: 'var(--mantine-color-text)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ opacity: transitioning ? 0 : 1, transition: 'opacity 0.4s ease', height: '100%', backgroundColor: 'var(--mantine-color-body)', color: 'var(--mantine-color-text)', display: 'flex', flexDirection: 'column' }}>
           <Group gap={0} grow preventGrowOverflow={false} wrap='nowrap' align="center" style={{ flex: 1 }}>
             <div style={{ flex: 1, height: '100%' }}>
               <SceneRenderer 

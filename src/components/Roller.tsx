@@ -73,7 +73,11 @@ export function Roller({
   return (
     <Button.Group w='15rem'>
       <Button
-        fullWidth style={{ ...(rollsLeft <= 1 && !rollStarted && buttonStyle) }}
+        fullWidth style={{ 
+          ...(rollsLeft <= 1 && !rollStarted && buttonStyle),
+          ...(rollFinished && !rollsLeft ? { border: '1px solid var(--mantine-color-default-border)' } : {})
+        }}
+        variant={(rollFinished && !rollsLeft) ? 'default' : 'filled'}
         disabled={rollFinished && !rollsLeft}
         loading={rollStarted && !rollFinished} loaderProps={{ type: 'dots' }}
         onClick={handleRoll}>

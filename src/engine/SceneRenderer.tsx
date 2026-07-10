@@ -1,9 +1,9 @@
 'use client'
 import { Scene, Block, MediaBlock, TextBlock, TaskBlock, InteractionBlock, RerollPolicy, Game } from '@/types/game';
 import { Roller } from '@/components/Roller';
-import { Container, Grid, Stack, Image, Text, Button, Paper, Group, Center, SimpleGrid, Box, RingProgress, Table } from '@mantine/core';
+import { Container, Grid, Stack, Image, Text, Button, Paper, Group, Center, SimpleGrid, Box, RingProgress, Table, Card, Divider } from '@mantine/core';
 import { Carousel } from '@mantine/carousel';
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, ReactNode, Fragment } from 'react';
 import { IconRefresh, IconHome } from '@tabler/icons-react';
 
 function TaskTimer({ block, onComplete }: { block: TaskBlock, onComplete: () => void }) {
@@ -249,7 +249,7 @@ export function SceneRenderer({
       return <MediaRenderer block={b} />;
     }
     return (
-      <Carousel withIndicators height="100%">
+      <Carousel withIndicators height="100%" style={{ borderRadius: 'var(--mantine-radius-md)', overflow: 'hidden' }}>
         {mediaBlocks.map(b => (
           <Carousel.Slide key={b.id}>
             <MediaRenderer block={b} />
@@ -263,16 +263,69 @@ export function SceneRenderer({
   const interpolateText = (text: string) => interpolateTextHelper(text, ctx);
   const interpolateTextNode = (text: string) => interpolateTextNodeHelper(text, ctx);
 
-  // Helper to render content/task/interaction side
-  const renderContent = () => {
+  const renderInteractionBlock = (b: InteractionBlock) => {
+    let rerollsLeft = 0;
+    if (b.interactionType === 'roll') {
+      if (rerollPolicy?.type === 'shared-pool') {
+        rerollsLeft = rerollPool ?? 0;
+      } else {
+        const maxAllowance = b.rerollsGranted !== undefined 
+          ? b.rerollsGranted 
+          : (rerollPolicy?.defaultAllowance !== undefined ? rerollPolicy.defaultAllowance : 1);
+        const used = blockRerolls?.[b.id] ?? 0;
+        rerollsLeft = Math.max(0, maxAllowance - used);
+      }
+    }
+
+    const allRequiredTasksDone = taskBlocks.every(t => completedTasks.has(t.id));
+
+    const allRequiredInteractionsDone = interactionBlocks
+      .filter(ib => ib.interactionType !== 'continue' && ib.isRequired !== false)
+      .every(ib => {
+        if (ib.interactionType === 'choice') {
+          return localVariables?.[`choice_${ib.id}`] !== undefined;
+        }
+        if (ib.interactionType === 'roll') {
+          return localVariables?.[`rollValue_${ib.id}`] !== undefined;
+        }
+        return true;
+      });
+
     return (
-      <Stack gap="xl" p="md" style={{ height: '100%', justifyContent: 'center' }}>
-        {textBlocks.map(b => (
-          <Text key={b.id} size="lg" style={{ whiteSpace: 'pre-wrap' }}>{interpolateTextNode(b.text)}</Text>
-        ))}
-        
-        {taskBlocks.length > 0 && (
-          <Paper withBorder p="md" radius="md">
+      <InteractionRenderer 
+        key={b.id} 
+        block={b} 
+        onInteract={onInteract}
+        localVariables={localVariables}
+        rerollsLeft={rerollsLeft}
+        isContinueDisabled={b.interactionType === 'continue' ? ((b.isRequired !== false ? !allRequiredTasksDone : false) || !allRequiredInteractionsDone) : false}
+        interpolateText={interpolateText}
+        interpolateTextNode={interpolateTextNode}
+        isLastNode={isLastNode}
+        onRestartGame={onRestartGame}
+        onReturnToLibrary={onReturnToLibrary}
+      />
+    );
+  };
+
+  // Helper to render content/task/interaction side
+  const renderContent = (inCard = false, excludeContinue = false) => {
+    const sections: React.ReactNode[] = [];
+    const addSection = (key: string, child: React.ReactNode, noPad = false) => {
+      if (inCard) {
+        sections.push(<Card.Section key={key} p={noPad ? 0 : "md"}>{child}</Card.Section>);
+      } else {
+        sections.push(<Fragment key={key}>{child}</Fragment>);
+      }
+    };
+
+    textBlocks.forEach(b => addSection(b.id,
+      <Text size="lg" style={{ whiteSpace: 'pre-wrap' }}>{interpolateTextNode(b.text)}</Text>
+    ));
+    
+    if (taskBlocks.length > 0) {
+      addSection('tasks',
+          inCard ? (
             <Group justify="center">
               {taskBlocks.map(b => (
                 <Stack key={b.id} align="center" gap="xs">
@@ -287,56 +340,57 @@ export function SceneRenderer({
                 </Stack>
               ))}
             </Group>
-          </Paper>
-        )}
+          ) : (
+            <Paper withBorder p="md" radius="md">
+              <Group justify="center">
+                {taskBlocks.map(b => (
+                  <Stack key={b.id} align="center" gap="xs">
+                    <TaskTimer 
+                      block={b} 
+                      onComplete={() => setCompletedTasks(prev => {
+                        const n = new Set(prev);
+                        n.add(b.id);
+                        return n;
+                      })} 
+                    />
+                  </Stack>
+                ))}
+              </Group>
+            </Paper>
+          )
+      );
+    }
 
-        <Group justify="center" mt="xl">
-          {interactionBlocks.map(b => {
-            let rerollsLeft = 0;
-            if (b.interactionType === 'roll') {
-              if (rerollPolicy?.type === 'shared-pool') {
-                rerollsLeft = rerollPool ?? 0;
-              } else {
-                const maxAllowance = b.rerollsGranted !== undefined 
-                  ? b.rerollsGranted 
-                  : (rerollPolicy?.defaultAllowance !== undefined ? rerollPolicy.defaultAllowance : 1);
-                const used = blockRerolls?.[b.id] ?? 0;
-                rerollsLeft = Math.max(0, maxAllowance - used);
-              }
-            }
+    const interactionsToRender = excludeContinue 
+      ? interactionBlocks.filter(b => b.interactionType !== 'continue')
+      : interactionBlocks;
 
-            const allRequiredTasksDone = taskBlocks
-              .every(t => completedTasks.has(t.id));
+    if (interactionsToRender.length > 0) {
+      addSection('interactions',
+          <Group justify="center" mt={inCard ? 0 : "xl"} w="100%">
+            {interactionsToRender.map(renderInteractionBlock)}
+          </Group>
+      );
+    }
 
-            const allRequiredInteractionsDone = interactionBlocks
-              .filter(ib => ib.interactionType !== 'continue' && ib.isRequired !== false)
-              .every(ib => {
-                if (ib.interactionType === 'choice') {
-                  return localVariables?.[`choice_${ib.id}`] !== undefined;
-                }
-                if (ib.interactionType === 'roll') {
-                  return localVariables?.[`rollValue_${ib.id}`] !== undefined;
-                }
-                return true;
-              });
+    const content = (
+      <>
+        {sections.map((sec, idx) => (
+          <Fragment key={idx}>
+            {sec}
+            {inCard && idx < sections.length - 1 && <Card.Section><Divider /></Card.Section>}
+          </Fragment>
+        ))}
+      </>
+    );
 
-            return (
-              <InteractionRenderer 
-                key={b.id} 
-                block={b} 
-                onInteract={onInteract}
-                localVariables={localVariables}
-                rerollsLeft={rerollsLeft}
-                isContinueDisabled={b.interactionType === 'continue' ? ((b.isRequired !== false ? !allRequiredTasksDone : false) || !allRequiredInteractionsDone) : false}
-                interpolateText={interpolateText}
-                interpolateTextNode={interpolateTextNode}
-                isLastNode={isLastNode}
-                onRestartGame={onRestartGame}
-                onReturnToLibrary={onReturnToLibrary}
-              />
-            );
-          })}
-        </Group>
+    if (inCard) {
+      return content;
+    }
+
+    return (
+      <Stack gap="xl" p="md" style={{ height: '100%', justifyContent: 'center' }}>
+        {content}
       </Stack>
     );
   };
@@ -345,16 +399,23 @@ export function SceneRenderer({
   switch (scene.layoutPreset) {
     case 'standard-split':
       return (
-        <Grid gap={0} style={{ minHeight: '100vh', margin: 0 }}>
+        <Grid gap={0} style={{ minHeight: '100%', margin: 0 }}>
           {mediaBlocks.length > 0 && (
-            <Grid.Col span={{ base: 12, md: 6 }} style={{ minHeight: '50vh', backgroundColor: 'var(--mantine-color-gray-1)' }}>
+            <Grid.Col span={{ base: 12, md: 6 }} style={{ minHeight: '50%', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--mantine-spacing-md)' }}>
               {renderMedia()}
             </Grid.Col>
           )}
-          <Grid.Col span={{ base: 12, md: mediaBlocks.length > 0 ? 6 : 12 }}>
-            <Container h="100%" pt="5rem">
-              {renderContent()}
-            </Container>
+          <Grid.Col span={{ base: 12, md: mediaBlocks.length > 0 ? 6 : 12 }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--mantine-spacing-xl)' }}>
+            <Stack w="100%" maw={600} gap="md">
+              <Card shadow="md" radius="lg" withBorder w="100%">
+                {renderContent(true, true)}
+              </Card>
+              {interactionBlocks.filter(b => b.interactionType === 'continue').map(b => (
+                <Box key={b.id} w="100%">
+                  {renderInteractionBlock(b)}
+                </Box>
+              ))}
+            </Stack>
           </Grid.Col>
         </Grid>
       );
@@ -371,7 +432,7 @@ export function SceneRenderer({
 
     case 'fullscreen-media':
       return (
-        <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
             {renderMedia()}
           </div>
@@ -397,13 +458,37 @@ export function SceneRenderer({
 }
 
 function MediaRenderer({ block }: { block: MediaBlock }) {
-  if (block.mediaType === 'video') {
-    return (
-      <video src={block.url} autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-    );
-  }
+  const content = block.mediaType === 'video' ? (
+    <video
+      src={block.url}
+      autoPlay
+      loop
+      muted
+      playsInline
+      style={{
+        maxWidth: '100%',
+        maxHeight: '100%',
+        width: 'auto',
+        height: 'auto',
+        borderRadius: 'var(--mantine-radius-md)',
+      }}
+    />
+  ) : (
+    <Image
+      src={block.url}
+      alt="Media"
+      radius="md"
+      w="auto"
+      h="auto"
+      maw="100%"
+      mah="100%"
+    />
+  );
+
   return (
-    <Image src={block.url} alt="Media" fit="contain" style={{ width: '100%', height: '100%' }} />
+    <Box style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      {content}
+    </Box>
   );
 }
 
@@ -434,7 +519,7 @@ function InteractionRenderer({
   if (block.interactionType === 'continue') {
     if (isLastNode) {
       return (
-        <Group gap="md">
+        <Group gap="md" grow w="100%">
           <Button variant="light" color="orange" onClick={onRestartGame} leftSection={<IconRefresh size={20} />}>
             Restart Game
           </Button>
@@ -446,7 +531,7 @@ function InteractionRenderer({
     }
     const labelNode = interpolateTextNode ? interpolateTextNode(block.label || 'Continue') : (interpolateText ? interpolateText(block.label || 'Continue') : (block.label || 'Continue'));
     return (
-      <Button onClick={() => onInteract(block)} disabled={isContinueDisabled}>
+      <Button fullWidth onClick={() => onInteract(block)} disabled={isContinueDisabled}>
         {labelNode}
       </Button>
     );
