@@ -17,7 +17,9 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Button } from '@mantine/core';
+import { Button, Group } from '@mantine/core';
+import { v4 as uuidv4 } from 'uuid';
+import { useRouter } from 'next/navigation';
 import { useStudioStore } from '../../store/studioStore';
 import { SceneNode } from './SceneNode';
 import { CustomEdge } from './CustomEdge';
@@ -31,8 +33,33 @@ const nodeTypes = {
 };
 
 export function StudioCanvas() {
-  const { game, addScene, updateScenePosition, addEdge, setSelectedNode, setSelectedEdge } = useStudioStore();
+  const { game, addScene, updateScenePosition, addEdge, setSelectedNode, setSelectedEdge, editingSaveId } = useStudioStore();
   const [rfInstance, setRfInstance] = useState<any>(null);
+  const router = useRouter();
+
+  const handleSaveAsCopy = useCallback(() => {
+    const newId = uuidv4();
+    const saveData = {
+      title: game.title || "Untitled Game",
+      lastPlayed: new Date().toISOString(),
+      gameData: game,
+      state: {}
+    };
+    localStorage.setItem(`ifr_save_${newId}`, JSON.stringify(saveData));
+    router.push('/');
+  }, [game, router]);
+
+  const handleOverwriteSave = useCallback(() => {
+    if (!editingSaveId) return;
+    const saveData = {
+      title: game.title || "Untitled Game",
+      lastPlayed: new Date().toISOString(),
+      gameData: game,
+      state: {}
+    };
+    localStorage.setItem(`ifr_save_${editingSaveId}`, JSON.stringify(saveData));
+    router.push('/');
+  }, [game, editingSaveId, router]);
 
   const handleAddScene = useCallback(() => {
     if (rfInstance) {
@@ -171,6 +198,18 @@ export function StudioCanvas() {
         <Controls />
         <Panel position="top-left" style={{ zIndex: 200 }}>
           <Button onClick={handleAddScene}>Add Scene</Button>
+        </Panel>
+        <Panel position="top-right" style={{ zIndex: 200 }}>
+          <Group>
+            {!editingSaveId ? (
+              <Button onClick={handleSaveAsCopy} color="blue">Save to Library</Button>
+            ) : (
+              <>
+                <Button onClick={handleSaveAsCopy} color="blue">Save as Copy</Button>
+                <Button onClick={handleOverwriteSave} color="red">Overwrite Save</Button>
+              </>
+            )}
+          </Group>
         </Panel>
       </ReactFlow>
     </div>

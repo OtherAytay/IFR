@@ -12,6 +12,7 @@ export default function Home() {
   const [savedGames, setSavedGames] = useState<any[]>([]);
   const router = useRouter();
   const setGame = useStudioStore(state => state.setGame);
+  const setEditingSaveId = useStudioStore(state => state.setEditingSaveId);
 
   useEffect(() => {
     // Load saved games from localStorage
@@ -99,6 +100,7 @@ export default function Home() {
         const parsed = JSON.parse(raw);
         if (parsed.gameData) {
           setGame(parsed.gameData);
+          setEditingSaveId(id);
           router.push('/create');
         }
       } catch (e) {
@@ -164,7 +166,7 @@ export default function Home() {
 
                   <Group mt="md" wrap="nowrap">
                     <Button style={{flexGrow: 1}} variant="light" color="violet" onClick={() => router.push(`/play/${game.id}`)}>
-                      Resume
+                      {(!game.state || Object.keys(game.state).length === 0) ? 'Play' : 'Resume'}
                     </Button>
                     <ActionIcon variant="light" color="blue" size={36} onClick={() => editSave(game.id)}>
                       <IconEdit size={20} />

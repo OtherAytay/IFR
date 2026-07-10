@@ -6,8 +6,10 @@ import { v4 as uuidv4 } from 'uuid';
 export interface EditorState {
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
+  editingSaveId: string | null;
   setSelectedNode: (id: string | null) => void;
   setSelectedEdge: (id: string | null) => void;
+  setEditingSaveId: (id: string | null) => void;
 }
 
 export interface GameState {
@@ -96,8 +98,10 @@ export const useStudioStore = create<StudioStore>()(
   // Editor State
   selectedNodeId: null,
   selectedEdgeId: null,
+  editingSaveId: null,
   setSelectedNode: (id) => set({ selectedNodeId: id, selectedEdgeId: null }),
   setSelectedEdge: (id) => set({ selectedEdgeId: id, selectedNodeId: null }),
+  setEditingSaveId: (id) => set({ editingSaveId: id }),
 
   // Game State
   game: initialGame,
