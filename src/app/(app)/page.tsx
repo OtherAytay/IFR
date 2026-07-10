@@ -2,14 +2,16 @@
 import { useState, useEffect } from 'react';
 import { Container, Title, Text, Card, Group, SimpleGrid, Button, ActionIcon, Stack } from '@mantine/core';
 import { Dropzone } from '@mantine/dropzone';
-import { IconUpload, IconFilePlus, IconX, IconDeviceGamepad, IconTrash, IconRefresh } from '@tabler/icons-react';
+import { IconUpload, IconFilePlus, IconX, IconDeviceGamepad, IconTrash, IconRefresh, IconEdit } from '@tabler/icons-react';
 import '@mantine/dropzone/styles.css';
 import { v4 as uuidv4 } from 'uuid';
 import { useRouter } from 'next/navigation';
+import { useStudioStore } from '../../store/studioStore';
 
 export default function Home() {
   const [savedGames, setSavedGames] = useState<any[]>([]);
   const router = useRouter();
+  const setGame = useStudioStore(state => state.setGame);
 
   useEffect(() => {
     // Load saved games from localStorage
@@ -90,6 +92,21 @@ export default function Home() {
     }
   };
 
+  const editSave = (id: string) => {
+    const raw = localStorage.getItem(`ifr_save_${id}`);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.gameData) {
+          setGame(parsed.gameData);
+          router.push('/create');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
   return (
     <Container size="lg" py="xl">
       <Stack gap="xl">
@@ -149,6 +166,9 @@ export default function Home() {
                     <Button style={{flexGrow: 1}} variant="light" color="violet" onClick={() => router.push(`/play/${game.id}`)}>
                       Resume
                     </Button>
+                    <ActionIcon variant="light" color="blue" size={36} onClick={() => editSave(game.id)}>
+                      <IconEdit size={20} />
+                    </ActionIcon>
                     <ActionIcon variant="light" color="orange" size={36} onClick={() => restartSave(game.id)}>
                       <IconRefresh size={20} />
                     </ActionIcon>
