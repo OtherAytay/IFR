@@ -70,7 +70,7 @@ function InteractiveFR(props: { ifrState: IFRState }) {
         <Paper w="100%" p="sm" mb="md" shadow="md" bg="dark.6" withBorder>
           <Group align="center">
             <Button variant="filled" color="blue" rightSection={<IconEdit />}>Edit</Button>
-            <SegmentedControl size="sm" value={view} onChange={setView} color="violet"
+            <SegmentedControl size="sm" value={view} onChange={(val) => setView(val)} color="violet"
               data={[
                 { label: <Center><IconCarouselHorizontal /></Center>, value: "carousel" },
                 { label: <Center><IconLayoutGrid /></Center>, value: "grid" }
@@ -154,7 +154,7 @@ function StagePanel(props: { stageState: StageState, view: string, progressFn })
     <Center>
       {
         view == "carousel" ?
-          <Carousel w="100%" align="center" slideGap="md" slideSize="auto" mb="xl" controlsOffset="md" dragFree>
+          <Carousel w="100%" slideGap="md" slideSize="auto" mb="xl" controlsOffset="md">
             {stageState.eventSpaceStates.map((es, idx) => (
               <Carousel.Slide key={idx} maw="100%">
                 <EventSpaceCard eventSpaceState={es} dependencyPassed={dependencyPassMap.get(es)} manageFn={manageDependencies} progressFn={props.progressFn} />
