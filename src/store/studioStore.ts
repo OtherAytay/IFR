@@ -69,7 +69,8 @@ export function sanitizeGame(game: Game): Game {
   
   return {
     ...game,
-    scenes: sanitizedScenes
+    scenes: sanitizedScenes,
+    mediaAssets: game.mediaAssets || []
   };
 }
 
@@ -87,6 +88,7 @@ const initialGame: Game = {
   },
   globalVariables: [],
   tags: [],
+  mediaAssets: [],
   scenes: {},
   edges: {},
   startSceneId: ''
@@ -206,7 +208,7 @@ export const useStudioStore = create<StudioStore>()(
     if (!scene) return state;
     
     let newBlock: any = { id: uuidv4(), type: blockType };
-    if (blockType === 'media') newBlock = { ...newBlock, mediaType: 'image', url: '' };
+    if (blockType === 'media') newBlock = { ...newBlock, mediaId: '' };
     if (blockType === 'text') newBlock = { ...newBlock, text: 'New text content' };
     if (blockType === 'task') newBlock = { ...newBlock, durationSeconds: 60 };
     

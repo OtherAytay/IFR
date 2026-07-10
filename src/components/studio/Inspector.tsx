@@ -6,7 +6,7 @@ import { IconTrash, IconPlus, IconSettings, IconGripVertical, IconAlertCircle, I
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useStudioStore } from '../../store/studioStore';
 import { Block, LayoutPreset, Edge, Scene } from '../../types/game';
-import { compressImageToDataURL } from '../../utils/imageCompressor';
+import { compressImageToDataURL, fileToDataURL } from '../../utils/imageCompressor';
 
 const BLOCK_CONFIG = {
   media:       { label: 'Media',       color: 'blue',   Icon: IconPhoto     },
@@ -637,7 +637,7 @@ function MutationCard({
 }
 
 function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; block: Block; dragHandleProps?: any }) {
-  const { updateBlock, removeBlock } = useStudioStore();
+  const { game, setGame, updateBlock, removeBlock } = useStudioStore();
   const cfg = BLOCK_CONFIG[block.type as keyof typeof BLOCK_CONFIG] ?? { label: block.type, color: 'gray', Icon: IconAlignLeft };
   const { label, color, Icon } = cfg;
 
@@ -686,78 +686,57 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
       <Stack gap="xs" p="sm">
         {block.type === 'media' && (
           <>
-            <NativeSelect
-              size="xs"
-              label="Media Type"
-              variant="filled"
-              value={block.mediaType}
-              data={[
-                { value: 'image', label: 'Image' },
-                { value: 'video', label: 'Video' },
-                { value: 'audio', label: 'Audio' },
-              ]}
-              onChange={(e) => updateBlock(sceneId, block.id, { mediaType: e.currentTarget.value })}
-            />
-            <TextInput
-              size="xs"
-              label="URL"
-              variant="filled"
-              placeholder="https://…"
-              value={block.url}
-              onChange={(e) => updateBlock(sceneId, block.id, { url: e.currentTarget.value })}
-              leftSection={
-                block.url ? (
-                  <Tooltip label="Preview in new tab" position="top" withArrow>
-                    <ActionIcon
-                      size="sm"
-                      variant="subtle"
-                      onClick={() => {
-                        if (block.url.startsWith('data:')) {
-                          const win = window.open();
-                          if (win) {
-                            win.document.write(`<iframe src="${block.url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                            win.document.title = 'Media Preview';
-                            win.document.close();
-                          }
-                        } else {
-                          window.open(block.url, '_blank');
+            <Group align="flex-end" gap="xs">
+              <NativeSelect
+                size="xs"
+                label="Media Asset"
+                variant="filled"
+                value={block.mediaId || ''}
+                style={{ flex: 1 }}
+                data={[
+                  { value: '', label: 'Select Media...' },
+                  ...(game.mediaAssets || []).map(a => ({ value: a.id, label: a.name }))
+                ]}
+                onChange={(e) => updateBlock(sceneId, block.id, { mediaId: e.currentTarget.value })}
+              />
+              <Tooltip label="Upload New Image" position="top" withArrow>
+                <ActionIcon
+                  size="md"
+                  variant="light"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*,video/*,audio/*';
+                    input.onchange = async (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (!file) return;
+                      try {
+                        const mediaType = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
+                        const dataURL = mediaType === 'image' 
+                          ? await compressImageToDataURL(file) 
+                          : await fileToDataURL(file);
+                        let existingAsset = game.mediaAssets?.find(a => a.url === dataURL);
+                        if (!existingAsset) {
+                          existingAsset = {
+                            id: crypto.randomUUID(),
+                            name: file.name || 'New Media',
+                            mediaType,
+                            url: dataURL
+                          };
+                          setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), existingAsset] });
                         }
-                      }}
-                    >
-                      <IconExternalLink size={13} />
-                    </ActionIcon>
-                  </Tooltip>
-                ) : undefined
-              }
-              rightSection={
-                block.mediaType === 'image' ? (
-                  <Tooltip label="Embed local image" position="top" withArrow>
-                    <ActionIcon
-                      size="sm"
-                      variant="subtle"
-                      onClick={() => {
-                        const input = document.createElement('input');
-                        input.type = 'file';
-                        input.accept = 'image/*';
-                        input.onchange = async (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0];
-                          if (!file) return;
-                          try {
-                            const dataURL = await compressImageToDataURL(file);
-                            updateBlock(sceneId, block.id, { url: dataURL });
-                          } catch (err) {
-                            console.error('Failed to compress image:', err);
-                          }
-                        };
-                        input.click();
-                      }}
-                    >
-                      <IconUpload size={13} />
-                    </ActionIcon>
-                  </Tooltip>
-                ) : null
-              }
-            />
+                        updateBlock(sceneId, block.id, { mediaId: existingAsset.id, mediaType: undefined, url: undefined });
+                      } catch (err) {
+                        console.error('Failed to process media:', err);
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  <IconUpload size={16} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
           </>
         )}
 
@@ -1889,6 +1868,127 @@ export function Inspector() {
           setGame({ ...game, tags: [...game.tags, { id: crypto.randomUUID(), name: 'new_tag' }] });
         }}>
           Add Tag
+        </Button>
+      </Stack>
+
+      <Divider />
+
+      <Title order={5}>Media Library</Title>
+      <Stack gap="xs">
+        {(game.mediaAssets || []).map((asset, idx) => {
+          const isUnused = !Object.values(game.scenes).some(scene =>
+            scene.blocks.some(b => {
+              if (b.type === 'media') return (b as any).mediaId === asset.id;
+              if ((b as any).type === 'container') return JSON.stringify(b).includes(`"mediaId":"${asset.id}"`);
+              return false;
+            })
+          );
+          const typeColor = asset.mediaType === 'image' ? 'blue' : asset.mediaType === 'video' ? 'violet' : 'orange';
+          const TypeIcon = asset.mediaType === 'image' ? IconPhoto : asset.mediaType === 'video' ? IconFilter : IconUpload;
+          return (
+            <Card
+              key={asset.id}
+              withBorder
+              shadow="sm"
+              radius="md"
+              p={0}
+              style={{ borderLeft: `3px solid var(--mantine-color-${typeColor}-6)`, overflow: 'hidden' }}
+            >
+              {/* Header */}
+              <Group
+                justify="space-between"
+                px="sm"
+                py={6}
+                wrap="nowrap"
+                style={{
+                  background: `var(--mantine-color-${typeColor}-light)`,
+                  borderBottom: `1px solid var(--mantine-color-${typeColor}-light-hover)`,
+                }}
+              >
+                <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                  <ThemeIcon size="xs" variant="transparent" color={typeColor}>
+                    <TypeIcon size={13} />
+                  </ThemeIcon>
+                  <TextInput
+                    size="xs"
+                    variant="unstyled"
+                    value={asset.name}
+                    placeholder="Asset name"
+                    onChange={(e) => {
+                      const newAssets = [...(game.mediaAssets || [])];
+                      newAssets[idx] = { ...asset, name: e.currentTarget.value };
+                      setGame({ ...game, mediaAssets: newAssets });
+                    }}
+                    styles={{
+                      input: {
+                        fontWeight: 700,
+                        fontSize: 'var(--mantine-font-size-xs)',
+                        letterSpacing: '0.03em',
+                        textTransform: 'uppercase',
+                        color: `var(--mantine-color-${typeColor}-8)`,
+                        padding: 0,
+                        height: 'auto',
+                        minHeight: 'auto',
+                      }
+                    }}
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                  <Badge size="xs" variant="light" color={typeColor} radius="sm" style={{ flexShrink: 0 }}>
+                    {asset.mediaType}
+                  </Badge>
+                  {isUnused && (
+                    <Tooltip label="Unused — not referenced by any block" withArrow position="top">
+                      <ThemeIcon size="xs" variant="transparent" color="orange">
+                        <IconAlertCircle size={13} />
+                      </ThemeIcon>
+                    </Tooltip>
+                  )}
+                </Group>
+                <ActionIcon size="sm" color="red" variant="subtle" onClick={() => {
+                  setGame({ ...game, mediaAssets: (game.mediaAssets || []).filter(a => a.id !== asset.id) });
+                }}>
+                  <IconTrash size={14} />
+                </ActionIcon>
+              </Group>
+
+              {/* Body */}
+              <Group gap="sm" p="sm" wrap="nowrap" align="center">
+                {asset.mediaType === 'image' ? (
+                  <img src={asset.url} style={{ width: 36, height: 36, borderRadius: 4, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--mantine-color-default-border)' }} />
+                ) : (
+                  <div style={{ width: 36, height: 36, background: `var(--mantine-color-${typeColor}-light)`, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <TypeIcon size={18} />
+                  </div>
+                )}
+                <Text size="xs" c="dimmed" style={{ flex: 1 }}>
+                  {asset.mediaType === 'image' ? 'Image' : asset.mediaType === 'video' ? 'Video' : 'Audio'} asset
+                </Text>
+              </Group>
+            </Card>
+          );
+        })}
+        <Button size="xs" variant="light" leftSection={<IconPlus size={12} />} onClick={() => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*,video/*,audio/*';
+          input.onchange = async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (!file) return;
+            try {
+              const mediaType = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
+              const dataURL = mediaType === 'image' 
+                ? await compressImageToDataURL(file) 
+                : await fileToDataURL(file);
+              const existingAsset = game.mediaAssets?.find(a => a.url === dataURL);
+              if (existingAsset) return;
+              setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), { id: crypto.randomUUID(), name: file.name, mediaType, url: dataURL }] });
+            } catch (err) {
+              console.error('Failed to add media:', err);
+            }
+          };
+          input.click();
+        }}>
+          Upload Media Asset
         </Button>
       </Stack>
 

@@ -52,3 +52,12 @@ export async function compressImageToDataURL(
     reader.onerror = (error) => reject(error);
   });
 }
+
+export async function fileToDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}

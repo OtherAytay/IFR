@@ -42,10 +42,18 @@ export interface BaseBlock {
   type: BlockType;
 }
 
-export interface MediaBlock extends BaseBlock {
-  type: 'media';
+export interface MediaAsset {
+  id: string;
+  name: string;
   url: string; // URL or base64
   mediaType: 'image' | 'video' | 'audio';
+}
+
+export interface MediaBlock extends BaseBlock {
+  type: 'media';
+  mediaId?: string; // references MediaAsset.id
+  url?: string; // Legacy URL or base64
+  mediaType?: 'image' | 'video' | 'audio'; // Legacy
 }
 
 export interface TextBlock extends BaseBlock {
@@ -168,6 +176,7 @@ export interface Game {
   settings: GameSettings;
   globalVariables: Variable[];
   tags: Tag[];
+  mediaAssets?: MediaAsset[]; // Array of media assets for the game
   
   scenes: Record<string, Scene>;
   edges: Record<string, Edge[]>; // Keyed by sourceSceneId for easy traversal

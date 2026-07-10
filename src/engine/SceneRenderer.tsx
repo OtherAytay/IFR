@@ -246,13 +246,13 @@ export function SceneRenderer({
     if (mediaBlocks.length === 0) return null;
     if (mediaBlocks.length === 1) {
       const b = mediaBlocks[0];
-      return <MediaRenderer block={b} />;
+      return <MediaRenderer block={b} game={game} />;
     }
     return (
       <Carousel withIndicators height="100%" style={{ borderRadius: 'var(--mantine-radius-md)', overflow: 'hidden' }}>
         {mediaBlocks.map(b => (
           <Carousel.Slide key={b.id}>
-            <MediaRenderer block={b} />
+            <MediaRenderer block={b} game={game} />
           </Carousel.Slide>
         ))}
       </Carousel>
@@ -457,10 +457,14 @@ export function SceneRenderer({
   }
 }
 
-function MediaRenderer({ block }: { block: MediaBlock }) {
-  const content = block.mediaType === 'video' ? (
+function MediaRenderer({ block, game }: { block: MediaBlock, game?: Game }) {
+  const asset = game?.mediaAssets?.find(a => a.id === block.mediaId);
+  const mediaType = asset?.mediaType || block.mediaType || 'image';
+  const url = asset?.url || block.url || '';
+
+  const content = mediaType === 'video' ? (
     <video
-      src={block.url}
+      src={url}
       autoPlay
       loop
       muted
@@ -473,9 +477,19 @@ function MediaRenderer({ block }: { block: MediaBlock }) {
         borderRadius: 'var(--mantine-radius-md)',
       }}
     />
+  ) : mediaType === 'audio' ? (
+    <audio
+      src={url}
+      controls
+      style={{
+        maxWidth: '100%',
+        width: '100%',
+        borderRadius: 'var(--mantine-radius-md)',
+      }}
+    />
   ) : (
     <Image
-      src={block.url}
+      src={url}
       alt="Media"
       radius="md"
       w="auto"
