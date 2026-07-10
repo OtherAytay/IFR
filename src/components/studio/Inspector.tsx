@@ -7,6 +7,8 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { useStudioStore } from '../../store/studioStore';
 import { Block, LayoutPreset, Edge, Scene } from '../../types/game';
 import { compressImageToDataURL, fileToDataURL } from '../../utils/imageCompressor';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 const BLOCK_CONFIG = {
   media:       { label: 'Media',       color: 'blue',   Icon: IconPhoto     },
@@ -1976,10 +1978,8 @@ export function Inspector() {
             if (!file) return;
             try {
               const mediaType = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
-              const dataURL = mediaType === 'image' 
-                ? await compressImageToDataURL(file) 
-                : await fileToDataURL(file);
-              const existingAsset = game.mediaAssets?.find(a => a.url === dataURL);
+              const dataURL = URL.createObjectURL(file);
+              const existingAsset = game.mediaAssets?.find(a => a.name === file.name && a.mediaType === mediaType);
               if (existingAsset) return;
               setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), { id: crypto.randomUUID(), name: file.name, mediaType, url: dataURL }] });
             } catch (err) {
@@ -2038,48 +2038,94 @@ export function Inspector() {
         </Group>
       )}
 
-      <Button 
-        color="green" 
-        mt={hasIntegrityError ? "sm" : "xl"}
-        disabled={hasIntegrityError}
-        onClick={() => {
-          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(game, null, 2));
-          const downloadAnchorNode = document.createElement('a');
-          downloadAnchorNode.setAttribute("href",     dataStr);
-          downloadAnchorNode.setAttribute("download", "game.json");
-          document.body.appendChild(downloadAnchorNode);
-          downloadAnchorNode.click();
-          downloadAnchorNode.remove();
-        }}
-      >
-        Export game.json
-      </Button>
-      <Button
-        color="blue"
-        variant="light"
-        onClick={() => {
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.accept = 'application/json';
-          input.onchange = (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-              try {
-                const importedGame = JSON.parse(event.target?.result as string);
-                setGame(importedGame);
-              } catch (err) {
-                alert("Failed to parse JSON file");
+      <Group grow mt={hasIntegrityError ? "sm" : "xl"}>
+        <Button 
+          color="green" 
+          disabled={hasIntegrityError}
+          onClick={async () => {
+            const zip = new JSZip();
+            const gameClone = JSON.parse(JSON.stringify(game));
+            const mediaFolder = zip.folder("media");
+            
+            if (gameClone.mediaAssets && mediaFolder) {
+              for (const asset of gameClone.mediaAssets) {
+                try {
+                  const res = await fetch(asset.url);
+                  const blob = await res.blob();
+                  let ext = asset.name.split('.').pop() || 'bin';
+                  if (ext.length > 5 || !ext) ext = asset.mediaType === 'image' ? 'png' : asset.mediaType === 'video' ? 'mp4' : 'mp3';
+                  mediaFolder.file(asset.id + '.' + ext, blob);
+                  asset.url = `media/${asset.id}.${ext}`;
+                } catch (e) {
+                  console.error("Failed to export asset", asset, e);
+                }
+              }
+            }
+            
+            zip.file("map.json", JSON.stringify(gameClone, null, 2));
+            const blob = await zip.generateAsync({ type: "blob" });
+            saveAs(blob, "game.ifr");
+          }}
+        >
+          Export game.ifr
+        </Button>
+        <Button
+          color="blue"
+          variant="light"
+          onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.ifr,.json,application/json';
+            input.onchange = async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (!file) return;
+              
+              if (file.name.endsWith('.ifr')) {
+                try {
+                  const zip = new JSZip();
+                  const loadedZip = await zip.loadAsync(file);
+                  
+                  const mapFile = loadedZip.file("map.json");
+                  if (!mapFile) throw new Error("Invalid .ifr file: map.json is missing.");
+                  
+                  const mapDataString = await mapFile.async("string");
+                  const importedGame = JSON.parse(mapDataString);
+                  
+                  if (importedGame.mediaAssets) {
+                    for (const asset of importedGame.mediaAssets) {
+                      if (asset.url.startsWith('media/')) {
+                        const fileInZip = loadedZip.file(asset.url);
+                        if (fileInZip) {
+                          const fileBlob = await fileInZip.async("blob");
+                          asset.url = URL.createObjectURL(fileBlob);
+                        }
+                      }
+                    }
+                  }
+                  
+                  setGame(importedGame);
+                } catch (err) {
+                  alert("Failed to parse IFR file: " + err);
+                }
+              } else {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  try {
+                    const importedGame = JSON.parse(event.target?.result as string);
+                    setGame(importedGame);
+                  } catch (err) {
+                    alert("Failed to parse JSON file");
+                  }
+                };
+                reader.readAsText(file);
               }
             };
-            reader.readAsText(file);
-          };
-          input.click();
-        }}
-      >
-        Import game.json
-      </Button>
+            input.click();
+          }}
+        >
+          Import map (.ifr)
+        </Button>
+      </Group>
     </Stack>
   );
 }
