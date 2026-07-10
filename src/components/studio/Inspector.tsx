@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Paper, Title, Text, Stack, TextInput, Divider, Button, Menu, ActionIcon, Group, NativeSelect, NumberInput, Textarea, Card, ColorInput, Checkbox, Select, Input, Tooltip, ThemeIcon, Badge, Autocomplete, Switch, Collapse } from '@mantine/core';
-import { IconTrash, IconPlus, IconSettings, IconGripVertical, IconAlertCircle, IconUpload, IconExternalLink, IconPhoto, IconAlignLeft, IconClock, IconHandClick, IconVariable, IconTag, IconTagOff, IconPencil, IconFilter, IconChevronDown, IconChevronUp, IconLock } from '@tabler/icons-react';
+import { IconTrash, IconX, IconPlus, IconSettings, IconGripVertical, IconAlertCircle, IconUpload, IconExternalLink, IconPhoto, IconAlignLeft, IconClock, IconHandClick, IconVariable, IconTag, IconTagOff, IconPencil, IconFilter, IconChevronDown, IconChevronUp, IconLock, IconLayoutBoard } from '@tabler/icons-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useStudioStore } from '../../store/studioStore';
 import { Block, LayoutPreset, Edge, Scene } from '../../types/game';
@@ -13,6 +13,7 @@ const BLOCK_CONFIG = {
   text:        { label: 'Text',        color: 'green',  Icon: IconAlignLeft },
   task:        { label: 'Task',        color: 'orange', Icon: IconClock     },
   interaction: { label: 'Interaction', color: 'violet', Icon: IconHandClick },
+  container:   { label: 'Container',   color: 'cyan',   Icon: IconLayoutBoard },
 } as const;
 
 const MUTATION_CONFIG = {
@@ -20,6 +21,28 @@ const MUTATION_CONFIG = {
   add_tag:    { label: 'Add Tag',      color: 'grape',  Icon: IconTag      },
   remove_tag: { label: 'Remove Tag',   color: 'pink',   Icon: IconTagOff   },
 } as const;
+
+const COLOR_TO_HEX: Record<string, string> = {
+  red: '#fa5252',
+  pink: '#e64980',
+  grape: '#be4bdb',
+  violet: '#7950f2',
+  indigo: '#4c6ef5',
+  blue: '#228be6',
+  cyan: '#15aabf',
+  teal: '#12b886',
+  green: '#40c057',
+  lime: '#82c91e',
+  yellow: '#fab005',
+  orange: '#fd7e14',
+  gray: '#868e96',
+  dark: '#2c2e33'
+};
+
+const HEX_TO_COLOR: Record<string, string> = Object.fromEntries(
+  Object.entries(COLOR_TO_HEX).map(([k, v]) => [v, k])
+);
+const SWATCHES_HEX = Object.values(COLOR_TO_HEX);
 
 export function getCleanVariableLabel(vId: string, vName: string, scene: Scene | undefined) {
   if (vName && vName.trim() !== '' && vName !== 'roll_value' && vName !== 'roll_outcome' && vName !== 'roll_branch' && vName !== 'selected_choice_id' && vName !== 'selected_choice_text') {
@@ -637,7 +660,7 @@ function MutationCard({
 }
 
 function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; block: Block; dragHandleProps?: any }) {
-  const { updateBlock, removeBlock } = useStudioStore();
+  const { updateBlock, removeBlock, addBlock } = useStudioStore();
   const cfg = BLOCK_CONFIG[block.type as keyof typeof BLOCK_CONFIG] ?? { label: block.type, color: 'gray', Icon: IconAlignLeft };
   const { label, color, Icon } = cfg;
 
@@ -662,9 +685,13 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
           borderBottom: `1px solid var(--mantine-color-${color}-light-hover)`,
         }}
       >
-        <Group gap="xs">
+        <Group 
+          gap="xs" 
+          onClick={() => updateBlock(sceneId, block.id, { editorCollapsed: !block.editorCollapsed })}
+          style={{ cursor: 'pointer' }}
+        >
           {dragHandleProps && (
-            <div {...dragHandleProps} style={{ display: 'flex', cursor: 'grab', color: `var(--mantine-color-${color}-6)` }}>
+            <div {...dragHandleProps} onClick={(e) => e.stopPropagation()} style={{ display: 'flex', cursor: 'grab', color: `var(--mantine-color-${color}-6)` }}>
               <IconGripVertical size={14} />
             </div>
           )}
@@ -674,6 +701,7 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
           <Text size="xs" fw={700} c={`${color}.8`} style={{ letterSpacing: '0.03em', textTransform: 'uppercase' }}>
             {label}
           </Text>
+          {block.editorCollapsed ? <IconChevronDown size={14} color={`var(--mantine-color-${color}-6)`} /> : <IconChevronUp size={14} color={`var(--mantine-color-${color}-6)`} />}
         </Group>
         {!(block.type === 'interaction' && block.interactionType === 'continue') && (
           <ActionIcon size="sm" color="red" variant="subtle" onClick={() => removeBlock(sceneId, block.id)}>
@@ -683,7 +711,8 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
       </Group>
 
       {/* Card body */}
-      <Stack gap="xs" p="sm">
+      <Collapse expanded={!block.editorCollapsed}>
+        <Stack gap="xs" p="sm">
         {block.type === 'media' && (
           <>
             <NativeSelect
@@ -981,7 +1010,105 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
             )}
           </>
         )}
+        {block.type === 'container' && (
+          <Stack gap="sm">
+            <Group grow>
+              <NativeSelect
+                size="xs"
+                label="Direction"
+                variant="filled"
+                value={block.direction}
+                data={[
+                  { value: 'column', label: 'Column' },
+                  { value: 'row', label: 'Row' },
+                ]}
+                onChange={(e) => updateBlock(sceneId, block.id, { direction: e.currentTarget.value })}
+              />
+              <ColorInput
+                size="xs"
+                label="Background"
+                variant="filled"
+                value={COLOR_TO_HEX[block.backgroundColor || ''] || block.backgroundColor || ''}
+                disallowInput
+                withPicker={false}
+                closeOnColorSwatchClick
+                swatches={SWATCHES_HEX}
+                rightSection={
+                  block.backgroundColor ? (
+                    <ActionIcon size="sm" variant="transparent" c="dimmed" onClick={(e) => { e.stopPropagation(); updateBlock(sceneId, block.id, { backgroundColor: undefined }); }}>
+                      <IconX size={14} />
+                    </ActionIcon>
+                  ) : undefined
+                }
+                onChange={(val) => {
+                  const normalized = (val || '').toLowerCase();
+                  updateBlock(sceneId, block.id, { backgroundColor: HEX_TO_COLOR[normalized] || normalized });
+                }}
+              />
+              <ColorInput
+                size="xs"
+                label="Border"
+                variant="filled"
+                value={COLOR_TO_HEX[block.borderColor || ''] || block.borderColor || ''}
+                disallowInput
+                withPicker={false}
+                closeOnColorSwatchClick
+                swatches={SWATCHES_HEX}
+                rightSection={
+                  block.borderColor ? (
+                    <ActionIcon size="sm" variant="transparent" c="dimmed" onClick={(e) => { e.stopPropagation(); updateBlock(sceneId, block.id, { borderColor: undefined }); }}>
+                      <IconX size={14} />
+                    </ActionIcon>
+                  ) : undefined
+                }
+                onChange={(val) => {
+                  const normalized = (val || '').toLowerCase();
+                  updateBlock(sceneId, block.id, { borderColor: HEX_TO_COLOR[normalized] || normalized });
+                }}
+              />
+            </Group>
+            <Divider label="Nested Blocks" labelPosition="center" />
+            <Stack gap="xs" pl="sm">
+              <Droppable droppableId={block.id} type="blocks">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} style={{ minHeight: '50px' }}>
+                    <Stack gap="xs">
+                      {block.blocks && block.blocks.length > 0 ? (
+                        block.blocks.map((childBlock: any, idx: number) => (
+                          <Draggable key={childBlock.id} draggableId={childBlock.id} index={idx}>
+                            {(provided) => (
+                              <div ref={provided.innerRef} {...provided.draggableProps}>
+                                <BlockEditor sceneId={sceneId} block={childBlock} dragHandleProps={provided.dragHandleProps} />
+                              </div>
+                            )}
+                          </Draggable>
+                        ))
+                      ) : (
+                        <Text size="xs" c="dimmed" mb="xs">No blocks inside this container yet. Drop blocks here.</Text>
+                      )}
+                    </Stack>
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+              <Menu shadow="md" width={200} position="bottom-start">
+                <Menu.Target>
+                  <Button size="xs" variant="light" color="cyan" leftSection={<IconPlus size={14} />}>Add nested block</Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item onClick={() => { addBlock(sceneId, 'media', undefined, block.id); document.body.click(); }}>Media Block</Menu.Item>
+                  <Menu.Item onClick={() => { addBlock(sceneId, 'text', undefined, block.id); document.body.click(); }}>Text Block</Menu.Item>
+                  <Menu.Item onClick={() => { addBlock(sceneId, 'task', undefined, block.id); document.body.click(); }}>Task Block</Menu.Item>
+                  <Menu.Item onClick={() => { addBlock(sceneId, 'interaction', 'choice', block.id); document.body.click(); }}>Choice Block</Menu.Item>
+                  <Menu.Item onClick={() => { addBlock(sceneId, 'interaction', 'roll', block.id); document.body.click(); }}>Roll Block</Menu.Item>
+                  <Menu.Item onClick={() => { addBlock(sceneId, 'container', undefined, block.id); document.body.click(); }}>Container Block</Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            </Stack>
+          </Stack>
+        )}
       </Stack>
+      </Collapse>
     </Card>
   );
 }
@@ -1013,17 +1140,9 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
     if (!result.destination) return;
     
     if (result.type === 'blocks') {
-      const nonContinueBlocks = scene.blocks.filter(b => b.type !== 'interaction' || (b as any).interactionType !== 'continue');
-      const continueBlock = scene.blocks.find(b => b.type === 'interaction' && (b as any).interactionType === 'continue');
-      
-      const newBlocks = Array.from(nonContinueBlocks);
-      const [moved] = newBlocks.splice(result.source.index, 1);
-      newBlocks.splice(result.destination.index, 0, moved);
-      
-      if (continueBlock) {
-        newBlocks.push(continueBlock);
-      }
-      updateScene(scene.id, { blocks: newBlocks });
+      const sourceId = result.source.droppableId;
+      const targetId = result.destination.droppableId;
+      useStudioStore.getState().moveBlock(scene.id, result.draggableId, sourceId, targetId, result.source.index, result.destination.index);
     }
     
     if (result.type === 'edges') {
@@ -1066,17 +1185,7 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
         value={scene.name} 
         onChange={(e) => updateScene(scene.id, { name: e.currentTarget.value })} 
       />
-      <NativeSelect 
-        label="Layout Preset"
-        value={scene.layoutPreset}
-        data={[
-          { value: 'standard-split', label: 'Standard Split' },
-          { value: 'grid', label: 'Grid' },
-          { value: 'fullscreen-media', label: 'Fullscreen Media' },
-          { value: 'stacked', label: 'Stacked' },
-        ]}
-        onChange={(e) => updateScene(scene.id, { layoutPreset: e.currentTarget.value as LayoutPreset })}
-      />
+
       
       <Divider />
       <Group justify="space-between">
@@ -1195,8 +1304,35 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
       <Divider />
       <Group justify="space-between">
         <Title order={5}>Blocks</Title>
-        <Menu shadow="md" width={200}>
-          <Menu.Target>
+        <Group gap="xs">
+          <ActionIcon.Group>
+            <Tooltip label="Collapse All" withArrow>
+              <ActionIcon variant="light" color="blue" onClick={() => {
+                const setCollapsed = (blocks: any[], collapsed: boolean): any[] => blocks.map(b => ({
+                  ...b,
+                  editorCollapsed: collapsed,
+                  ...(b.type === 'container' ? { blocks: setCollapsed(b.blocks, collapsed) } : {})
+                }));
+                updateScene(scene.id, { blocks: setCollapsed(scene.blocks, true) });
+              }}>
+                <IconChevronUp size={16} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Expand All" withArrow>
+              <ActionIcon variant="light" color="blue" onClick={() => {
+                const setCollapsed = (blocks: any[], collapsed: boolean): any[] => blocks.map(b => ({
+                  ...b,
+                  editorCollapsed: collapsed,
+                  ...(b.type === 'container' ? { blocks: setCollapsed(b.blocks, collapsed) } : {})
+                }));
+                updateScene(scene.id, { blocks: setCollapsed(scene.blocks, false) });
+              }}>
+                <IconChevronDown size={16} />
+              </ActionIcon>
+            </Tooltip>
+          </ActionIcon.Group>
+          <Menu shadow="md" width={200}>
+            <Menu.Target>
             <ActionIcon variant="light" color="blue"><IconPlus size={16} /></ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
@@ -1205,8 +1341,10 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
             <Menu.Item onClick={() => addBlock(scene.id, 'task')}>Task Block</Menu.Item>
             <Menu.Item onClick={() => addBlock(scene.id, 'interaction', 'choice')}>Choice Block</Menu.Item>
             <Menu.Item onClick={() => addBlock(scene.id, 'interaction', 'roll')}>Roll Block</Menu.Item>
+            <Menu.Item onClick={() => addBlock(scene.id, 'container')}>Container Block</Menu.Item>
           </Menu.Dropdown>
         </Menu>
+        </Group>
       </Group>
 
       {(() => {
