@@ -139,8 +139,8 @@ export default function Home() {
             <Container size="xl">
               {event}
             </Container>
-            <ActionIcon variant='subtle' flex={0} onClick={collapseContext.toggleStatePanel}>
-              {collapseContext.statePanelOpened ? <IconLayoutSidebarRightCollapse /> : <IconLayoutSidebarRightExpandFilled />}
+            <ActionIcon variant='subtle' flex={0} onClick={collapseContext?.toggleStatePanel} color='violet'>
+              {collapseContext?.statePanelOpened ? <IconLayoutSidebarRightCollapse /> : <IconLayoutSidebarRightExpandFilled />}
             </ActionIcon>
           </Group>
         </Container>
@@ -169,18 +169,16 @@ function SidePanel({ gameState, setGameState, gameHistory, setGameHistory }: Eve
 
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: '4.5rem',
-      right: 0,
-      bottom: '4.25rem',
-      width: '20rem',
-      padding: '0.75rem 0.75rem 0.75rem 0',
-      zIndex: 200,
-      pointerEvents: collapseContext?.statePanelOpened ? 'auto' : 'none',
-      display: collapseContext?.statePanelOpened ? 'flex' : 'none',
-      flexDirection: 'column',
-    }}>
+    <AppShell.Aside
+      p="0.75rem 0.75rem 0.75rem 0"
+      style={{
+        zIndex: 200,
+        pointerEvents: collapseContext?.statePanelOpened ? 'auto' : 'none',
+        flexDirection: 'column',
+        border: 'none',
+        backgroundColor: 'transparent',
+      }}
+    >
       <Paper 
         ref={asideRef} 
         style={{ 
@@ -260,7 +258,7 @@ function SidePanel({ gameState, setGameState, gameHistory, setGameHistory }: Eve
           </Tabs.Panel>
         </Tabs>
       </Paper>
-    </div>
+    </AppShell.Aside>
   )
 }
 

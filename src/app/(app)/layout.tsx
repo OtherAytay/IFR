@@ -18,13 +18,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       padding={0}
       header={{ height: "4.5rem", collapsed: false, offset: false }}
       navbar={{ width: "20rem", breakpoint: 'sm', collapsed: { mobile: !opened, desktop: true } }}
+      aside={{ width: "20rem", breakpoint: 'sm', collapsed: { desktop: !statePanelOpened, mobile: !statePanelOpened } }}
     >
       <Nav opened={opened} toggle={toggle} />
       <PageContext.Provider value={{
         statePanelOpened: statePanelOpened, toggleStatePanel: statePanelHandlers.toggle,
         openStatePanel: statePanelHandlers.open, closeStatePanel: statePanelHandlers.close
       }}>
-        <AppShell.Main style={{ height: '100dvh', paddingTop: 0, paddingBottom: 0, paddingLeft: 0, paddingRight: 0 }}>
+        <AppShell.Main style={{ height: '100dvh' }}>
           {children}
         </AppShell.Main>
       </PageContext.Provider>

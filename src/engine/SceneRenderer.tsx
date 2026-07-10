@@ -3,7 +3,8 @@ import { Scene, Block, MediaBlock, TextBlock, TaskBlock, InteractionBlock, Rerol
 import { Roller } from '@/components/Roller';
 import { Container, Grid, Stack, Image, Text, Button, Paper, Group, Center, SimpleGrid, Box, RingProgress, Table } from '@mantine/core';
 import { Carousel } from '@mantine/carousel';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
+import { IconRefresh, IconHome } from '@tabler/icons-react';
 
 function TaskTimer({ block, onComplete }: { block: TaskBlock, onComplete: () => void }) {
   const [timeLeft, setTimeLeft] = useState(block.durationSeconds);
@@ -66,6 +67,137 @@ function TaskTimer({ block, onComplete }: { block: TaskBlock, onComplete: () => 
   );
 }
 
+export interface LookupVariableContext {
+  game?: Game;
+  scene: Scene;
+  localVariables?: Record<string, any>;
+  globalVariables?: Record<string, any>;
+}
+
+export const lookupVariable = (name: string, ctx: LookupVariableContext) => {
+  const { game, scene, localVariables, globalVariables } = ctx;
+  if (game?.scenes) {
+    for (const s of Object.values(game.scenes)) {
+      const def = s.localVariables?.find(v => v.name === name);
+      if (def && localVariables && localVariables[def.id] !== undefined) {
+        return localVariables[def.id];
+      }
+
+      for (const b of s.blocks) {
+        if (b.type === 'interaction') {
+          const ib = b as InteractionBlock;
+          const label = ib.label || (ib.interactionType === 'roll' ? 'Roll' : 'Choice');
+          
+          if (ib.interactionType === 'roll') {
+            if (name === `${label} Value` || name === label) {
+              if (localVariables?.[`rollValue_${b.id}`] !== undefined) {
+                return localVariables[`rollValue_${b.id}`];
+              }
+            }
+            if (name === `${label} Outcome`) {
+              if (localVariables?.[`rollOutcome_${b.id}`] !== undefined) {
+                return localVariables[`rollOutcome_${b.id}`];
+              }
+            }
+          } else if (ib.interactionType === 'choice') {
+            if (name === `${label} Text` || name === label) {
+              if (localVariables?.[`choiceValue_${b.id}`] !== undefined) {
+                return localVariables[`choiceValue_${b.id}`];
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const localDef = scene.localVariables?.find(v => v.name === name);
+  if (localDef) {
+    return localDef.defaultValue;
+  }
+
+  const globalDef = game?.globalVariables?.find(v => v.name === name);
+  if (globalDef) {
+    if (globalVariables && globalVariables[globalDef.id] !== undefined) {
+      return globalVariables[globalDef.id];
+    }
+    return globalDef.defaultValue;
+  }
+  return undefined;
+};
+
+export const evaluateExpression = (expression: string, rawMatch: string, ctx: LookupVariableContext): { value: string; resolved: boolean } => {
+  if (!expression.includes('[')) {
+    const val = lookupVariable(expression.trim(), ctx);
+    if (val !== undefined) return { value: String(val), resolved: true };
+    return { value: rawMatch, resolved: false };
+  }
+
+  let vars: string[] = [];
+  let values: any[] = [];
+  let hasUnresolvable = false;
+
+  let safeExpr = expression.replace(/\[([^\]]+)\]/g, (bracketMatch: string, varName: string) => {
+    const val = lookupVariable(varName.trim(), ctx);
+    if (val === undefined) {
+      hasUnresolvable = true;
+      return '0';
+    }
+    
+    const varId = `var_${vars.length}`;
+    vars.push(varId);
+    
+    if (val === true) values.push(1);
+    else if (val === false) values.push(0);
+    else values.push(val);
+    
+    return varId;
+  });
+
+  if (hasUnresolvable) return { value: rawMatch, resolved: false };
+
+  let checkStr = safeExpr.replace(/var_\d+/g, '');
+  if (!/^[\d\s\+\-\*\/\(\)\.]*$/.test(checkStr)) {
+    return { value: rawMatch, resolved: false };
+  }
+
+  try {
+    const func = new Function(...vars, `return ${safeExpr};`);
+    const result = func(...values);
+    
+    if (typeof result === 'number' && Number.isNaN(result)) {
+      return { value: rawMatch, resolved: false };
+    }
+    
+    return { value: String(result), resolved: true };
+  } catch (e) {
+    return { value: rawMatch, resolved: false };
+  }
+};
+
+export const interpolateTextHelper = (text: string, ctx: LookupVariableContext): string => {
+  if (!text) return '';
+  return text.replace(/\{\{([^}]+)\}\}/g, (match, expression) => {
+    return evaluateExpression(expression, match, ctx).value;
+  });
+};
+
+export const interpolateTextNodeHelper = (text: string, ctx: LookupVariableContext): ReactNode => {
+  if (!text) return '';
+  const parts = text.split(/(\{\{[^}]+\}\})/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('{{') && part.endsWith('}}')) {
+      const expression = part.slice(2, -2);
+      const { value, resolved } = evaluateExpression(expression, part, ctx);
+      if (resolved) {
+        return <strong key={index}>{value}</strong>;
+      }
+      return part;
+    }
+    return part;
+  });
+};
+
 export function SceneRenderer({ 
   scene, 
   onInteract, 
@@ -75,7 +207,9 @@ export function SceneRenderer({
   game,
   rerollPolicy,
   blockRerolls,
-  rerollPool
+  rerollPool,
+  onRestartGame,
+  onReturnToLibrary
 }: { 
   scene: Scene, 
   onInteract: (block: InteractionBlock, context?: any) => void,
@@ -85,7 +219,9 @@ export function SceneRenderer({
   game?: Game,
   rerollPolicy?: RerollPolicy,
   blockRerolls?: Record<string, number>,
-  rerollPool?: number
+  rerollPool?: number,
+  onRestartGame?: () => void,
+  onReturnToLibrary?: () => void
 }) {
   
   // Group blocks by type
@@ -101,6 +237,9 @@ export function SceneRenderer({
   useEffect(() => {
     setCompletedTasks(new Set());
   }, [scene.id]);
+
+  const edges = game?.edges ? game.edges[scene.id] || [] : [];
+  const isLastNode = edges.length === 0;
 
   // Helper to render media blocks (carousel if multiple)
   const renderMedia = () => {
@@ -120,126 +259,16 @@ export function SceneRenderer({
     );
   };
 
-  const lookupVariable = (name: string) => {
-    // 1. Check if ANY scene has populated this local variable in the active state
-    if (game?.scenes) {
-      for (const s of Object.values(game.scenes)) {
-        const def = s.localVariables?.find(v => v.name === name);
-        if (def && localVariables && localVariables[def.id] !== undefined) {
-          return localVariables[def.id];
-        }
-
-        // Auto-variables support (resolves 'Block Name' directly to its outcome)
-        for (const b of s.blocks) {
-          if (b.type === 'interaction') {
-            const ib = b as InteractionBlock;
-            const label = ib.label || (ib.interactionType === 'roll' ? 'Roll' : 'Choice');
-            
-            if (ib.interactionType === 'roll') {
-              if (name === `${label} Value` || name === label) {
-                if (localVariables?.[`rollValue_${b.id}`] !== undefined) {
-                  return localVariables[`rollValue_${b.id}`];
-                }
-              }
-              if (name === `${label} Outcome`) {
-                if (localVariables?.[`rollOutcome_${b.id}`] !== undefined) {
-                  return localVariables[`rollOutcome_${b.id}`];
-                }
-              }
-            } else if (ib.interactionType === 'choice') {
-              if (name === `${label} Text` || name === label) {
-                if (localVariables?.[`choiceValue_${b.id}`] !== undefined) {
-                  return localVariables[`choiceValue_${b.id}`];
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // 2. If no populated active value exists, check current scene for a default value
-    const localDef = scene.localVariables?.find(v => v.name === name);
-    if (localDef) {
-      return localDef.defaultValue;
-    }
-
-    // 3. Global Variables
-    const globalDef = game?.globalVariables?.find(v => v.name === name);
-    if (globalDef) {
-      if (globalVariables && globalVariables[globalDef.id] !== undefined) {
-        return globalVariables[globalDef.id];
-      }
-      return globalDef.defaultValue;
-    }
-    return undefined;
-  };
-
-  const interpolateText = (text: string) => {
-    if (!text) return '';
-    return text.replace(/\{\{([^}]+)\}\}/g, (match, expression) => {
-      // Direct lookup for simple variables (no brackets)
-      if (!expression.includes('[')) {
-        const val = lookupVariable(expression.trim());
-        if (val !== undefined) return String(val);
-        return match;
-      }
-
-      // Mathematical expression evaluation
-      let vars: string[] = [];
-      let values: any[] = [];
-      let hasUnresolvable = false;
-
-      let safeExpr = expression.replace(/\[([^\]]+)\]/g, (bracketMatch: string, varName: string) => {
-        const val = lookupVariable(varName.trim());
-        if (val === undefined) {
-          hasUnresolvable = true;
-          return '0';
-        }
-        
-        const varId = `var_${vars.length}`;
-        vars.push(varId);
-        
-        // Rule 4: Boolean support
-        if (val === true) values.push(1);
-        else if (val === false) values.push(0);
-        else values.push(val);
-        
-        return varId;
-      });
-
-      if (hasUnresolvable) return match;
-
-      // Validate expression to prevent arbitrary code execution
-      // Allowed: var_X, numbers, spaces, operators +, -, *, /, (, )
-      let checkStr = safeExpr.replace(/var_\d+/g, '');
-      if (!/^[\d\s\+\-\*\/\(\)\.]*$/.test(checkStr)) {
-        return match; // Invalid characters, return raw text
-      }
-
-      try {
-        const func = new Function(...vars, `return ${safeExpr};`);
-        const result = func(...values);
-        
-        // Rule 1: Error on unresolvable operations (like "Text" * 5 = NaN)
-        if (typeof result === 'number' && Number.isNaN(result)) {
-          return match;
-        }
-        
-        // Rule 2: Graceful Concatenation automatically handled by JS for '+' 
-        return String(result);
-      } catch (e) {
-        return match;
-      }
-    });
-  };
+  const ctx: LookupVariableContext = { game, scene, localVariables, globalVariables };
+  const interpolateText = (text: string) => interpolateTextHelper(text, ctx);
+  const interpolateTextNode = (text: string) => interpolateTextNodeHelper(text, ctx);
 
   // Helper to render content/task/interaction side
   const renderContent = () => {
     return (
       <Stack gap="xl" p="md" style={{ height: '100%', justifyContent: 'center' }}>
         {textBlocks.map(b => (
-          <Text key={b.id} size="lg" style={{ whiteSpace: 'pre-wrap' }}>{interpolateText(b.text)}</Text>
+          <Text key={b.id} size="lg" style={{ whiteSpace: 'pre-wrap' }}>{interpolateTextNode(b.text)}</Text>
         ))}
         
         {taskBlocks.length > 0 && (
@@ -279,6 +308,18 @@ export function SceneRenderer({
             const allRequiredTasksDone = taskBlocks
               .every(t => completedTasks.has(t.id));
 
+            const allRequiredInteractionsDone = interactionBlocks
+              .filter(ib => ib.interactionType !== 'continue' && ib.isRequired !== false)
+              .every(ib => {
+                if (ib.interactionType === 'choice') {
+                  return localVariables?.[`choice_${ib.id}`] !== undefined;
+                }
+                if (ib.interactionType === 'roll') {
+                  return localVariables?.[`rollValue_${ib.id}`] !== undefined;
+                }
+                return true;
+              });
+
             return (
               <InteractionRenderer 
                 key={b.id} 
@@ -286,8 +327,12 @@ export function SceneRenderer({
                 onInteract={onInteract}
                 localVariables={localVariables}
                 rerollsLeft={rerollsLeft}
-                isContinueDisabled={b.interactionType === 'continue' && b.isRequired !== false ? !allRequiredTasksDone : false}
+                isContinueDisabled={b.interactionType === 'continue' ? ((b.isRequired !== false ? !allRequiredTasksDone : false) || !allRequiredInteractionsDone) : false}
                 interpolateText={interpolateText}
+                interpolateTextNode={interpolateTextNode}
+                isLastNode={isLastNode}
+                onRestartGame={onRestartGame}
+                onReturnToLibrary={onReturnToLibrary}
               />
             );
           })}
@@ -368,20 +413,41 @@ function InteractionRenderer({
   localVariables,
   rerollsLeft,
   isContinueDisabled,
-  interpolateText
+  interpolateText,
+  interpolateTextNode,
+  isLastNode,
+  onRestartGame,
+  onReturnToLibrary
 }: { 
   block: InteractionBlock, 
   onInteract: (block: InteractionBlock, context?: any) => void,
   localVariables?: Record<string, number | string | boolean>,
   rerollsLeft?: number,
   isContinueDisabled?: boolean,
-  interpolateText?: (text: string) => string
+  interpolateText?: (text: string) => string,
+  interpolateTextNode?: (text: string) => ReactNode,
+  isLastNode?: boolean,
+  onRestartGame?: () => void,
+  onReturnToLibrary?: () => void
 }) {
   
   if (block.interactionType === 'continue') {
+    if (isLastNode) {
+      return (
+        <Group gap="md">
+          <Button variant="light" color="orange" onClick={onRestartGame} leftSection={<IconRefresh size={20} />}>
+            Restart Game
+          </Button>
+          <Button color="violet" onClick={onReturnToLibrary} leftSection={<IconHome size={20} />}>
+            Return to Library
+          </Button>
+        </Group>
+      );
+    }
+    const labelNode = interpolateTextNode ? interpolateTextNode(block.label || 'Continue') : (interpolateText ? interpolateText(block.label || 'Continue') : (block.label || 'Continue'));
     return (
       <Button onClick={() => onInteract(block)} disabled={isContinueDisabled}>
-        {interpolateText ? interpolateText(block.label || 'Continue') : (block.label || 'Continue')}
+        {labelNode}
       </Button>
     );
   }
@@ -392,14 +458,15 @@ function InteractionRenderer({
       <Stack w="100%">
         {block.choices?.map(c => {
           const isSelected = selectedChoiceId === c.id;
-          const label = interpolateText ? interpolateText(c.label) : c.label;
+          const labelText = interpolateText ? interpolateText(c.label) : c.label;
+          const labelNode = interpolateTextNode ? interpolateTextNode(c.label) : labelText;
           return (
             <Button 
               key={c.id} 
               variant={isSelected ? 'filled' : 'outline'} 
-              onClick={() => onInteract(block, { choiceId: c.id, choiceLabel: label })}
+              onClick={() => onInteract(block, { choiceId: c.id, choiceLabel: labelText })}
             >
-              {label}
+              {labelNode}
             </Button>
           );
         })}
@@ -438,7 +505,8 @@ function InteractionRenderer({
                 {block.rollBranches.map(branch => {
                   const isWinningBranch = hasRolled && rolledBranchId === branch.id;
                   const rangeStr = branch.min === branch.max ? `${branch.min}` : `${branch.min}-${branch.max}`;
-                  const label = interpolateText ? interpolateText(branch.label) : branch.label;
+                  const labelText = interpolateText ? interpolateText(branch.label) : branch.label;
+                  const labelNode = interpolateTextNode ? interpolateTextNode(branch.label) : labelText;
                   return (
                     <Table.Tr 
                       key={branch.id} 
@@ -449,7 +517,7 @@ function InteractionRenderer({
                         {rangeStr}
                       </Table.Td>
                       <Table.Td fw={isWinningBranch ? 700 : undefined} c={isWinningBranch ? 'var(--mantine-primary-color-light-color)' : undefined}>
-                        {label}
+                        {labelNode}
                       </Table.Td>
                     </Table.Tr>
                   );
@@ -467,7 +535,7 @@ function InteractionRenderer({
             }}
             rerolls={rerollsLeft}
             maxRoll={Math.max(...block.rollBranches.map(b => b.max))}
-            buttonLabel={interpolateText ? interpolateText(block.label || 'Roll') : (block.label || 'Roll')}
+            buttonLabel={interpolateTextNode ? interpolateTextNode(block.label || 'Roll') : (interpolateText ? interpolateText(block.label || 'Roll') : (block.label || 'Roll'))}
           />
         </Stack>
       );
@@ -486,7 +554,7 @@ function InteractionRenderer({
           rerolls={rerollsLeft}
           reroll={() => {}}
           maxRoll={maxRoll}
-          buttonLabel={interpolateText ? interpolateText(block.label || 'Roll') : (block.label || 'Roll')}
+          buttonLabel={interpolateTextNode ? interpolateTextNode(block.label || 'Roll') : (interpolateText ? interpolateText(block.label || 'Roll') : (block.label || 'Roll'))}
         />
       </Stack>
     );

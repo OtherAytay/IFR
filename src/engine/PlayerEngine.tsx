@@ -1,9 +1,11 @@
 'use client'
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useContext } from 'react';
 import { Game, Scene, Block, Edge, ConditionGroup, Mutation, InteractionBlock } from '@/types/game';
-import { Container, Button, Drawer, Stack, Title, Text, Badge, ActionIcon, Transition, Group, MantineProvider, createTheme } from '@mantine/core';
-import { IconUser } from '@tabler/icons-react';
-import { SceneRenderer } from './SceneRenderer';
+import { Container, Button, Stack, Title, Text, Badge, ActionIcon, Group, MantineProvider, createTheme, AppShell, Paper, Box, Tooltip } from '@mantine/core';
+import { IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconDownload } from '@tabler/icons-react';
+import { SceneRenderer, interpolateTextNodeHelper } from './SceneRenderer';
+import { PageContext, CollapseContext } from '@/IFR/club-bambi';
+import { useRouter } from 'next/navigation';
 
 export interface PlayerState {
   currentSceneId: string;
@@ -15,6 +17,7 @@ export interface PlayerState {
 
 export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any, saveId: string }) {
   const gameData: Game = initialSaveData.gameData;
+  const router = useRouter();
   const [playerState, setPlayerState] = useState<PlayerState>(() => {
     // Initialize state if empty
     if (!initialSaveData.state || Object.keys(initialSaveData.state).length === 0) {
@@ -59,7 +62,7 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
     return loadedState;
   });
 
-  const [profileOpened, setProfileOpened] = useState(false);
+  const collapseContext = useContext(PageContext) as CollapseContext | null;
   const [transitioning, setTransitioning] = useState(false);
 
   const currentScene = gameData.scenes[playerState.currentSceneId];
@@ -340,6 +343,36 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
     }
   };
 
+  const handleRestartGame = useCallback(() => {
+    if (confirm("Are you sure you want to restart this game? All progress will be lost.")) {
+      const initialGlobals: Record<string, any> = {};
+      gameData.globalVariables?.forEach(v => {
+        initialGlobals[v.id] = v.defaultValue;
+      });
+
+      if (gameData.settings?.rerollPolicy?.type === 'shared-pool') {
+        if (!('_rerolls' in initialGlobals)) {
+          initialGlobals['_rerolls'] = gameData.settings.rerollPolicy.defaultAllowance || 0;
+        }
+      }
+
+      const nextState = {
+        currentSceneId: gameData.startSceneId,
+        globalVariables: initialGlobals,
+        localVariables: {},
+        tags: [],
+        blockRerolls: {}
+      };
+
+      setPlayerState(nextState);
+      saveState(nextState);
+    }
+  }, [gameData, saveState]);
+
+  const handleReturnToLibrary = useCallback(() => {
+    router.push('/');
+  }, [router]);
+
   const exportSave = () => {
     const raw = localStorage.getItem(`ifr_save_${saveId}`);
     if (raw) {
@@ -429,73 +462,218 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
   });
 
   return (
-    <>
-      {/* Persistent Floating Profile Toggle */}
-      <ActionIcon 
-        size="xl" 
-        radius="xl" 
-        variant="filled" 
-        color="violet"
-        style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 100 }}
-        onClick={() => setProfileOpened(true)}
+    <>      <AppShell.Aside
+        p="0.75rem 0.75rem 0.75rem 0"
+        style={{
+          zIndex: 200,
+          pointerEvents: collapseContext?.statePanelOpened ? 'auto' : 'none',
+          flexDirection: 'column',
+          border: 'none',
+          backgroundColor: 'transparent',
+        }}
       >
-        <IconUser />
-      </ActionIcon>
+        <Paper 
+          style={{ 
+            flex: 1, 
+            overflow: 'hidden', 
+            display: 'flex', 
+            flexDirection: 'column',
+            boxShadow: 'var(--mantine-shadow-md)',
+            border: '1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4))',
+          }}
+          radius="md" 
+          bg="var(--mantine-color-body)"
+        >
+          {/* Header */}
+          <Box
+            px="md" py="xs"
+            style={{
+              borderBottom: '1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4))',
+              background: `light-dark(var(--mantine-color-${primaryColorKey}-0), var(--mantine-color-${primaryColorKey}-9))`,
+              flexShrink: 0,
+            }}
+          >
+            <Text fw={700} size="sm" c="light-dark(var(--mantine-color-dark-7), white)" tt="uppercase" lts={1}>{gameData.title || 'Game'}</Text>
+            {gameData.version && <Text size="xs" c="light-dark(var(--mantine-color-dark-4), var(--mantine-color-gray-4))">v{gameData.version}</Text>}
+          </Box>
 
-      <Drawer opened={profileOpened} onClose={() => setProfileOpened(false)} position="right" title="Player Status">
-        <Stack>
-          <Title order={5}>Variables</Title>
-          {Object.entries(playerState.globalVariables).map(([id, val]) => {
-            const varDef = gameData.globalVariables?.find(v => v.id === id);
-            return (
-              <Group justify="space-between" key={id}>
-                <Text>{varDef?.name || id}:</Text>
-                <Text fw={700}>{String(val)}</Text>
-              </Group>
-            );
-          })}
-          
-          {gameData.settings?.rerollPolicy?.type === 'shared-pool' && (
-            <Group justify="space-between">
-              <Text>Rerolls left:</Text>
-              <Text fw={700}>{String(playerState.globalVariables['_rerolls'] ?? 0)}</Text>
-            </Group>
-          )}
+          <Stack p="xs" gap="xs" style={{ flex: 1, overflowY: 'auto' }}>
 
-          <Title order={5} mt="md">Active Tags</Title>
-          <Group>
-            {playerState.tags.length === 0 && <Text c="dimmed">No active tags</Text>}
-            {playerState.tags.map(tId => {
-              const tagDef = gameData.tags?.find(t => t.id === tId);
-              return <Badge key={tId} color="grape">{tagDef?.name || tId}</Badge>;
-            })}
-          </Group>
+            {/* System */}
+            {gameData.settings?.rerollPolicy && (
+              <Box>
+                <Text size="xs" fw={700} tt="uppercase" lts={1} c="dimmed" mb={4}>System</Text>
+                <Stack gap={2}>
+                  <Group justify="space-between" px="xs" py={3} style={{ borderRadius: 'var(--mantine-radius-sm)', background: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))' }}>
+                    <Text size="sm" fw={500}>Reroll Policy</Text>
+                    <Badge size="xs" variant="light" color={primaryColorKey}>
+                      {gameData.settings.rerollPolicy.type === 'shared-pool' ? 'Shared Pool' : 'Per Task'}
+                    </Badge>
+                  </Group>
+                  {gameData.settings.rerollPolicy.type === 'shared-pool' && (
+                    <Group justify="space-between" px="xs" py={3} style={{ borderRadius: 'var(--mantine-radius-sm)', background: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))' }}>
+                      <Text size="sm" fw={500}>Rerolls Left</Text>
+                      <Text size="sm" fw={700} c={primaryColorKey}>{String(playerState.globalVariables['_rerolls'] ?? 0)}</Text>
+                    </Group>
+                  )}
+                </Stack>
+              </Box>
+            )}
 
-          <Button mt="xl" color="green" onClick={exportSave} leftSection={<IconUser size={16}/>}>
-            Export Save
-          </Button>
-        </Stack>
-      </Drawer>
+            {/* Global Variables */}
+            {Object.keys(playerState.globalVariables).filter(id => id !== '_rerolls').length > 0 && (
+              <Box>
+                <Text size="xs" fw={700} tt="uppercase" lts={1} c="dimmed" mb={4}>Global Variables</Text>
+                <Stack gap={2}>
+                  {Object.entries(playerState.globalVariables).map(([id, val]) => {
+                    if (id === '_rerolls') return null;
+                    const varDef = gameData.globalVariables?.find(v => v.id === id);
+                    const type = varDef?.type;
+                    const name = varDef?.name || id;
+
+                    if (type === 'boolean') {
+                      const isTrue = val === true || val === 'true';
+                      return (
+                        <Group key={id} justify="space-between" px="xs" py={3} style={{ borderRadius: 'var(--mantine-radius-sm)', background: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))' }}>
+                          <Text size="sm" fw={500} style={{ flex: 1 }}>{name}</Text>
+                          <Badge size="sm" variant="light" color={isTrue ? 'green' : 'red'} radius="sm">{isTrue ? 'True' : 'False'}</Badge>
+                        </Group>
+                      );
+                    }
+
+                    if (type === 'string') {
+                      const ctx = {
+                        game: gameData,
+                        scene: currentScene,
+                        localVariables: playerState.localVariables,
+                        globalVariables: playerState.globalVariables
+                      };
+                      return (
+                        <Box key={id} px="xs" py={4} style={{ borderRadius: 'var(--mantine-radius-sm)', background: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))' }}>
+                          <Text size="sm" fw={500} mb={4}>{name}</Text>
+                          <Box px="xs" py={4} style={{ borderRadius: 'var(--mantine-radius-md)', background: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-7))' }}>
+                            <Text size="sm" style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                              {val ? interpolateTextNodeHelper(String(val), ctx) : <Text span c="dimmed" fs="italic" size="sm">empty</Text>}
+                            </Text>
+                          </Box>
+                        </Box>
+                      );
+                    }
+
+                    // number (default)
+                    return (
+                      <Group key={id} justify="space-between" px="xs" py={3} style={{ borderRadius: 'var(--mantine-radius-sm)', background: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))' }}>
+                        <Text size="sm" fw={500} style={{ flex: 1 }}>{name}</Text>
+                        <Badge size="sm" variant="dot" color={primaryColorKey} radius="sm">{String(val)}</Badge>
+                      </Group>
+                    );
+                  })}
+                </Stack>
+              </Box>
+            )}
+
+            {/* Tags */}
+            <Box>
+              <Text size="xs" fw={700} tt="uppercase" lts={1} c="dimmed" mb={4}>Tags</Text>
+              {playerState.tags.length === 0
+                ? <Text size="sm" c="dimmed" fs="italic" px="xs">No active tags</Text>
+                : <Group gap={4} px="xs">
+                    {playerState.tags.map(tId => {
+                      const tagDef = gameData.tags?.find(t => t.id === tId);
+                      return <Badge key={tId} size="sm" variant="light" color="cyan" radius="sm">{tagDef?.name || tId}</Badge>;
+                    })}
+                  </Group>
+              }
+            </Box>
+
+            {/* Rolls */}
+            {(() => {
+              const rollBlocks = Object.keys(playerState.localVariables)
+                .filter(id => id.startsWith('rollValue_'))
+                .map(id => id.replace('rollValue_', ''));
+              
+              if (rollBlocks.length === 0) return null;
+              
+              return (
+                <Box>
+                  <Text size="xs" fw={700} tt="uppercase" lts={1} c="dimmed" mb={4}>Rolls</Text>
+                  <Stack gap={2}>
+                    {rollBlocks.map(blockId => {
+                      const rollVarId = `rollValue_${blockId}`;
+                      const rollOutcomeVarId = `rollOutcome_${blockId}`;
+                      const rollValue = playerState.localVariables[rollVarId];
+                      const rollOutcome = playerState.localVariables[rollOutcomeVarId];
+                      
+                      let localVar = currentScene?.localVariables?.find(v => v.id === rollVarId);
+                      if (!localVar) {
+                        for (const scene of Object.values(gameData.scenes)) {
+                          const found = scene.localVariables?.find(v => v.id === rollVarId);
+                          if (found) {
+                            localVar = found;
+                            break;
+                          }
+                        }
+                      }
+                      
+                      const name = localVar?.name || 'Roll';
+                      const badge = <Badge size="sm" variant="dot" color={primaryColorKey} radius="sm">{String(rollValue)}</Badge>;
+
+                      return (
+                        <Group key={blockId} justify="space-between" px="xs" py={3} style={{ borderRadius: 'var(--mantine-radius-sm)', background: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))' }}>
+                          <Text size="sm" fw={500} style={{ flex: 1 }}>{name}</Text>
+                          {rollOutcome ? (
+                            <Tooltip label={String(rollOutcome)} position="left" withArrow color="dark">
+                              {badge}
+                            </Tooltip>
+                          ) : badge}
+                        </Group>
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              );
+            })()}
+
+            {/* Actions */}
+            <Box mt="auto" pt="xs" style={{ borderTop: '1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5))' }}>
+              <Text size="xs" fw={700} tt="uppercase" lts={1} c="dimmed" mb={6}>Actions</Text>
+              <Button size="xs" variant="light" color="green" fullWidth onClick={exportSave} leftSection={<IconDownload size={13}/>}>
+                Export Save
+              </Button>
+            </Box>
+
+          </Stack>
+        </Paper>
+      </AppShell.Aside>
 
       {/* Main Scene Render with Transition */}
       <MantineProvider theme={customTheme} defaultColorScheme="dark">
-        <div style={{ opacity: transitioning ? 0 : 1, transition: 'opacity 0.4s ease', minHeight: '100vh', backgroundColor: 'var(--mantine-color-body)', color: 'var(--mantine-color-text)' }}>
-          <SceneRenderer 
-            scene={currentScene} 
-          onInteract={handleInteraction}
-          onLocalUpdate={(mutations) => {
-            // Apply local mutations without routing
-            const draft = JSON.parse(JSON.stringify(playerState));
-            applyMutations(mutations, draft);
-            setPlayerState(draft);
-          }}
-          localVariables={playerState.localVariables}
-          globalVariables={playerState.globalVariables}
-          game={gameData}
-          rerollPolicy={gameData.settings?.rerollPolicy}
-          blockRerolls={playerState.blockRerolls}
-          rerollPool={Number(playerState.globalVariables['_rerolls'] || 0)}
-        />
+        <div style={{ opacity: transitioning ? 0 : 1, transition: 'opacity 0.4s ease', minHeight: '100vh', backgroundColor: 'var(--mantine-color-body)', color: 'var(--mantine-color-text)', display: 'flex', flexDirection: 'column' }}>
+          <Group gap={0} grow preventGrowOverflow={false} wrap='nowrap' align="center" style={{ flex: 1 }}>
+            <div style={{ flex: 1, height: '100%' }}>
+              <SceneRenderer 
+                scene={currentScene} 
+                onInteract={handleInteraction}
+                onLocalUpdate={(mutations) => {
+                  // Apply local mutations without routing
+                  const draft = JSON.parse(JSON.stringify(playerState));
+                  applyMutations(mutations, draft);
+                  setPlayerState(draft);
+                }}
+                localVariables={playerState.localVariables}
+                globalVariables={playerState.globalVariables}
+                game={gameData}
+                rerollPolicy={gameData.settings?.rerollPolicy}
+                blockRerolls={playerState.blockRerolls}
+                rerollPool={Number(playerState.globalVariables['_rerolls'] || 0)}
+                onRestartGame={handleRestartGame}
+                onReturnToLibrary={handleReturnToLibrary}
+              />
+            </div>
+            <ActionIcon me='sm' variant='subtle' flex={0} onClick={collapseContext?.toggleStatePanel} color={primaryColorKey}>
+              {collapseContext?.statePanelOpened ? <IconLayoutSidebarRightCollapse /> : <IconLayoutSidebarRightExpandFilled />}
+            </ActionIcon>
+          </Group>
         </div>
       </MantineProvider>
     </>

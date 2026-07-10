@@ -31,7 +31,7 @@ export function Roller({
   reroll?: () => void, 
   readOnly?: boolean,
   maxRoll?: number,
-  buttonLabel?: string
+  buttonLabel?: React.ReactNode
 }) {
   const [rollStarted, { open: startRoll }] = useDisclosure(readOnly);
   const [rollFinished, { open: finishRoll, close: restartRoll }] = useDisclosure(readOnly);
