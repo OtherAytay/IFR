@@ -701,43 +701,75 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
                 ]}
                 onChange={(e) => updateBlock(sceneId, block.id, { mediaId: e.currentTarget.value })}
               />
-              <Tooltip label="Upload New Image" position="top" withArrow>
-                <ActionIcon
-                  size="md"
-                  variant="light"
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = 'image/*,video/*,audio/*';
-                    input.onchange = async (e) => {
-                      const file = (e.target as HTMLInputElement).files?.[0];
-                      if (!file) return;
-                      try {
-                        const mediaType = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
-                        const dataURL = mediaType === 'image' 
-                          ? await compressImageToDataURL(file) 
-                          : await fileToDataURL(file);
-                        let existingAsset = game.mediaAssets?.find(a => a.url === dataURL);
-                        if (!existingAsset) {
-                          existingAsset = {
-                            id: crypto.randomUUID(),
-                            name: file.name || 'New Media',
-                            mediaType,
-                            url: dataURL
-                          };
-                          setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), existingAsset] });
+              <ActionIcon.Group>
+                <Tooltip label="Upload New Media" position="top" withArrow>
+                  <ActionIcon
+                    size="md"
+                    variant="light"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*,video/*,audio/*';
+                      input.onchange = async (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (!file) return;
+                        try {
+                          const mediaType = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
+                          const dataURL = URL.createObjectURL(file);
+                          let existingAsset = game.mediaAssets?.find(a => a.name === file.name && a.mediaType === mediaType);
+                          if (!existingAsset) {
+                            existingAsset = {
+                              id: crypto.randomUUID(),
+                              name: file.name || 'New Media',
+                              mediaType,
+                              url: dataURL
+                            };
+                            setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), existingAsset] });
+                          }
+                          updateBlock(sceneId, block.id, { mediaId: existingAsset.id, mediaType: undefined, url: undefined });
+                        } catch (err) {
+                          console.error('Failed to process media:', err);
                         }
+                      };
+                      input.click();
+                    }}
+                  >
+                    <IconUpload size={16} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Import from URL" position="top" withArrow>
+                  <ActionIcon
+                    size="md"
+                    variant="light"
+                    color="violet"
+                    onClick={async () => {
+                      const url = prompt('Enter the full URL of the media file:');
+                      if (!url) return;
+                      try {
+                        const res = await fetch(url);
+                        if (!res.ok) throw new Error('Failed to fetch URL');
+                        const blob = await res.blob();
+                        const mediaType = blob.type.startsWith('video') ? 'video' : blob.type.startsWith('audio') ? 'audio' : 'image';
+                        const dataURL = URL.createObjectURL(blob);
+                        const filename = url.split('/').pop()?.split('?')[0] || 'downloaded_media';
+                        const existingAsset = {
+                          id: crypto.randomUUID(),
+                          name: filename,
+                          mediaType,
+                          url: dataURL
+                        };
+                        setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), existingAsset] });
                         updateBlock(sceneId, block.id, { mediaId: existingAsset.id, mediaType: undefined, url: undefined });
                       } catch (err) {
-                        console.error('Failed to process media:', err);
+                        alert('Could not download media. It might be blocked by CORS or an invalid URL.');
+                        console.error(err);
                       }
-                    };
-                    input.click();
-                  }}
-                >
-                  <IconUpload size={16} />
-                </ActionIcon>
-              </Tooltip>
+                    }}
+                  >
+                    <IconExternalLink size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              </ActionIcon.Group>
             </Group>
           </>
         )}
@@ -1969,27 +2001,47 @@ export function Inspector() {
             </Card>
           );
         })}
-        <Button size="xs" variant="light" leftSection={<IconPlus size={12} />} onClick={() => {
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.accept = 'image/*,video/*,audio/*';
-          input.onchange = async (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (!file) return;
+        <Group gap="sm" grow>
+          <Button size="xs" variant="light" leftSection={<IconPlus size={12} />} onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*,video/*,audio/*';
+            input.onchange = async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (!file) return;
+              try {
+                const mediaType = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
+                const dataURL = URL.createObjectURL(file);
+                const existingAsset = game.mediaAssets?.find(a => a.name === file.name && a.mediaType === mediaType);
+                if (existingAsset) return;
+                setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), { id: crypto.randomUUID(), name: file.name, mediaType, url: dataURL }] });
+              } catch (err) {
+                console.error('Failed to add media:', err);
+              }
+            };
+            input.click();
+          }}>
+            Upload File
+          </Button>
+          <Button size="xs" variant="light" color="violet" leftSection={<IconExternalLink size={12} />} onClick={async () => {
+            const url = prompt('Enter the full URL of the media file:');
+            if (!url) return;
             try {
-              const mediaType = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
-              const dataURL = URL.createObjectURL(file);
-              const existingAsset = game.mediaAssets?.find(a => a.name === file.name && a.mediaType === mediaType);
-              if (existingAsset) return;
-              setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), { id: crypto.randomUUID(), name: file.name, mediaType, url: dataURL }] });
+              const res = await fetch(url);
+              if (!res.ok) throw new Error('Failed to fetch URL');
+              const blob = await res.blob();
+              const mediaType = blob.type.startsWith('video') ? 'video' : blob.type.startsWith('audio') ? 'audio' : 'image';
+              const dataURL = URL.createObjectURL(blob);
+              const filename = url.split('/').pop()?.split('?')[0] || 'downloaded_media';
+              setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), { id: crypto.randomUUID(), name: filename, mediaType, url: dataURL }] });
             } catch (err) {
-              console.error('Failed to add media:', err);
+              alert('Could not download media. It might be blocked by CORS or an invalid URL.');
+              console.error(err);
             }
-          };
-          input.click();
-        }}>
-          Upload Media Asset
-        </Button>
+          }}>
+            From URL
+          </Button>
+        </Group>
       </Stack>
 
       <Divider />
