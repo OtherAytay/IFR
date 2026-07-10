@@ -2,7 +2,7 @@
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
 import { A2M, A2M_THROATING, ANAL_CUM, ANAL_MODIFIER, ANAL_NEXT, ANAL_POSITION, ANAL_TASK, Attribute, AttributeDetail, Attributes, BONDAGE, bpmToPercent, BREEDER, CLEANER, CLIENT, Client, Clients, CollapseContext, CUM_NEXT, Decision, DIFFICULTY, Effect, EffectDetail, effectDetails, EffectExpiration, eventDetails, events, findDecision, GameHistory, GameLogRecord, GameState, HUMILIATION, INDUCTION, INSATIABLE, LIMP, LOCKED, ORAL_CUM, ORAL_MODIFIER, ORAL_NEXT, ORAL_POSITION, ORAL_TASK, OUTFIT, PAYMENT, PenetrationTask, PERMALOCKED, PUNISHMENT, randRange, slugify, Stage, Stages, STARTING_TASK, theme, UNIFORM, Uniform } from "@/IFR/club-bambi"
-import { Accordion, ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Modal, Popover, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Switch, Table, Tabs, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
+import { Accordion, ActionIcon, AppShell, AspectRatio, BackgroundImage, Badge, Box, Button, Card, Center, Collapse, Container, Divider, getGradient, Group, HoverCard, Image, Indicator, Modal, Paper, Popover, Progress, ScrollArea, SegmentedControl, SimpleGrid, Space, Stack, Switch, Table, Tabs, Text, Timeline, Title, Tooltip, Transition, useMantineTheme } from "@mantine/core"
 import { useCounter, useDisclosure, useElementSize, useHover, useLocalStorage, useScrollIntoView, useViewportSize } from "@mantine/hooks"
 import { IconBug, IconDice, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpandFilled, IconLock, IconRefresh, IconRestore, IconSettings, IconTemperature } from "@tabler/icons-react"
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react"
@@ -133,24 +133,25 @@ export default function Home() {
     <>
       <SidePanel gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />
       <StatusBar gameState={gameState} setGameState={setGameState} gameHistory={gameHistory} setGameHistory={setGameHistory} />
-      <AppShell.Main mt="md">
+      <Box pt="5.5rem" pb="5rem" pl="md" pr="md">
         <Container fluid>
           <Group gap={0} grow preventGrowOverflow={false} wrap='nowrap'>
             <Container size="xl">
               {event}
             </Container>
-            <ActionIcon variant='subtle' flex={0} onClick={collapseContext.toggleStatePanel}>
-              {collapseContext.statePanelOpened ? <IconLayoutSidebarRightCollapse /> : <IconLayoutSidebarRightExpandFilled />}
+            <ActionIcon variant='subtle' flex={0} onClick={collapseContext?.toggleStatePanel} color='violet'>
+              {collapseContext?.statePanelOpened ? <IconLayoutSidebarRightCollapse /> : <IconLayoutSidebarRightExpandFilled />}
             </ActionIcon>
           </Group>
         </Container>
-      </AppShell.Main>
+      </Box>
     </>
   )
 }
 
 function SidePanel({ gameState, setGameState, gameHistory, setGameHistory }: EventInput) {
   const [activeTab, setActiveTab] = useState<string>('Effects')
+  const collapseContext: CollapseContext | null = useContext(PageContext)
 
   function filterExpiration(expiration: EffectExpiration) {
     return function (effect: Effect) {
@@ -166,73 +167,97 @@ function SidePanel({ gameState, setGameState, gameHistory, setGameHistory }: Eve
   const { ref: asideRef, height: asideHeight } = useElementSize()
   const { ref: tabListRef, height: tabListHeight } = useElementSize()
 
+
   return (
-    <AppShell.Aside ref={asideRef}>
-      <SegmentedControl
-        value={activeTab}
-        onChange={setActiveTab}
-        bg='none'
-        color='violet'
-        p='sm'
-        pb={0}
-        size='md'
-        data={['Effects', 'History']}
-        ref={tabListRef}
-      />
-      <Tabs value={activeTab}>
-        {/* Effects Panel */}
-        <Tabs.Panel value='Effects' p='xs'>
-          <ScrollArea.Autosize mah={asideHeight - tabListHeight - 33} offsetScrollbars='y' type='hover'>
-            <Stack gap={0}>
-              {/* Outfit & Bondage */}
-              <Accordion variant='contained' mb='sm'>
-                <Accordion.Item value='bondage'>
-                  <Accordion.Control>Bondage</Accordion.Control>
-                  <Accordion.Panel>
-                    <DecisionTable activeRoll={gameState.bondage} cumulative={true} decisionSet={eventDetails[BONDAGE]} />
-                  </Accordion.Panel>
-                </Accordion.Item>
-                <Accordion.Item value='outfit'>
-                  <Accordion.Control>Outfit</Accordion.Control>
-                  <Accordion.Panel>
-                    <DecisionTable activeRoll={gameState.outfit} cumulative={true} decisionSet={eventDetails[OUTFIT]} />
-                  </Accordion.Panel>
-                </Accordion.Item>
-              </Accordion>
+    <AppShell.Aside
+      p="0.75rem 0.75rem 0.75rem 0"
+      style={{
+        zIndex: 200,
+        pointerEvents: collapseContext?.statePanelOpened ? 'auto' : 'none',
+        flexDirection: 'column',
+        border: 'none',
+        backgroundColor: 'transparent',
+      }}
+    >
+      <Paper 
+        ref={asideRef} 
+        style={{ 
+          flex: 1, 
+          overflow: 'hidden', 
+          display: 'flex', 
+          flexDirection: 'column',
+          boxShadow: 'var(--mantine-shadow-md)',
+          border: '1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4))',
+        }}
+        radius="md" 
+        bg="var(--mantine-color-body)"
+      >
+        <SegmentedControl
+          value={activeTab}
+          onChange={(val) => setActiveTab(val)}
+          bg='none'
+          color='violet'
+          p='sm'
+          pb={0}
+          size='md'
+          data={['Effects', 'History']}
+          ref={tabListRef}
+        />
+        <Tabs value={activeTab} style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          {/* Effects Panel */}
+          <Tabs.Panel value='Effects' p='xs' style={{ flex: 1 }}>
+            <ScrollArea.Autosize mah={asideHeight - tabListHeight - 33} offsetScrollbars='y' type='hover'>
+              <Stack gap={0}>
+                {/* Outfit & Bondage */}
+                <Accordion variant='contained' mb='sm'>
+                  <Accordion.Item value='bondage'>
+                    <Accordion.Control>Bondage</Accordion.Control>
+                    <Accordion.Panel>
+                      <DecisionTable activeRoll={gameState.bondage} cumulative={true} decisionSet={eventDetails[BONDAGE]} />
+                    </Accordion.Panel>
+                  </Accordion.Item>
+                  <Accordion.Item value='outfit'>
+                    <Accordion.Control>Outfit</Accordion.Control>
+                    <Accordion.Panel>
+                      <DecisionTable activeRoll={gameState.outfit} cumulative={true} decisionSet={eventDetails[OUTFIT]} />
+                    </Accordion.Panel>
+                  </Accordion.Item>
+                </Accordion>
 
-              {/* Task Effects */}
-              <Text fw='bold'>Task Effects</Text>
-              <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current task</Text>
-              {currentTaskEffects.length > 0
-                ? <EffectDisplayGroup effects={currentTaskEffects} />
-                : <Text ta='center' fw='lighter'> No active task effects!</Text>}
-              <Divider my='sm' />
+                {/* Task Effects */}
+                <Text fw='bold'>Task Effects</Text>
+                <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current task</Text>
+                {currentTaskEffects.length > 0
+                  ? <EffectDisplayGroup effects={currentTaskEffects} />
+                  : <Text ta='center' fw='lighter'> No active task effects!</Text>}
+                <Divider my='sm' />
 
-              {/* Client Effects */}
-              <Text fw='bold'>Client Effects</Text>
-              <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current client</Text>
-              {currentClientEffects.length > 0
-                ? <EffectDisplayGroup effects={currentClientEffects} />
-                : <Text ta='center' fw='lighter'> No active client effects!</Text>}
-              <Divider my='sm' />
+                {/* Client Effects */}
+                <Text fw='bold'>Client Effects</Text>
+                <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current client</Text>
+                {currentClientEffects.length > 0
+                  ? <EffectDisplayGroup effects={currentClientEffects} />
+                  : <Text ta='center' fw='lighter'> No active client effects!</Text>}
+                <Divider my='sm' />
 
-              {/* Game Effects */}
-              <Text fw='bold'>Game Effects</Text>
-              <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current game</Text>
-              {currentGameEffects.length > 0
-                ? <EffectDisplayGroup effects={currentGameEffects} />
-                : <Text ta='center' fw='lighter'> No active game effects!</Text>}
-            </Stack>
-          </ScrollArea.Autosize>
-        </Tabs.Panel>
+                {/* Game Effects */}
+                <Text fw='bold'>Game Effects</Text>
+                <Text fz='sm' c='gray' mb='sm'>Effects that expire at the end of the current game</Text>
+                {currentGameEffects.length > 0
+                  ? <EffectDisplayGroup effects={currentGameEffects} />
+                  : <Text ta='center' fw='lighter'> No active game effects!</Text>}
+              </Stack>
+            </ScrollArea.Autosize>
+          </Tabs.Panel>
 
-        {/* History Panel */}
-        <Tabs.Panel value='History' p='xs' >
-          <ScrollArea.Autosize mah={asideHeight - tabListHeight - 33} offsetScrollbars='y' type='hover'>
-            <EventHistory gameState={gameState} gameHistory={gameHistory} />
-          </ScrollArea.Autosize>
-        </Tabs.Panel>
-      </Tabs>
+          {/* History Panel */}
+          <Tabs.Panel value='History' p='xs' style={{ flex: 1 }}>
+            <ScrollArea.Autosize mah={asideHeight - tabListHeight - 33} offsetScrollbars='y' type='hover'>
+              <EventHistory gameState={gameState} gameHistory={gameHistory} />
+            </ScrollArea.Autosize>
+          </Tabs.Panel>
+        </Tabs>
+      </Paper>
     </AppShell.Aside>
   )
 }
@@ -366,8 +391,8 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
   if (clientDetail) {
     clientStatus = (
       <HoverCard offset={20} transitionProps={{ transition: 'pop' }}>
-        <HoverCard.Target ref={clientRef}>
-          <Card display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={clientHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
+        <HoverCard.Target>
+          <Card ref={clientRef} display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={clientHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
             <Group>
               <Text>Client</Text>
               <Divider orientation="vertical" />
@@ -383,8 +408,8 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
     sizeStatus = (<StatusGroup display={gameState.client ? undefined : 'none'} leftChildren='Size' rightChildren={clientDetail.size} />)
     satisfactionStatus = (
       <HoverCard offset={20} transitionProps={{ transition: 'pop' }}>
-        <HoverCard.Target ref={satisfactionRef}>
-          <Card display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={satisfactionHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
+        <HoverCard.Target>
+          <Card ref={satisfactionRef} display={gameState.client ? undefined : 'none'} withBorder py="0.25rem" bg={satisfactionHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
             <Group>
               <Text>Satisfaction</Text>
               <Divider orientation="vertical" />
@@ -411,15 +436,31 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
   }
 
   return (
-    <AppShell.Footer p="sm">
+    <div style={{
+      position: 'fixed',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 200,
+      padding: '0 0.75rem 0.75rem 0.75rem',
+    }}>
+    <Paper
+      p="sm"
+      radius="md"
+      bg="var(--mantine-color-body)"
+      style={{
+        border: '1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4))',
+        boxShadow: 'var(--mantine-shadow-md)',
+      }}
+    >
       <Group h="100%" justify="center" gap="lg">
         {/* Debt Paid Progress */}
         <StatusGroup display={gameState.debt ? undefined : 'none'} leftChildren='Debt Paid' rightChildren={`$${gameState.debtPaid} / $${gameState.debt}`} />
 
         {/* Uniform */}
         <HoverCard offset={20} transitionProps={{ transition: 'pop' }}>
-          <HoverCard.Target ref={uniformRef}>
-            <Indicator label={`+${uniformBonus}`} disabled={!uniformBonus || !gameState.uniform} color='grape' size={14}>
+          <HoverCard.Target>
+            <Indicator ref={uniformRef} label={`+${uniformBonus}`} disabled={!uniformBonus || !gameState.uniform} color='grape' size={14}>
               <Card display={gameState.uniform ? undefined : 'none'} withBorder py="0.25rem" bg={uniformHovered ? getGradient(theme.other.gradients['club-bambi'], theme) : undefined} style={{ borderColor: 'violet' }}>
                 <Group>
                   <Text>Uniform</Text>
@@ -519,7 +560,8 @@ function StatusBar({ gameState, setGameState, gameHistory, setGameHistory }: Eve
         </Popover>
       </Group>
 
-    </AppShell.Footer>
+    </Paper>
+    </div>
   )
 }
 
@@ -1395,7 +1437,7 @@ function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory
 
   return (
     <BasicEvent name='Humiliation' canContinue={!!taskRoll} nextEvent={nextEvent} image={image} ratio={2 / 3}>
-      <Collapse in={!taskRoll}>
+      <Collapse expanded={!taskRoll}>
         <Card.Section>
           <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         </Card.Section>
@@ -1403,7 +1445,7 @@ function HumiliationEvent({ gameState, setGameState, gameHistory, setGameHistory
       <Center mt={!taskRoll ? 'md' : 0} mb='md'>
         <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={() => randRange(1, 7)} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)} />
       </Center>
-      <Collapse in={!!taskRoll}>
+      <Collapse expanded={!!taskRoll}>
         {humiliation}
       </Collapse>
     </BasicEvent>
@@ -1496,7 +1538,7 @@ function PunishmentEvent({ gameState, setGameState, gameHistory, setGameHistory 
 
   return (
     <BasicEvent name='Punishment' canContinue={!!taskRoll} nextEvent={nextEvent} image={image} ratio={2 / 3}>
-      <Collapse in={!taskRoll}>
+      <Collapse expanded={!taskRoll}>
         <Card.Section>
           <DecisionTable activeRoll={taskRoll} decisionSet={decisionSet} />
         </Card.Section>
@@ -1504,7 +1546,7 @@ function PunishmentEvent({ gameState, setGameState, gameHistory, setGameHistory 
       <Center mt={!taskRoll ? 'md' : 0} mb='md'>
         <Roller roll={taskRoll} setRoll={setTaskRoll} rollFn={rollPunishment} rerolls={rerolls} reroll={() => reroll(useReroll, gameState, setGameState)} />
       </Center>
-      <Collapse in={!!taskRoll}>
+      <Collapse expanded={!!taskRoll}>
         {punishment}
       </Collapse>
     </BasicEvent>
