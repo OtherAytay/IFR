@@ -320,9 +320,9 @@ export function SceneRenderer({
           radius="md" 
           withBorder={!!b.borderColor} 
           style={{ 
-            backgroundColor: b.backgroundColor ? `var(--mantine-color-${b.backgroundColor}-light)` : 'transparent',
-            borderColor: b.borderColor ? `var(--mantine-color-${b.borderColor}-outline)` : undefined,
-            borderWidth: b.borderColor ? 2 : 0,
+            backgroundColor: b.backgroundColor ? (b.backgroundColor.startsWith('#') ? `${b.backgroundColor}33` : `color-mix(in srgb, var(--mantine-color-${b.backgroundColor}-filled), transparent 80%)`) : 'transparent',
+            borderColor: b.borderColor ? (b.borderColor.startsWith('#') ? `${b.borderColor}80` : `color-mix(in srgb, var(--mantine-color-${b.borderColor}-filled), transparent 50%)`) : undefined,
+            borderWidth: b.borderColor ? 1 : 0,
             borderStyle: 'solid'
           }}
         >

@@ -1347,43 +1347,28 @@ function SceneInspector({ sceneId }: { sceneId: string }) {
         </Group>
       </Group>
 
-      {(() => {
-        const nonContinueBlocks = scene.blocks.filter(b => b.type !== 'interaction' || (b as any).interactionType !== 'continue');
-        const continueBlock = scene.blocks.find(b => b.type === 'interaction' && (b as any).interactionType === 'continue');
-        
-        return (
-          <Stack gap="md">
-            {nonContinueBlocks.length === 0 ? (
-              <Text size="sm" c="dimmed">No content blocks yet. Add media, text, or tasks above.</Text>
-            ) : (
-              <Droppable droppableId="blocks" type="blocks">
-                {(provided) => (
-                  <div {...provided.droppableProps} ref={provided.innerRef}>
-                    <Stack gap="md">
-                      {nonContinueBlocks.map((block, idx) => (
-                        <Draggable key={block.id} draggableId={block.id} index={idx}>
-                          {(provided) => (
-                            <div ref={provided.innerRef} {...provided.draggableProps}>
-                              <BlockEditor sceneId={scene.id} block={block} dragHandleProps={provided.dragHandleProps} />
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                    </Stack>
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            )}
-            
-            {continueBlock && (
-              <div style={{ borderTop: '1px dashed var(--mantine-color-gray-3)', paddingTop: '10px' }}>
-                <BlockEditor sceneId={scene.id} block={continueBlock} />
-              </div>
-            )}
-          </Stack>
-        );
-      })()}
+      {scene.blocks.length === 0 ? (
+        <Text size="sm" c="dimmed">No content blocks yet. Add media, text, or tasks above.</Text>
+      ) : (
+        <Droppable droppableId="blocks" type="blocks">
+          {(provided) => (
+            <div {...provided.droppableProps} ref={provided.innerRef}>
+              <Stack gap="md">
+                {scene.blocks.map((block, idx) => (
+                  <Draggable key={block.id} draggableId={block.id} index={idx}>
+                    {(provided) => (
+                      <div ref={provided.innerRef} {...provided.draggableProps}>
+                        <BlockEditor sceneId={scene.id} block={block} dragHandleProps={provided.dragHandleProps} />
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+              </Stack>
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      )}
 
       <Divider mt="md" />
       <Title order={5}>Outbound Edges</Title>
