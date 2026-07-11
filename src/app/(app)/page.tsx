@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { Container, Title, Text, Card, Group, SimpleGrid, Button, ActionIcon, Stack } from '@mantine/core';
+import { Container, Title, Text, Card, Group, SimpleGrid, Button, ActionIcon, Stack, Image, Badge } from '@mantine/core';
 import { Dropzone } from '@mantine/dropzone';
 import { IconUpload, IconFilePlus, IconX, IconDeviceGamepad, IconTrash, IconRefresh, IconEdit } from '@tabler/icons-react';
 import '@mantine/dropzone/styles.css';
@@ -215,6 +215,35 @@ export default function Home() {
             </SimpleGrid>
           </div>
         )}
+
+        <div>
+          <Title order={3} mb="md">Bespoke Games</Title>
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
+            <Card shadow="sm" padding="lg" radius="md" withBorder style={{ display: 'flex', flexDirection: 'column' }}>
+              <Card.Section>
+                <Image
+                  src="/club-bambi/induction.png"
+                  height={180}
+                  alt="Club Bambi"
+                  fit="cover"
+                />
+              </Card.Section>
+              
+              <Group justify="space-between" mt="md" mb="xs">
+                <Text fw={600} size="lg">Club Bambi</Text>
+                <Badge color="pink" variant="light" size="sm">Bespoke</Badge>
+              </Group>
+
+              <Text size="sm" c="dimmed" style={{ flexGrow: 1 }} mb="md">
+                An interactive training simulation at the notorious Club Bambi. Can you survive the clients, manage your outfits, and pay off your debt?
+              </Text>
+
+              <Button fullWidth color="pink" mt="auto" radius="md" onClick={() => router.push('/club-bambi')}>
+                Play Club Bambi
+              </Button>
+            </Card>
+          </SimpleGrid>
+        </div>
       </Stack>
     </Container>
   );

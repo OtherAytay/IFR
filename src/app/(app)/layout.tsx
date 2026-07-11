@@ -38,8 +38,7 @@ function Nav({ opened, toggle }: { opened: boolean, toggle: () => void }) {
   const colorScheme = useComputedColorScheme();
 
   const links = [
-    { link: '/', label: 'Home' },
-    { link: '/club-bambi', label: 'Club Bambi' },
+    { link: '/', label: 'Library' },
     { link: '/create', label: 'Create' },
   ];
 
