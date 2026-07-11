@@ -1,5 +1,5 @@
 export async function compressImageToDataURL(
-  file: File,
+  file: Blob,
   maxWidth = 800,
   maxHeight = 800,
   quality = 0.7
@@ -53,7 +53,7 @@ export async function compressImageToDataURL(
   });
 }
 
-export async function fileToDataURL(file: File): Promise<string> {
+export async function fileToDataURL(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => resolve(e.target?.result as string);

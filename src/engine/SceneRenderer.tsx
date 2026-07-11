@@ -1,5 +1,6 @@
 'use client'
 import { Scene, Block, MediaBlock, TextBlock, TaskBlock, InteractionBlock, RerollPolicy, Game } from '@/types/game';
+import { useAssetUrl } from '@/hooks/useAssetUrl';
 import { Roller } from '@/components/Roller';
 import { Container, Grid, Stack, Image, Text, Button, Paper, Group, Center, SimpleGrid, Box, RingProgress, Table, Card, Divider } from '@mantine/core';
 import { Carousel } from '@mantine/carousel';
@@ -355,7 +356,10 @@ export function SceneRenderer({
 function MediaRenderer({ block, game }: { block: MediaBlock, game?: Game }) {
   const asset = game?.mediaAssets?.find(a => a.id === block.mediaId);
   const mediaType = asset?.mediaType || block.mediaType || 'image';
-  const url = asset?.url || block.url || '';
+  
+  const isIndexedDB = asset?.url === 'indexeddb';
+  const resolvedUrl = useAssetUrl(isIndexedDB ? asset.id : undefined);
+  const url = isIndexedDB ? (resolvedUrl || '') : (asset?.url || block.url || '');
 
   const content = mediaType === 'video' ? (
     <video

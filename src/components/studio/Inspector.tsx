@@ -7,6 +7,8 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { useStudioStore } from '../../store/studioStore';
 import { Block, LayoutPreset, Edge, Scene } from '../../types/game';
 import { compressImageToDataURL, fileToDataURL } from '../../utils/imageCompressor';
+import { saveMediaAsset } from '../../utils/indexedDB';
+import { useAssetUrl } from '../../hooks/useAssetUrl';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -743,15 +745,16 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
                         const file = (e.target as HTMLInputElement).files?.[0];
                         if (!file) return;
                         try {
-                          const mediaType = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
-                          const dataURL = URL.createObjectURL(file);
+                          const mediaType = (file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image') as 'image' | 'video' | 'audio';
                           let existingAsset = game.mediaAssets?.find(a => a.name === file.name && a.mediaType === mediaType);
                           if (!existingAsset) {
+                            const newId = crypto.randomUUID();
+                            await saveMediaAsset(newId, file);
                             existingAsset = {
-                              id: crypto.randomUUID(),
+                              id: newId,
                               name: file.name || 'New Media',
                               mediaType,
-                              url: dataURL
+                              url: 'indexeddb'
                             };
                             setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), existingAsset] });
                           }
@@ -778,14 +781,15 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
                         const res = await fetch(url);
                         if (!res.ok) throw new Error('Failed to fetch URL');
                         const blob = await res.blob();
-                        const mediaType = blob.type.startsWith('video') ? 'video' : blob.type.startsWith('audio') ? 'audio' : 'image';
-                        const dataURL = URL.createObjectURL(blob);
+                        const mediaType = (blob.type.startsWith('video') ? 'video' : blob.type.startsWith('audio') ? 'audio' : 'image') as 'image' | 'video' | 'audio';
                         const filename = url.split('/').pop()?.split('?')[0] || 'downloaded_media';
+                        const newId = crypto.randomUUID();
+                        await saveMediaAsset(newId, blob);
                         const existingAsset = {
-                          id: crypto.randomUUID(),
+                          id: newId,
                           name: filename,
                           mediaType,
-                          url: dataURL
+                          url: 'indexeddb'
                         };
                         setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), existingAsset] });
                         updateBlock(sceneId, block.id, { mediaId: existingAsset.id, mediaType: undefined, url: undefined });
@@ -1887,6 +1891,8 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
 
 export function Inspector() {
   const { game, selectedNodeId, selectedEdgeId, setGame } = useStudioStore();
+  const coverAsset = game.mediaAssets?.find(a => a.id === game.coverMediaId);
+  const resolvedCoverUrl = useAssetUrl(coverAsset?.url === 'indexeddb' ? coverAsset.id : undefined) || coverAsset?.url;
 
   const wrapInspector = (content: React.ReactNode) => (
     <div style={{
@@ -1951,6 +1957,96 @@ export function Inspector() {
         value={game.version}
         onChange={(e) => setGame({ ...game, version: e.currentTarget.value })}
       />
+      
+      <Group align="flex-end" gap="xs">
+        <NativeSelect
+          label="Cover Image"
+          variant="filled"
+          value={game.coverMediaId || ''}
+          style={{ flex: 1 }}
+          data={[
+            { value: '', label: 'Select Media...' },
+            ...(game.mediaAssets || []).filter(a => a.mediaType === 'image').map(a => ({ value: a.id, label: a.name }))
+          ]}
+          onChange={(e) => setGame({ ...game, coverMediaId: e.currentTarget.value })}
+        />
+        <ActionIcon.Group>
+          <Tooltip label="Upload New Media" position="top" withArrow>
+            <ActionIcon
+              size="lg"
+              variant="light"
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = async (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (!file) return;
+                  try {
+                    let existingAsset = game.mediaAssets?.find(a => a.name === file.name && a.mediaType === 'image');
+                    if (!existingAsset) {
+                      const newId = crypto.randomUUID();
+                      await saveMediaAsset(newId, file);
+                      existingAsset = {
+                        id: newId,
+                        name: file.name || 'New Cover Image',
+                        mediaType: 'image',
+                        url: 'indexeddb'
+                      };
+                      setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), existingAsset], coverMediaId: existingAsset.id });
+                    } else {
+                      setGame({ ...game, coverMediaId: existingAsset.id });
+                    }
+                  } catch (err) {
+                    console.error('Failed to process media:', err);
+                  }
+                };
+                input.click();
+              }}
+            >
+              <IconUpload size={18} />
+            </ActionIcon>
+          </Tooltip>
+          <Tooltip label="Import from URL" position="top" withArrow>
+            <ActionIcon
+              size="lg"
+              variant="light"
+              color="violet"
+              onClick={async () => {
+                const url = prompt('Enter the full URL of the image:');
+                if (!url) return;
+                try {
+                  const res = await fetch(url);
+                  if (!res.ok) throw new Error('Failed to fetch URL');
+                  const blob = await res.blob();
+                  const filename = url.split('/').pop()?.split('?')[0] || 'downloaded_cover';
+                  const newId = crypto.randomUUID();
+                  await saveMediaAsset(newId, blob);
+                  const existingAsset = {
+                    id: newId,
+                    name: filename,
+                    mediaType: 'image' as const,
+                    url: 'indexeddb'
+                  };
+                  setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), existingAsset], coverMediaId: existingAsset.id });
+                } catch (err) {
+                  alert('Could not download image. It might be blocked by CORS or an invalid URL.');
+                  console.error(err);
+                }
+              }}
+            >
+              <IconExternalLink size={18} />
+            </ActionIcon>
+          </Tooltip>
+        </ActionIcon.Group>
+      </Group>
+      {game.coverMediaId && game.mediaAssets?.find(a => a.id === game.coverMediaId) && (
+        <Card withBorder p={0} radius="md">
+          <Card.Section>
+            <img src={resolvedCoverUrl} alt="Cover" style={{ width: '100%', maxHeight: 150, objectFit: 'cover', display: 'block' }} />
+          </Card.Section>
+        </Card>
+      )}
       
       <Divider />
 
@@ -2133,11 +2229,12 @@ export function Inspector() {
               const file = (e.target as HTMLInputElement).files?.[0];
               if (!file) return;
               try {
-                const mediaType = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
-                const dataURL = URL.createObjectURL(file);
+                const mediaType = (file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image') as 'image' | 'video' | 'audio';
                 const existingAsset = game.mediaAssets?.find(a => a.name === file.name && a.mediaType === mediaType);
                 if (existingAsset) return;
-                setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), { id: crypto.randomUUID(), name: file.name, mediaType, url: dataURL }] });
+                const newId = crypto.randomUUID();
+                await saveMediaAsset(newId, file);
+                setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), { id: newId, name: file.name, mediaType, url: 'indexeddb' }] });
               } catch (err) {
                 console.error('Failed to add media:', err);
               }
@@ -2153,10 +2250,11 @@ export function Inspector() {
               const res = await fetch(url);
               if (!res.ok) throw new Error('Failed to fetch URL');
               const blob = await res.blob();
-              const mediaType = blob.type.startsWith('video') ? 'video' : blob.type.startsWith('audio') ? 'audio' : 'image';
-              const dataURL = URL.createObjectURL(blob);
+              const mediaType = (blob.type.startsWith('video') ? 'video' : blob.type.startsWith('audio') ? 'audio' : 'image') as 'image' | 'video' | 'audio';
               const filename = url.split('/').pop()?.split('?')[0] || 'downloaded_media';
-              setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), { id: crypto.randomUUID(), name: filename, mediaType, url: dataURL }] });
+              const newId = crypto.randomUUID();
+              await saveMediaAsset(newId, blob);
+              setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), { id: newId, name: filename, mediaType, url: 'indexeddb' }] });
             } catch (err) {
               alert('Could not download media. It might be blocked by CORS or an invalid URL.');
               console.error(err);
@@ -2272,7 +2370,8 @@ export function Inspector() {
                         const fileInZip = loadedZip.file(asset.url);
                         if (fileInZip) {
                           const fileBlob = await fileInZip.async("blob");
-                          asset.url = URL.createObjectURL(fileBlob);
+                          await saveMediaAsset(asset.id, fileBlob);
+                          asset.url = 'indexeddb';
                         }
                       }
                     }

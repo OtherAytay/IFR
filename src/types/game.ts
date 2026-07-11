@@ -180,6 +180,7 @@ export interface Game {
   id: string;
   title: string;
   version: string;
+  coverMediaId?: string;
   
   settings: GameSettings;
   globalVariables: Variable[];

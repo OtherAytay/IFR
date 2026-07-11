@@ -31,6 +31,7 @@
     "embla-carousel-auto-height": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
     "file-saver": "^2.0.5",
+    "idb-keyval": "^6.3.0",
     "jszip": "^3.10.1",
     "next": "16.2.10",
     "react": "^19",

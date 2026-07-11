@@ -8,6 +8,25 @@ import { v4 as uuidv4 } from 'uuid';
 import { useRouter } from 'next/navigation';
 import { useStudioStore } from '../../store/studioStore';
 import JSZip from 'jszip';
+import { compressImageToDataURL, fileToDataURL } from '../../utils/imageCompressor';
+import { saveMediaAsset } from '../../utils/indexedDB';
+import { useAssetUrl } from '../../hooks/useAssetUrl';
+
+function LibraryGameCover({ game }: { game: any }) {
+  const coverAsset = game.gameData?.mediaAssets?.find((a: any) => a.id === game.gameData?.coverMediaId);
+  const resolvedCoverUrl = useAssetUrl(coverAsset?.url === 'indexeddb' ? coverAsset.id : undefined) || coverAsset?.url;
+  
+  if (!resolvedCoverUrl) return null;
+  return (
+    <div style={{ width: '100%', height: 180, overflow: 'hidden' }}>
+      <img
+        src={resolvedCoverUrl}
+        alt={game.title}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />
+    </div>
+  );
+}
 
 export default function Home() {
   const [savedGames, setSavedGames] = useState<any[]>([]);
@@ -57,7 +76,8 @@ export default function Home() {
               const fileInZip = loadedZip.file(asset.url);
               if (fileInZip) {
                 const fileBlob = await fileInZip.async("blob");
-                asset.url = URL.createObjectURL(fileBlob);
+                await saveMediaAsset(asset.id, fileBlob);
+                asset.url = 'indexeddb';
               }
             }
           }
@@ -184,15 +204,18 @@ export default function Home() {
             <Title order={3} mb="md">Continue Playing</Title>
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
               {savedGames.map((game) => (
-                <Card key={game.id} shadow="sm" padding="lg" radius="md" withBorder>
-                  <Card.Section withBorder p="md">
+                <Card key={game.id} shadow="sm" padding="lg" radius="md" withBorder style={{ display: 'flex', flexDirection: 'column' }}>
+                  <Card.Section>
+                    <LibraryGameCover game={game} />
+                  </Card.Section>
+                  <Card.Section withBorder p="md" mt={(game.gameData?.coverMediaId && game.gameData.mediaAssets?.find((a: any) => a.id === game.gameData.coverMediaId)) ? 0 : undefined}>
                     <Group justify="space-between">
                       <Title order={4} lineClamp={1}>{game.title}</Title>
                       <IconDeviceGamepad size={24} color="var(--mantine-color-violet-6)" />
                     </Group>
                   </Card.Section>
 
-                  <Text size="sm" c="dimmed" mt="md">
+                  <Text size="sm" c="dimmed" mt="md" style={{ flexGrow: 1 }}>
                     Last played: {new Date(game.lastPlayed).toLocaleString()}
                   </Text>
 
@@ -221,12 +244,13 @@ export default function Home() {
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }}>
             <Card shadow="sm" padding="lg" radius="md" withBorder style={{ display: 'flex', flexDirection: 'column' }}>
               <Card.Section>
-                <Image
-                  src="/club-bambi/induction.png"
-                  height={180}
-                  alt="Club Bambi"
-                  fit="cover"
-                />
+                <div style={{ width: '100%', height: 180, overflow: 'hidden' }}>
+                  <img
+                    src="/club-bambi/induction.png"
+                    alt="Club Bambi"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                </div>
               </Card.Section>
               
               <Group justify="space-between" mt="md" mb="xs">
