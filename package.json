@@ -30,6 +30,8 @@
     "dayjs": "^1.11.21",
     "embla-carousel-auto-height": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
+    "file-saver": "^2.0.5",
+    "jszip": "^3.10.1",
     "next": "16.2.10",
     "react": "^19",
     "react-dom": "^19",
@@ -38,6 +40,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@types/file-saver": "^2.0.7",
     "@types/node": "26.1.1",
     "@types/react": "19.2.17",
     "@types/uuid": "^11.0.0",

@@ -6,7 +6,9 @@ import { IconTrash, IconX, IconPlus, IconSettings, IconGripVertical, IconAlertCi
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useStudioStore } from '../../store/studioStore';
 import { Block, LayoutPreset, Edge, Scene } from '../../types/game';
-import { compressImageToDataURL } from '../../utils/imageCompressor';
+import { compressImageToDataURL, fileToDataURL } from '../../utils/imageCompressor';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 const BLOCK_CONFIG = {
   media:       { label: 'Media',       color: 'blue',   Icon: IconPhoto     },
@@ -660,7 +662,7 @@ function MutationCard({
 }
 
 function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; block: Block; dragHandleProps?: any }) {
-  const { updateBlock, removeBlock, addBlock } = useStudioStore();
+  const { game, setGame, updateBlock, removeBlock, addBlock } = useStudioStore();
   const cfg = BLOCK_CONFIG[block.type as keyof typeof BLOCK_CONFIG] ?? { label: block.type, color: 'gray', Icon: IconAlignLeft };
   const { label, color, Icon } = cfg;
 
@@ -715,78 +717,89 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
         <Stack gap="xs" p="sm">
         {block.type === 'media' && (
           <>
-            <NativeSelect
-              size="xs"
-              label="Media Type"
-              variant="filled"
-              value={block.mediaType}
-              data={[
-                { value: 'image', label: 'Image' },
-                { value: 'video', label: 'Video' },
-                { value: 'audio', label: 'Audio' },
-              ]}
-              onChange={(e) => updateBlock(sceneId, block.id, { mediaType: e.currentTarget.value })}
-            />
-            <TextInput
-              size="xs"
-              label="URL"
-              variant="filled"
-              placeholder="https://…"
-              value={block.url}
-              onChange={(e) => updateBlock(sceneId, block.id, { url: e.currentTarget.value })}
-              leftSection={
-                block.url ? (
-                  <Tooltip label="Preview in new tab" position="top" withArrow>
-                    <ActionIcon
-                      size="sm"
-                      variant="subtle"
-                      onClick={() => {
-                        if (block.url.startsWith('data:')) {
-                          const win = window.open();
-                          if (win) {
-                            win.document.write(`<iframe src="${block.url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                            win.document.title = 'Media Preview';
-                            win.document.close();
+            <Group align="flex-end" gap="xs">
+              <NativeSelect
+                size="xs"
+                label="Media Asset"
+                variant="filled"
+                value={block.mediaId || ''}
+                style={{ flex: 1 }}
+                data={[
+                  { value: '', label: 'Select Media...' },
+                  ...(game.mediaAssets || []).map(a => ({ value: a.id, label: a.name }))
+                ]}
+                onChange={(e) => updateBlock(sceneId, block.id, { mediaId: e.currentTarget.value })}
+              />
+              <ActionIcon.Group>
+                <Tooltip label="Upload New Media" position="top" withArrow>
+                  <ActionIcon
+                    size="md"
+                    variant="light"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = 'image/*,video/*,audio/*';
+                      input.onchange = async (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (!file) return;
+                        try {
+                          const mediaType = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
+                          const dataURL = URL.createObjectURL(file);
+                          let existingAsset = game.mediaAssets?.find(a => a.name === file.name && a.mediaType === mediaType);
+                          if (!existingAsset) {
+                            existingAsset = {
+                              id: crypto.randomUUID(),
+                              name: file.name || 'New Media',
+                              mediaType,
+                              url: dataURL
+                            };
+                            setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), existingAsset] });
                           }
-                        } else {
-                          window.open(block.url, '_blank');
+                          updateBlock(sceneId, block.id, { mediaId: existingAsset.id, mediaType: undefined, url: undefined });
+                        } catch (err) {
+                          console.error('Failed to process media:', err);
                         }
-                      }}
-                    >
-                      <IconExternalLink size={13} />
-                    </ActionIcon>
-                  </Tooltip>
-                ) : undefined
-              }
-              rightSection={
-                block.mediaType === 'image' ? (
-                  <Tooltip label="Embed local image" position="top" withArrow>
-                    <ActionIcon
-                      size="sm"
-                      variant="subtle"
-                      onClick={() => {
-                        const input = document.createElement('input');
-                        input.type = 'file';
-                        input.accept = 'image/*';
-                        input.onchange = async (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0];
-                          if (!file) return;
-                          try {
-                            const dataURL = await compressImageToDataURL(file);
-                            updateBlock(sceneId, block.id, { url: dataURL });
-                          } catch (err) {
-                            console.error('Failed to compress image:', err);
-                          }
+                      };
+                      input.click();
+                    }}
+                  >
+                    <IconUpload size={16} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Import from URL" position="top" withArrow>
+                  <ActionIcon
+                    size="md"
+                    variant="light"
+                    color="violet"
+                    onClick={async () => {
+                      const url = prompt('Enter the full URL of the media file:');
+                      if (!url) return;
+                      try {
+                        const res = await fetch(url);
+                        if (!res.ok) throw new Error('Failed to fetch URL');
+                        const blob = await res.blob();
+                        const mediaType = blob.type.startsWith('video') ? 'video' : blob.type.startsWith('audio') ? 'audio' : 'image';
+                        const dataURL = URL.createObjectURL(blob);
+                        const filename = url.split('/').pop()?.split('?')[0] || 'downloaded_media';
+                        const existingAsset = {
+                          id: crypto.randomUUID(),
+                          name: filename,
+                          mediaType,
+                          url: dataURL
                         };
-                        input.click();
-                      }}
-                    >
-                      <IconUpload size={13} />
-                    </ActionIcon>
-                  </Tooltip>
-                ) : null
-              }
-            />
+                        setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), existingAsset] });
+                        updateBlock(sceneId, block.id, { mediaId: existingAsset.id, mediaType: undefined, url: undefined });
+                      } catch (err) {
+                        alert('Could not download media. It might be blocked by CORS or an invalid URL.');
+                        console.error(err);
+                      }
+                    }}
+                  >
+                    <IconExternalLink size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              </ActionIcon.Group>
+            </Group>
           </>
         )}
 
@@ -2017,6 +2030,145 @@ export function Inspector() {
 
       <Divider />
 
+      <Title order={5}>Media Library</Title>
+      <Stack gap="xs">
+        {(game.mediaAssets || []).map((asset, idx) => {
+          const isUnused = !Object.values(game.scenes).some(scene =>
+            scene.blocks.some(b => {
+              if (b.type === 'media') return (b as any).mediaId === asset.id;
+              if ((b as any).type === 'container') return JSON.stringify(b).includes(`"mediaId":"${asset.id}"`);
+              return false;
+            })
+          );
+          const typeColor = asset.mediaType === 'image' ? 'blue' : asset.mediaType === 'video' ? 'violet' : 'orange';
+          const TypeIcon = asset.mediaType === 'image' ? IconPhoto : asset.mediaType === 'video' ? IconFilter : IconUpload;
+          return (
+            <Card
+              key={asset.id}
+              withBorder
+              shadow="sm"
+              radius="md"
+              p={0}
+              style={{ borderLeft: `3px solid var(--mantine-color-${typeColor}-6)`, overflow: 'hidden' }}
+            >
+              {/* Header */}
+              <Group
+                justify="space-between"
+                px="sm"
+                py={6}
+                wrap="nowrap"
+                style={{
+                  background: `var(--mantine-color-${typeColor}-light)`,
+                  borderBottom: `1px solid var(--mantine-color-${typeColor}-light-hover)`,
+                }}
+              >
+                <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                  <ThemeIcon size="xs" variant="transparent" color={typeColor}>
+                    <TypeIcon size={13} />
+                  </ThemeIcon>
+                  <TextInput
+                    size="xs"
+                    variant="unstyled"
+                    value={asset.name}
+                    placeholder="Asset name"
+                    onChange={(e) => {
+                      const newAssets = [...(game.mediaAssets || [])];
+                      newAssets[idx] = { ...asset, name: e.currentTarget.value };
+                      setGame({ ...game, mediaAssets: newAssets });
+                    }}
+                    styles={{
+                      input: {
+                        fontWeight: 700,
+                        fontSize: 'var(--mantine-font-size-xs)',
+                        letterSpacing: '0.03em',
+                        textTransform: 'uppercase',
+                        color: `var(--mantine-color-${typeColor}-8)`,
+                        padding: 0,
+                        height: 'auto',
+                        minHeight: 'auto',
+                      }
+                    }}
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                  <Badge size="xs" variant="light" color={typeColor} radius="sm" style={{ flexShrink: 0 }}>
+                    {asset.mediaType}
+                  </Badge>
+                  {isUnused && (
+                    <Tooltip label="Unused — not referenced by any block" withArrow position="top">
+                      <ThemeIcon size="xs" variant="transparent" color="orange">
+                        <IconAlertCircle size={13} />
+                      </ThemeIcon>
+                    </Tooltip>
+                  )}
+                </Group>
+                <ActionIcon size="sm" color="red" variant="subtle" onClick={() => {
+                  setGame({ ...game, mediaAssets: (game.mediaAssets || []).filter(a => a.id !== asset.id) });
+                }}>
+                  <IconTrash size={14} />
+                </ActionIcon>
+              </Group>
+
+              {/* Body */}
+              <Group gap="sm" p="sm" wrap="nowrap" align="center">
+                {asset.mediaType === 'image' ? (
+                  <img src={asset.url} style={{ width: 36, height: 36, borderRadius: 4, objectFit: 'cover', flexShrink: 0, border: '1px solid var(--mantine-color-default-border)' }} />
+                ) : (
+                  <div style={{ width: 36, height: 36, background: `var(--mantine-color-${typeColor}-light)`, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <TypeIcon size={18} />
+                  </div>
+                )}
+                <Text size="xs" c="dimmed" style={{ flex: 1 }}>
+                  {asset.mediaType === 'image' ? 'Image' : asset.mediaType === 'video' ? 'Video' : 'Audio'} asset
+                </Text>
+              </Group>
+            </Card>
+          );
+        })}
+        <Group gap="sm" grow>
+          <Button size="xs" variant="light" leftSection={<IconPlus size={12} />} onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*,video/*,audio/*';
+            input.onchange = async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (!file) return;
+              try {
+                const mediaType = file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'audio' : 'image';
+                const dataURL = URL.createObjectURL(file);
+                const existingAsset = game.mediaAssets?.find(a => a.name === file.name && a.mediaType === mediaType);
+                if (existingAsset) return;
+                setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), { id: crypto.randomUUID(), name: file.name, mediaType, url: dataURL }] });
+              } catch (err) {
+                console.error('Failed to add media:', err);
+              }
+            };
+            input.click();
+          }}>
+            Upload File
+          </Button>
+          <Button size="xs" variant="light" color="violet" leftSection={<IconExternalLink size={12} />} onClick={async () => {
+            const url = prompt('Enter the full URL of the media file:');
+            if (!url) return;
+            try {
+              const res = await fetch(url);
+              if (!res.ok) throw new Error('Failed to fetch URL');
+              const blob = await res.blob();
+              const mediaType = blob.type.startsWith('video') ? 'video' : blob.type.startsWith('audio') ? 'audio' : 'image';
+              const dataURL = URL.createObjectURL(blob);
+              const filename = url.split('/').pop()?.split('?')[0] || 'downloaded_media';
+              setGame({ ...game, mediaAssets: [...(game.mediaAssets || []), { id: crypto.randomUUID(), name: filename, mediaType, url: dataURL }] });
+            } catch (err) {
+              alert('Could not download media. It might be blocked by CORS or an invalid URL.');
+              console.error(err);
+            }
+          }}>
+            From URL
+          </Button>
+        </Group>
+      </Stack>
+
+      <Divider />
+
       <Title order={5}>Theme Settings</Title>
       <ColorInput 
         label="Primary Color" 
@@ -2061,48 +2213,94 @@ export function Inspector() {
         </Group>
       )}
 
-      <Button 
-        color="green" 
-        mt={hasIntegrityError ? "sm" : "xl"}
-        disabled={hasIntegrityError}
-        onClick={() => {
-          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(game, null, 2));
-          const downloadAnchorNode = document.createElement('a');
-          downloadAnchorNode.setAttribute("href",     dataStr);
-          downloadAnchorNode.setAttribute("download", "game.json");
-          document.body.appendChild(downloadAnchorNode);
-          downloadAnchorNode.click();
-          downloadAnchorNode.remove();
-        }}
-      >
-        Export game.json
-      </Button>
-      <Button
-        color="blue"
-        variant="light"
-        onClick={() => {
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.accept = 'application/json';
-          input.onchange = (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => {
-              try {
-                const importedGame = JSON.parse(event.target?.result as string);
-                setGame(importedGame);
-              } catch (err) {
-                alert("Failed to parse JSON file");
+      <Group grow mt={hasIntegrityError ? "sm" : "xl"}>
+        <Button 
+          color="green" 
+          disabled={hasIntegrityError}
+          onClick={async () => {
+            const zip = new JSZip();
+            const gameClone = JSON.parse(JSON.stringify(game));
+            const mediaFolder = zip.folder("media");
+            
+            if (gameClone.mediaAssets && mediaFolder) {
+              for (const asset of gameClone.mediaAssets) {
+                try {
+                  const res = await fetch(asset.url);
+                  const blob = await res.blob();
+                  let ext = asset.name.split('.').pop() || 'bin';
+                  if (ext.length > 5 || !ext) ext = asset.mediaType === 'image' ? 'png' : asset.mediaType === 'video' ? 'mp4' : 'mp3';
+                  mediaFolder.file(asset.id + '.' + ext, blob);
+                  asset.url = `media/${asset.id}.${ext}`;
+                } catch (e) {
+                  console.error("Failed to export asset", asset, e);
+                }
+              }
+            }
+            
+            zip.file("map.json", JSON.stringify(gameClone, null, 2));
+            const blob = await zip.generateAsync({ type: "blob" });
+            saveAs(blob, "game.ifr");
+          }}
+        >
+          Export game.ifr
+        </Button>
+        <Button
+          color="blue"
+          variant="light"
+          onClick={() => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.ifr,.json,application/json';
+            input.onchange = async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (!file) return;
+              
+              if (file.name.endsWith('.ifr')) {
+                try {
+                  const zip = new JSZip();
+                  const loadedZip = await zip.loadAsync(file);
+                  
+                  const mapFile = loadedZip.file("map.json");
+                  if (!mapFile) throw new Error("Invalid .ifr file: map.json is missing.");
+                  
+                  const mapDataString = await mapFile.async("string");
+                  const importedGame = JSON.parse(mapDataString);
+                  
+                  if (importedGame.mediaAssets) {
+                    for (const asset of importedGame.mediaAssets) {
+                      if (asset.url.startsWith('media/')) {
+                        const fileInZip = loadedZip.file(asset.url);
+                        if (fileInZip) {
+                          const fileBlob = await fileInZip.async("blob");
+                          asset.url = URL.createObjectURL(fileBlob);
+                        }
+                      }
+                    }
+                  }
+                  
+                  setGame(importedGame);
+                } catch (err) {
+                  alert("Failed to parse IFR file: " + err);
+                }
+              } else {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  try {
+                    const importedGame = JSON.parse(event.target?.result as string);
+                    setGame(importedGame);
+                  } catch (err) {
+                    alert("Failed to parse JSON file");
+                  }
+                };
+                reader.readAsText(file);
               }
             };
-            reader.readAsText(file);
-          };
-          input.click();
-        }}
-      >
-        Import game.json
-      </Button>
+            input.click();
+          }}
+        >
+          Import map (.ifr)
+        </Button>
+      </Group>
     </Stack>
   );
 }

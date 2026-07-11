@@ -7,6 +7,7 @@ import '@mantine/dropzone/styles.css';
 import { v4 as uuidv4 } from 'uuid';
 import { useRouter } from 'next/navigation';
 import { useStudioStore } from '../../store/studioStore';
+import JSZip from 'jszip';
 
 export default function Home() {
   const [savedGames, setSavedGames] = useState<any[]>([]);
@@ -37,14 +38,40 @@ export default function Home() {
 
   const handleDrop = async (files: File[]) => {
     const file = files[0];
-    const text = await file.text();
+    let parsedData: any = null;
+    
     try {
-      const parsedData = JSON.parse(text);
+      if (file.name.endsWith('.ifr') || file.name.endsWith('.zip')) {
+        const zip = new JSZip();
+        const loadedZip = await zip.loadAsync(file);
+        
+        const mapFile = loadedZip.file("map.json");
+        if (!mapFile) throw new Error("Invalid .ifr file: map.json is missing.");
+        
+        const mapDataString = await mapFile.async("string");
+        parsedData = JSON.parse(mapDataString);
+        
+        if (parsedData.mediaAssets) {
+          for (const asset of parsedData.mediaAssets) {
+            if (asset.url.startsWith('media/')) {
+              const fileInZip = loadedZip.file(asset.url);
+              if (fileInZip) {
+                const fileBlob = await fileInZip.async("blob");
+                asset.url = URL.createObjectURL(fileBlob);
+              }
+            }
+          }
+        }
+      } else {
+        const text = await file.text();
+        parsedData = JSON.parse(text);
+      }
+      
       const newId = uuidv4();
       
       let saveData;
       if (parsedData.state && parsedData.gameData) {
-        // It's a save.json file
+        // It's a save file
         saveData = {
           title: parsedData.title || "Untitled Game",
           lastPlayed: new Date().toISOString(),
@@ -52,20 +79,20 @@ export default function Home() {
           state: parsedData.state
         };
       } else {
-        // It's a game.json file
+        // It's a map file
         saveData = {
           title: parsedData.title || "Untitled Game",
           lastPlayed: new Date().toISOString(),
           gameData: parsedData, 
-          state: {} // Initial state wrapper
+          state: {} 
         };
       }
       
       localStorage.setItem(`ifr_save_${newId}`, JSON.stringify(saveData));
       router.push(`/play/${newId}`);
     } catch (e) {
-      console.error("Failed to parse JSON", e);
-      alert("Invalid game.json file. Could not parse JSON.");
+      console.error("Failed to parse map/save file", e);
+      alert("Invalid map/save file. Could not parse it.");
     }
   };
 
@@ -114,14 +141,19 @@ export default function Home() {
       <Stack gap="xl">
         <div>
           <Title order={1} c="violet" mb="xs">Game Library</Title>
-          <Text c="dimmed">Load a new game.json or continue your previously saved games.</Text>
+          <Text c="dimmed">Load a new map or continue your previously saved games.</Text>
         </div>
 
         <Dropzone
           onDrop={handleDrop}
-          onReject={(files) => alert('File rejected. Must be a JSON file.')}
-          maxSize={10 * 1024 ** 2} // 10MB
-          accept={['application/json']}
+          onReject={(files) => alert('File rejected. Must be a .ifr map or .json save file.')}
+          maxSize={100 * 1024 ** 2}
+          accept={{
+            'application/json': ['.json'],
+            'application/zip': ['.zip', '.ifr'],
+            'application/x-zip-compressed': ['.zip', '.ifr'],
+            'application/octet-stream': ['.ifr']
+          }}
           radius="md"
           styles={{ inner: { pointerEvents: 'all' } }}
         >
@@ -138,10 +170,10 @@ export default function Home() {
 
             <div>
               <Text size="xl" inline>
-                Drag and drop a <Text span c="violet" fw={700}>game.json</Text> or <Text span c="violet" fw={700}>save.json</Text> here
+                Drag and drop a <Text span c="violet" fw={700}>map (.ifr)</Text> or <Text span c="violet" fw={700}>save file</Text> here
               </Text>
               <Text size="sm" c="dimmed" inline mt={7}>
-                Attach a game file to create a new slot, or a save file to resume progress
+                Attach a map file to create a new slot, or a save file to resume progress
               </Text>
             </div>
           </Group>
