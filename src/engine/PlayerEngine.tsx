@@ -36,7 +36,7 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
         currentSceneId: gameData.startSceneId,
         globalVariables: initialGlobals,
         localVariables: {},
-        tags: [],
+        tags: gameData.tags ? gameData.tags.map(t => t.id) : [],
         blockRerolls: {}
       };
     }
@@ -44,7 +44,7 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
     if (!loadedState.blockRerolls) loadedState.blockRerolls = {};
     if (!loadedState.globalVariables) loadedState.globalVariables = {};
     if (!loadedState.localVariables) loadedState.localVariables = {};
-    if (!loadedState.tags) loadedState.tags = [];
+    if (!loadedState.tags) loadedState.tags = gameData.tags ? gameData.tags.map(t => t.id) : [];
 
     // Backfill missing global variables with default values
     gameData.globalVariables?.forEach(v => {
@@ -139,7 +139,8 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
       });
       
       if (cond.operator === 'has_tag' || cond.operator === 'missing_tag') {
-        const hasTag = playerState.tags.includes(cond.targetId);
+        const tagDef = gameData.tags?.find(t => t.name === cond.targetId || t.id === cond.targetId);
+        const hasTag = playerState.tags.includes(cond.targetId) || (tagDef && playerState.tags.includes(tagDef.id));
         return cond.operator === 'has_tag' ? hasTag : !hasTag;
       }
       
@@ -181,9 +182,13 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
     if (!mutations) return;
     mutations.forEach(mut => {
       if (mut.operation === 'add_tag') {
-        if (!stateDraft.tags.includes(mut.targetId)) stateDraft.tags.push(mut.targetId);
+        const tagDef = gameData.tags?.find(t => t.name === mut.targetId || t.id === mut.targetId);
+        const tagToAdd = tagDef ? tagDef.id : mut.targetId;
+        if (!stateDraft.tags.includes(tagToAdd)) stateDraft.tags.push(tagToAdd);
       } else if (mut.operation === 'remove_tag') {
-        stateDraft.tags = stateDraft.tags.filter(t => t !== mut.targetId);
+        const tagDef = gameData.tags?.find(t => t.name === mut.targetId || t.id === mut.targetId);
+        const tagToRemove = tagDef ? tagDef.id : mut.targetId;
+        stateDraft.tags = stateDraft.tags.filter(t => t !== tagToRemove && t !== mut.targetId);
       } else {
         // Handle numerical/string mutations
         let currentValue = stateDraft.globalVariables[mut.targetId] ?? stateDraft.localVariables[mut.targetId] ?? 0;
@@ -368,7 +373,7 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
         currentSceneId: gameData.startSceneId,
         globalVariables: initialGlobals,
         localVariables: {},
-        tags: [],
+        tags: gameData.tags ? gameData.tags.map(t => t.id) : [],
         blockRerolls: {}
       };
 
@@ -670,6 +675,7 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
                 }}
                 localVariables={playerState.localVariables}
                 globalVariables={playerState.globalVariables}
+                tags={playerState.tags}
                 game={gameData}
                 rerollPolicy={gameData.settings?.rerollPolicy}
                 blockRerolls={playerState.blockRerolls}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Paper, Title, Text, Stack, TextInput, Divider, Button, Menu, ActionIcon, Group, NativeSelect, NumberInput, Textarea, Card, ColorInput, Checkbox, Select, Input, Tooltip, ThemeIcon, Badge, Autocomplete, Switch, Collapse } from '@mantine/core';
+import { Paper, Title, Text, Stack, TextInput, Divider, Button, Menu, ActionIcon, Group, NativeSelect, NumberInput, Textarea, Card, ColorInput, Checkbox, Select, Input, Tooltip, ThemeIcon, Badge, Autocomplete, Switch, Collapse, Popover, Portal } from '@mantine/core';
 import { IconTrash, IconX, IconPlus, IconSettings, IconGripVertical, IconAlertCircle, IconUpload, IconExternalLink, IconPhoto, IconAlignLeft, IconClock, IconHandClick, IconVariable, IconTag, IconTagOff, IconPencil, IconFilter, IconChevronDown, IconChevronUp, IconLock, IconLayoutBoard } from '@tabler/icons-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useStudioStore } from '../../store/studioStore';
@@ -11,6 +11,7 @@ import { saveMediaAsset } from '../../utils/indexedDB';
 import { useAssetUrl } from '../../hooks/useAssetUrl';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { RichTextBlockEditor } from './RichTextBlockEditor';
 
 const BLOCK_CONFIG = {
   media:       { label: 'Media',       color: 'blue',   Icon: IconPhoto     },
@@ -808,16 +809,7 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
         )}
 
         {block.type === 'text' && (
-          <Textarea
-            size="xs"
-            label="Text Content"
-            description="Supports ${{var}} templating"
-            variant="filled"
-            value={block.text}
-            autosize
-            minRows={2}
-            onChange={(e) => updateBlock(sceneId, block.id, { text: e.currentTarget.value })}
-          />
+          <TextBlockEditorWrapper block={block} sceneId={sceneId} updateBlock={updateBlock} />
         )}
 
         {block.type === 'task' && (
@@ -1127,6 +1119,41 @@ function BlockEditor({ sceneId, block, dragHandleProps }: { sceneId: string; blo
       </Stack>
       </Collapse>
     </Card>
+  );
+}
+
+function TextBlockEditorWrapper({ block, sceneId, updateBlock }: { block: any, sceneId: string, updateBlock: (sceneId: string, blockId: string, updates: any) => void }) {
+  const [opened, setOpened] = useState(false);
+  return (
+    <>
+      <Button 
+        variant="light" 
+        color={BLOCK_CONFIG.text.color} 
+        fullWidth 
+        onClick={() => setOpened(true)}
+      >
+        Edit Text Content
+      </Button>
+
+      {opened && (
+        <Portal>
+          <div style={{
+            position: 'fixed',
+            top: '4.5rem',
+            right: '24.75rem',
+            bottom: '1rem',
+            width: '32rem',
+            zIndex: 200,
+          }}>
+            <RichTextBlockEditor 
+              value={block.text}
+              onChange={(val) => updateBlock(sceneId, block.id, { text: val })}
+              onClose={() => setOpened(false)}
+            />
+          </div>
+        </Portal>
+      )}
+    </>
   );
 }
 

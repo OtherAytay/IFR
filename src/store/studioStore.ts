@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Game, Scene, Edge } from '../types/game';
+import { Game, Scene, Edge, Block } from '../types/game';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface EditorState {
@@ -37,6 +37,46 @@ export interface GameState {
 
 export type StudioStore = EditorState & GameState;
 
+const hasContinueBlock = (blocks: Block[]): boolean => {
+  for (const b of blocks) {
+    if (b.type === 'interaction' && b.interactionType === 'continue') {
+      return true;
+    }
+    if (b.type === 'container' && hasContinueBlock(b.blocks || [])) {
+      return true;
+    }
+  }
+  return false;
+};
+
+function sanitizeSceneBlocks(blocks: Block[]): { cleanedBlocks: Block[]; foundContinue: boolean; continueBlock: Block | null } {
+  const state = { foundContinue: false, continueBlock: null as Block | null };
+  
+  const sanitize = (list: Block[]): Block[] => {
+    const res: Block[] = [];
+    for (const b of list) {
+      if (b.type === 'interaction' && b.interactionType === 'continue') {
+        if (!state.foundContinue) {
+          state.foundContinue = true;
+          state.continueBlock = b;
+          res.push(b);
+        }
+      } else if (b.type === 'container') {
+        res.push({
+          ...b,
+          blocks: sanitize(b.blocks || [])
+        });
+      } else {
+        res.push(b);
+      }
+    }
+    return res;
+  };
+  
+  const cleanedBlocks = sanitize(blocks || []);
+  return { cleanedBlocks, foundContinue: state.foundContinue, continueBlock: state.continueBlock };
+}
+
 export function sanitizeGame(game: Game): Game {
   if (!game || !game.scenes) return game;
   const sanitizedScenes = { ...game.scenes };
@@ -45,26 +85,24 @@ export function sanitizeGame(game: Game): Game {
     const scene = sanitizedScenes[sceneId];
     if (!scene) continue;
     
-    // Separate non-continue blocks and continue blocks
-    const nonContinueBlocks = (scene.blocks || []).filter(
-      b => b.type !== 'interaction' || (b as any).interactionType !== 'continue'
-    );
-    let continueBlock = (scene.blocks || []).find(
-      b => b.type === 'interaction' && (b as any).interactionType === 'continue'
-    );
+    const { cleanedBlocks, foundContinue } = sanitizeSceneBlocks(scene.blocks || []);
+    let finalBlocks = cleanedBlocks;
     
-    if (!continueBlock) {
-      continueBlock = {
-        id: 'continue_' + uuidv4(),
-        type: 'interaction',
-        interactionType: 'continue',
-        label: 'Continue'
-      };
+    if (!foundContinue) {
+      finalBlocks = [
+        ...cleanedBlocks,
+        {
+          id: 'continue_' + uuidv4(),
+          type: 'interaction',
+          interactionType: 'continue',
+          label: 'Continue'
+        }
+      ];
     }
     
     sanitizedScenes[sceneId] = {
       ...scene,
-      blocks: [...nonContinueBlocks, continueBlock]
+      blocks: finalBlocks
     };
   }
   
@@ -266,7 +304,7 @@ export const useStudioStore = create<StudioStore>()(
     };
 
     let blocks = recursivelyAddBlock(scene.blocks);
-    if (!blocks.some(b => b.type === 'interaction' && b.interactionType === 'continue')) {
+    if (!hasContinueBlock(blocks)) {
         blocks.push({ id: 'continue_' + uuidv4(), type: 'interaction', interactionType: 'continue', label: 'Continue' });
     }
 
