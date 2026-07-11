@@ -26,9 +26,10 @@ export interface GameState {
   
   updateScene: (id: string, updates: Partial<Scene>) => void;
   deleteScene: (id: string) => void;
-  addBlock: (sceneId: string, blockType: 'media' | 'text' | 'task' | 'interaction', interactionType?: 'choice' | 'roll') => void;
+  addBlock: (sceneId: string, blockType: 'media' | 'text' | 'task' | 'interaction' | 'container', interactionType?: 'choice' | 'roll', targetContainerId?: string) => void;
   updateBlock: (sceneId: string, blockId: string, updates: any) => void;
   removeBlock: (sceneId: string, blockId: string) => void;
+  moveBlock: (sceneId: string, blockId: string, sourceContainerId: string, targetContainerId: string, sourceIndex: number, targetIndex: number) => void;
   
   // Add other mutations later as needed (update scene, update block, etc.)
   setGame: (game: Game) => void;
@@ -121,7 +122,7 @@ export const useStudioStore = create<StudioStore>()(
           label: 'Continue'
         }
       ],
-      layoutPreset: 'standard-split',
+
       sceneMutations: [],
       localVariables: [],
       editorMetadata: { position: { x, y } }
@@ -201,7 +202,7 @@ export const useStudioStore = create<StudioStore>()(
     };
   }),
 
-  addBlock: (sceneId, blockType, interactionType) => set((state) => {
+  addBlock: (sceneId, blockType, interactionType, targetContainerId) => set((state) => {
     const scene = state.game.scenes[sceneId];
     if (!scene) return state;
     
@@ -209,6 +210,7 @@ export const useStudioStore = create<StudioStore>()(
     if (blockType === 'media') newBlock = { ...newBlock, mediaType: 'image', url: '' };
     if (blockType === 'text') newBlock = { ...newBlock, text: 'New text content' };
     if (blockType === 'task') newBlock = { ...newBlock, durationSeconds: 60 };
+    if (blockType === 'container') newBlock = { ...newBlock, direction: 'column', blocks: [] };
     
     let newLocalVariables = [...(scene.localVariables || [])];
     if (blockType === 'interaction') {
@@ -239,18 +241,31 @@ export const useStudioStore = create<StudioStore>()(
       }
     }
 
-    const blocks = [...scene.blocks];
-    const continueIdx = blocks.findIndex(b => b.type === 'interaction' && (b as any).interactionType === 'continue');
-    if (continueIdx !== -1) {
-      blocks.splice(continueIdx, 0, newBlock);
-    } else {
-      blocks.push(newBlock);
-      blocks.push({
-        id: 'continue_' + uuidv4(),
-        type: 'interaction',
-        interactionType: 'continue',
-        label: 'Continue'
-      });
+    const recursivelyAddBlock = (blocks: any[]): any[] => {
+      if (targetContainerId) {
+        return blocks.map(b => {
+          if (b.id === targetContainerId && b.type === 'container') {
+            return { ...b, blocks: [...b.blocks, newBlock] };
+          }
+          if (b.type === 'container') {
+            return { ...b, blocks: recursivelyAddBlock(b.blocks) };
+          }
+          return b;
+        });
+      } else {
+        const continueIdx = blocks.findIndex(b => b.type === 'interaction' && b.interactionType === 'continue');
+        if (continueIdx !== -1) {
+          const newBlocks = [...blocks];
+          newBlocks.splice(continueIdx, 0, newBlock);
+          return newBlocks;
+        }
+        return [...blocks, newBlock];
+      }
+    };
+
+    let blocks = recursivelyAddBlock(scene.blocks);
+    if (!blocks.some(b => b.type === 'interaction' && b.interactionType === 'continue')) {
+        blocks.push({ id: 'continue_' + uuidv4(), type: 'interaction', interactionType: 'continue', label: 'Continue' });
     }
 
     return {
@@ -273,7 +288,15 @@ export const useStudioStore = create<StudioStore>()(
     if (!scene) return state;
 
     let newLocalVariables = [...(scene.localVariables || [])];
-    const block = scene.blocks.find(b => b.id === blockId);
+    let block: any = null;
+    const findBlock = (blocks: any[]) => {
+      for (const b of blocks) {
+        if (b.id === blockId) block = b;
+        if (b.type === 'container') findBlock(b.blocks);
+      }
+    };
+    findBlock(scene.blocks);
+
     let additionalUpdates = {};
 
     if (block && block.type === 'interaction') {
@@ -318,6 +341,14 @@ export const useStudioStore = create<StudioStore>()(
       }
     }
 
+    const recursivelyUpdate = (blocks: any[]): any[] => {
+      return blocks.map(b => {
+        if (b.id === blockId) return { ...b, ...updates, ...additionalUpdates };
+        if (b.type === 'container') return { ...b, blocks: recursivelyUpdate(b.blocks) };
+        return b;
+      });
+    };
+
     return {
       game: {
         ...state.game,
@@ -325,7 +356,7 @@ export const useStudioStore = create<StudioStore>()(
           ...state.game.scenes,
           [sceneId]: { 
             ...scene, 
-            blocks: scene.blocks.map(b => b.id === blockId ? { ...b, ...updates, ...additionalUpdates } : b),
+            blocks: recursivelyUpdate(scene.blocks),
             localVariables: newLocalVariables
           }
         }
@@ -337,7 +368,15 @@ export const useStudioStore = create<StudioStore>()(
     const scene = state.game.scenes[sceneId];
     if (!scene) return state;
 
-    const block = scene.blocks.find(b => b.id === blockId);
+    let block: any = null;
+    const findBlock = (blocks: any[]) => {
+      for (const b of blocks) {
+        if (b.id === blockId) block = b;
+        if (b.type === 'container') findBlock(b.blocks);
+      }
+    };
+    findBlock(scene.blocks);
+
     if (block && block.type === 'interaction' && (block as any).interactionType === 'continue') {
       return state; // Prevent removing the continue block
     }
@@ -352,6 +391,13 @@ export const useStudioStore = create<StudioStore>()(
       }
     }
 
+    const recursivelyRemove = (blocks: any[]): any[] => {
+      return blocks.filter(b => b.id !== blockId).map(b => {
+        if (b.type === 'container') return { ...b, blocks: recursivelyRemove(b.blocks) };
+        return b;
+      });
+    };
+
     return {
       game: {
         ...state.game,
@@ -359,12 +405,85 @@ export const useStudioStore = create<StudioStore>()(
           ...state.game.scenes,
           [sceneId]: { 
             ...scene, 
-            blocks: scene.blocks.filter(b => b.id !== blockId),
+            blocks: recursivelyRemove(scene.blocks),
             localVariables: newLocalVariables
           }
         }
       }
     };
+  }),
+
+  moveBlock: (sceneId, blockId, sourceContainerId, targetContainerId, sourceIndex, targetIndex) => set((state) => {
+    const scene = state.game.scenes[sceneId];
+    if (!scene) return state;
+
+    let movedBlock: any = null;
+
+    if (blockId === targetContainerId) return state;
+
+    const isDescendant = (blocks: any[], targetId: string): boolean => {
+      for (const b of blocks) {
+        if (b.id === blockId) {
+          const findInSelf = (subBlocks: any[]): boolean => {
+            for (const sub of subBlocks) {
+              if (sub.id === targetId) return true;
+              if (sub.type === 'container' && findInSelf(sub.blocks)) return true;
+            }
+            return false;
+          };
+          if (b.type === 'container' && findInSelf(b.blocks)) return true;
+        }
+        if (b.type === 'container' && isDescendant(b.blocks, targetId)) return true;
+      }
+      return false;
+    };
+
+    if (isDescendant(scene.blocks, targetContainerId)) return state;
+    
+    const removeFromParent = (blocks: any[], parentId: string): any[] => {
+      if (parentId === 'blocks' && sourceContainerId === 'blocks') {
+        const newBlocks = [...blocks];
+        movedBlock = newBlocks.splice(sourceIndex, 1)[0];
+        return newBlocks;
+      }
+      return blocks.map(b => {
+        if (b.id === sourceContainerId && b.type === 'container') {
+          const newNested = [...b.blocks];
+          movedBlock = newNested.splice(sourceIndex, 1)[0];
+          return { ...b, blocks: newNested };
+        }
+        if (b.type === 'container') {
+          return { ...b, blocks: removeFromParent(b.blocks, b.id) };
+        }
+        return b;
+      });
+    };
+
+    let updatedBlocks = removeFromParent(scene.blocks, 'blocks');
+    if (!movedBlock) return state;
+
+    const insertIntoParent = (blocks: any[], parentId: string): any[] => {
+      if (parentId === 'blocks' && targetContainerId === 'blocks') {
+        const newBlocks = [...blocks];
+        newBlocks.splice(targetIndex, 0, movedBlock);
+        return newBlocks;
+      }
+      return blocks.map(b => {
+        if (b.id === targetContainerId && b.type === 'container') {
+          const newNested = [...(b.blocks || [])];
+          newNested.splice(targetIndex, 0, movedBlock);
+          return { ...b, blocks: newNested };
+        }
+        if (b.type === 'container') {
+          return { ...b, blocks: insertIntoParent(b.blocks, b.id) };
+        }
+        return b;
+      });
+    };
+
+    updatedBlocks = insertIntoParent(updatedBlocks, 'blocks');
+
+    return { game: { ...state.game, scenes: { ...state.game.scenes, [sceneId]: { ...scene, blocks: updatedBlocks } } } };
   }),
   
   addEdge: (source, target) => set((state) => {

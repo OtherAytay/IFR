@@ -223,17 +223,8 @@ export function SceneRenderer({
   onRestartGame?: () => void,
   onReturnToLibrary?: () => void
 }) {
-  
-  // Group blocks by type
-  const mediaBlocks = scene.blocks.filter(b => b.type === 'media') as MediaBlock[];
-  const textBlocks = scene.blocks.filter(b => b.type === 'text') as TextBlock[];
-  const taskBlocks = scene.blocks.filter(b => b.type === 'task') as TaskBlock[];
-  const interactionBlocks = scene.blocks.filter(b => b.type === 'interaction') as InteractionBlock[];
-
-  // State for required tasks
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
 
-  // Reset tracking when scene changes
   useEffect(() => {
     setCompletedTasks(new Set());
   }, [scene.id]);
@@ -241,220 +232,123 @@ export function SceneRenderer({
   const edges = game?.edges ? game.edges[scene.id] || [] : [];
   const isLastNode = edges.length === 0;
 
-  // Helper to render media blocks (carousel if multiple)
-  const renderMedia = () => {
-    if (mediaBlocks.length === 0) return null;
-    if (mediaBlocks.length === 1) {
-      const b = mediaBlocks[0];
-      return <MediaRenderer block={b} />;
-    }
-    return (
-      <Carousel withIndicators height="100%" style={{ borderRadius: 'var(--mantine-radius-md)', overflow: 'hidden' }}>
-        {mediaBlocks.map(b => (
-          <Carousel.Slide key={b.id}>
-            <MediaRenderer block={b} />
-          </Carousel.Slide>
-        ))}
-      </Carousel>
-    );
-  };
-
   const ctx: LookupVariableContext = { game, scene, localVariables, globalVariables };
   const interpolateText = (text: string) => interpolateTextHelper(text, ctx);
   const interpolateTextNode = (text: string) => interpolateTextNodeHelper(text, ctx);
 
-  const renderInteractionBlock = (b: InteractionBlock) => {
-    let rerollsLeft = 0;
-    if (b.interactionType === 'roll') {
-      if (rerollPolicy?.type === 'shared-pool') {
-        rerollsLeft = rerollPool ?? 0;
-      } else {
-        const maxAllowance = b.rerollsGranted !== undefined 
-          ? b.rerollsGranted 
-          : (rerollPolicy?.defaultAllowance !== undefined ? rerollPolicy.defaultAllowance : 1);
-        const used = blockRerolls?.[b.id] ?? 0;
-        rerollsLeft = Math.max(0, maxAllowance - used);
-      }
+  const allTasks: TaskBlock[] = [];
+  const allInteractions: InteractionBlock[] = [];
+  
+  const collectBlocks = (blocks: Block[]) => {
+    for (const b of blocks) {
+      if (b.type === 'task') allTasks.push(b);
+      else if (b.type === 'interaction') allInteractions.push(b);
+      else if (b.type === 'container') collectBlocks(b.blocks);
     }
-
-    const allRequiredTasksDone = taskBlocks.every(t => completedTasks.has(t.id));
-
-    const allRequiredInteractionsDone = interactionBlocks
-      .filter(ib => ib.interactionType !== 'continue' && ib.isRequired !== false)
-      .every(ib => {
-        if (ib.interactionType === 'choice') {
-          return localVariables?.[`choice_${ib.id}`] !== undefined;
-        }
-        if (ib.interactionType === 'roll') {
-          return localVariables?.[`rollValue_${ib.id}`] !== undefined;
-        }
-        return true;
-      });
-
-    return (
-      <InteractionRenderer 
-        key={b.id} 
-        block={b} 
-        onInteract={onInteract}
-        localVariables={localVariables}
-        rerollsLeft={rerollsLeft}
-        isContinueDisabled={b.interactionType === 'continue' ? ((b.isRequired !== false ? !allRequiredTasksDone : false) || !allRequiredInteractionsDone) : false}
-        interpolateText={interpolateText}
-        interpolateTextNode={interpolateTextNode}
-        isLastNode={isLastNode}
-        onRestartGame={onRestartGame}
-        onReturnToLibrary={onReturnToLibrary}
-      />
-    );
   };
+  collectBlocks(scene.blocks);
 
-  // Helper to render content/task/interaction side
-  const renderContent = (inCard = false, excludeContinue = false) => {
-    const sections: React.ReactNode[] = [];
-    const addSection = (key: string, child: React.ReactNode, noPad = false) => {
-      if (inCard) {
-        sections.push(<Card.Section key={key} p={noPad ? 0 : "md"}>{child}</Card.Section>);
-      } else {
-        sections.push(<Fragment key={key}>{child}</Fragment>);
+  const allRequiredTasksDone = allTasks.every(t => completedTasks.has(t.id));
+  const allRequiredInteractionsDone = allInteractions
+    .filter(ib => ib.interactionType !== 'continue' && ib.isRequired !== false)
+    .every(ib => {
+      if (ib.interactionType === 'choice') {
+        return localVariables?.[`choice_${ib.id}`] !== undefined;
       }
-    };
+      if (ib.interactionType === 'roll') {
+        return localVariables?.[`rollValue_${ib.id}`] !== undefined;
+      }
+      return true;
+    });
 
-    textBlocks.forEach(b => addSection(b.id,
-      <Text size="lg" style={{ whiteSpace: 'pre-wrap' }}>{interpolateTextNode(b.text)}</Text>
-    ));
-    
-    if (taskBlocks.length > 0) {
-      addSection('tasks',
-          inCard ? (
-            <Group justify="center">
-              {taskBlocks.map(b => (
-                <Stack key={b.id} align="center" gap="xs">
-                  <TaskTimer 
-                    block={b} 
-                    onComplete={() => setCompletedTasks(prev => {
-                      const n = new Set(prev);
-                      n.add(b.id);
-                      return n;
-                    })} 
-                  />
-                </Stack>
-              ))}
-            </Group>
-          ) : (
-            <Paper withBorder p="md" radius="md">
-              <Group justify="center">
-                {taskBlocks.map(b => (
-                  <Stack key={b.id} align="center" gap="xs">
-                    <TaskTimer 
-                      block={b} 
-                      onComplete={() => setCompletedTasks(prev => {
-                        const n = new Set(prev);
-                        n.add(b.id);
-                        return n;
-                      })} 
-                    />
-                  </Stack>
-                ))}
-              </Group>
-            </Paper>
-          )
+  const renderBlock = (b: Block): ReactNode => {
+    if (b.type === 'media') {
+      return <MediaRenderer key={b.id} block={b} />;
+    }
+    if (b.type === 'text') {
+      return <Text key={b.id} size="lg" style={{ whiteSpace: 'pre-wrap' }}>{interpolateTextNode(b.text)}</Text>;
+    }
+    if (b.type === 'task') {
+      return (
+        <Center key={b.id}>
+          <TaskTimer 
+            block={b} 
+            onComplete={() => setCompletedTasks(prev => {
+              const n = new Set(prev);
+              n.add(b.id);
+              return n;
+            })} 
+          />
+        </Center>
       );
     }
-
-    const interactionsToRender = excludeContinue 
-      ? interactionBlocks.filter(b => b.interactionType !== 'continue')
-      : interactionBlocks;
-
-    if (interactionsToRender.length > 0) {
-      addSection('interactions',
-          <Group justify="center" mt={inCard ? 0 : "xl"} w="100%">
-            {interactionsToRender.map(renderInteractionBlock)}
-          </Group>
+    if (b.type === 'interaction') {
+      let rerollsLeft = 0;
+      if (b.interactionType === 'roll') {
+        if (rerollPolicy?.type === 'shared-pool') {
+          rerollsLeft = rerollPool ?? 0;
+        } else {
+          const maxAllowance = b.rerollsGranted !== undefined 
+            ? b.rerollsGranted 
+            : (rerollPolicy?.defaultAllowance !== undefined ? rerollPolicy.defaultAllowance : 1);
+          const used = blockRerolls?.[b.id] ?? 0;
+          rerollsLeft = Math.max(0, maxAllowance - used);
+        }
+      }
+      return (
+        <Box key={b.id} w="100%">
+          <InteractionRenderer 
+            block={b} 
+            onInteract={onInteract}
+            localVariables={localVariables}
+            rerollsLeft={rerollsLeft}
+            isContinueDisabled={b.interactionType === 'continue' ? ((b.isRequired !== false ? !allRequiredTasksDone : false) || !allRequiredInteractionsDone) : false}
+            interpolateText={interpolateText}
+            interpolateTextNode={interpolateTextNode}
+            isLastNode={isLastNode}
+            onRestartGame={onRestartGame}
+            onReturnToLibrary={onReturnToLibrary}
+          />
+        </Box>
       );
     }
-
-    const content = (
-      <>
-        {sections.map((sec, idx) => (
-          <Fragment key={idx}>
-            {sec}
-            {inCard && idx < sections.length - 1 && <Card.Section><Divider /></Card.Section>}
-          </Fragment>
-        ))}
-      </>
-    );
-
-    if (inCard) {
-      return content;
-    }
-
-    return (
-      <Stack gap="xl" p="md" style={{ height: '100%', justifyContent: 'center' }}>
-        {content}
-      </Stack>
-    );
-  };
-
-  // Render layouts
-  switch (scene.layoutPreset) {
-    case 'standard-split':
+    if (b.type === 'container') {
       return (
-        <Grid gap={0} style={{ minHeight: '100%', margin: 0 }}>
-          {mediaBlocks.length > 0 && (
-            <Grid.Col span={{ base: 12, md: 6 }} style={{ minHeight: '50%', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--mantine-spacing-md)' }}>
-              {renderMedia()}
-            </Grid.Col>
-          )}
-          <Grid.Col span={{ base: 12, md: mediaBlocks.length > 0 ? 6 : 12 }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--mantine-spacing-xl)' }}>
-            <Stack w="100%" maw={600} gap="md">
-              <Card shadow="md" radius="lg" withBorder w="100%">
-                {renderContent(true, true)}
-              </Card>
-              {interactionBlocks.filter(b => b.interactionType === 'continue').map(b => (
-                <Box key={b.id} w="100%">
-                  {renderInteractionBlock(b)}
-                </Box>
-              ))}
-            </Stack>
-          </Grid.Col>
-        </Grid>
-      );
-    
-    case 'grid':
-      return (
-        <Container size="xl" pt="5rem" pb="xl">
-          <SimpleGrid cols={{ base: 1, md: 2 }}>
-            <Paper shadow="xs" p="md">{renderMedia()}</Paper>
-            <Paper shadow="xs" p="md">{renderContent()}</Paper>
-          </SimpleGrid>
-        </Container>
-      );
-
-    case 'fullscreen-media':
-      return (
-        <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
-            {renderMedia()}
-          </div>
-          <div style={{ position: 'absolute', bottom: '10%', left: '50%', transform: 'translateX(-50%)', zIndex: 1, width: '90%', maxWidth: '800px' }}>
-            <Paper shadow="xl" p="xl" radius="md" style={{ backgroundColor: 'rgba(0,0,0,0.7)', color: 'white' }}>
-              {renderContent()}
-            </Paper>
-          </div>
-        </div>
-      );
-
-    case 'stacked':
-    default:
-      return (
-        <Container size="md" pt="5rem" pb="xl">
-          <Stack gap="xl">
-            {renderMedia()}
-            {renderContent()}
+        <Paper 
+          key={b.id}
+          p="md" 
+          radius="md" 
+          withBorder={!!b.borderColor} 
+          style={{ 
+            backgroundColor: b.backgroundColor ? (b.backgroundColor.startsWith('#') ? `${b.backgroundColor}33` : `color-mix(in srgb, var(--mantine-color-${b.backgroundColor}-filled), transparent 80%)`) : 'transparent',
+            borderColor: b.borderColor ? (b.borderColor.startsWith('#') ? `${b.borderColor}80` : `color-mix(in srgb, var(--mantine-color-${b.borderColor}-filled), transparent 50%)`) : undefined,
+            borderWidth: b.borderColor ? 1 : 0,
+            borderStyle: 'solid'
+          }}
+        >
+          <Stack 
+            gap="md" 
+            align="center"
+            style={{ 
+              flexDirection: b.direction === 'row' ? 'row' : 'column',
+              width: '100%'
+            }}
+          >
+            {b.blocks.map(renderBlock)}
           </Stack>
-        </Container>
+        </Paper>
       );
-  }
+    }
+    return null;
+  };
+
+  return (
+    <Container size="md" pt="5rem" pb="xl">
+      <Stack gap="xl" w="100%">
+        {scene.blocks.map(renderBlock)}
+      </Stack>
+    </Container>
+  );
 }
 
 function MediaRenderer({ block }: { block: MediaBlock }) {

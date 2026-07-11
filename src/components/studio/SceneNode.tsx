@@ -37,7 +37,7 @@ export function SceneNode({ data, selected }: SceneNodeProps) {
           <Group justify="space-between">
             <Text fw={500} truncate>{scene.name}</Text>
             {scene.sceneMutations.length > 0 && (
-              <Badge size="xs" color="violet">M</Badge>
+              <Badge size="xs" color="violet" variant="light" tt="none">Mutation</Badge>
             )}
           </Group>
 

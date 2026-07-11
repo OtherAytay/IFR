@@ -35,17 +35,24 @@ export interface GameSettings {
 // ----------------------------------------------------------------------------
 // Blocks
 // ----------------------------------------------------------------------------
-export type BlockType = 'media' | 'text' | 'task' | 'interaction';
+export type BlockType = 'media' | 'text' | 'task' | 'interaction' | 'container';
 
 export interface BaseBlock {
   id: string;
   type: BlockType;
+  editorCollapsed?: boolean;
+}
+
+export interface MediaAsset {
+  id: string;
+  name: string;
+  url: string; // URL or base64
+  mediaType: 'image' | 'video' | 'audio';
 }
 
 export interface MediaBlock extends BaseBlock {
   type: 'media';
-  url: string; // URL or base64
-  mediaType: 'image' | 'video' | 'audio';
+  mediaId: string; // references MediaAsset.id
 }
 
 export interface TextBlock extends BaseBlock {
@@ -86,7 +93,15 @@ export interface InteractionBlock extends BaseBlock {
   isRequired?: boolean; // If true, must be interacted with before continuing
 }
 
-export type Block = MediaBlock | TextBlock | TaskBlock | InteractionBlock;
+export interface ContainerBlock extends BaseBlock {
+  type: 'container';
+  direction: 'row' | 'column';
+  backgroundColor?: string;
+  borderColor?: string;
+  blocks: Block[];
+}
+
+export type Block = MediaBlock | TextBlock | TaskBlock | InteractionBlock | ContainerBlock;
 
 // ----------------------------------------------------------------------------
 // Mutations & Conditions
@@ -128,7 +143,6 @@ export interface Scene {
   id: string;
   name: string;
   blocks: Block[];
-  layoutPreset: LayoutPreset;
   sceneMutations: Mutation[]; // Applied when leaving the scene
   sceneVariableMappings?: VariableMapping[]; // Map source local to target local regardless of edge taken
   inheritAllLocals?: boolean; // Forward all local variables automatically
@@ -168,6 +182,7 @@ export interface Game {
   settings: GameSettings;
   globalVariables: Variable[];
   tags: Tag[];
+  mediaAssets: MediaAsset[];
   
   scenes: Record<string, Scene>;
   edges: Record<string, Edge[]>; // Keyed by sourceSceneId for easy traversal
