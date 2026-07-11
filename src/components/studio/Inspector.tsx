@@ -1917,7 +1917,7 @@ function EdgeInspector({ edgeId }: { edgeId: string }) {
 }
 
 export function Inspector() {
-  const { game, selectedNodeId, selectedEdgeId, setGame } = useStudioStore();
+  const { game, selectedNodeId, selectedEdgeId, setGame, addGameOption, updateGameOption, removeGameOption } = useStudioStore();
   const coverAsset = game.mediaAssets?.find(a => a.id === game.coverMediaId);
   const resolvedCoverUrl = useAssetUrl(coverAsset?.url === 'indexeddb' ? coverAsset.id : undefined) || coverAsset?.url;
 
@@ -2079,32 +2079,37 @@ export function Inspector() {
 
       <Title order={5}>Global Variables</Title>
       <Stack gap="xs">
-        {game.globalVariables.map((variable, idx) => (
-          <VariableCard
-            key={variable.id}
-            variable={{ ...variable, type: variable.type || typeof variable.defaultValue }}
-            color="teal"
-            onChangeName={(name) => {
-              const newVars = [...game.globalVariables];
-              newVars[idx] = { ...variable, name };
-              setGame({ ...game, globalVariables: newVars });
-            }}
-            onChangeType={(type) => {
-              const newVars = [...game.globalVariables];
-              let defaultValue: any = 0;
-              if (type === 'boolean') defaultValue = false;
-              if (type === 'string') defaultValue = '';
-              newVars[idx] = { ...variable, type: type as any, defaultValue };
-              setGame({ ...game, globalVariables: newVars });
-            }}
-            onChangeDefault={(val) => {
-              const newVars = [...game.globalVariables];
-              newVars[idx] = { ...variable, defaultValue: val };
-              setGame({ ...game, globalVariables: newVars });
-            }}
-            onDelete={() => setGame({ ...game, globalVariables: game.globalVariables.filter(v => v.id !== variable.id) })}
-          />
-        ))}
+        {game.globalVariables.map((variable, idx) => {
+          const isOptionVar = game.settings.options?.some(o => o.variableId === variable.id);
+          return (
+            <VariableCard
+              key={variable.id}
+              variable={{ ...variable, type: variable.type || typeof variable.defaultValue }}
+              color="teal"
+              isAutoVariable={isOptionVar}
+              isReadonly={isOptionVar}
+              onChangeName={(name) => {
+                const newVars = [...game.globalVariables];
+                newVars[idx] = { ...variable, name };
+                setGame({ ...game, globalVariables: newVars });
+              }}
+              onChangeType={(type) => {
+                const newVars = [...game.globalVariables];
+                let defaultValue: any = 0;
+                if (type === 'boolean') defaultValue = false;
+                if (type === 'string') defaultValue = '';
+                newVars[idx] = { ...variable, type: type as any, defaultValue };
+                setGame({ ...game, globalVariables: newVars });
+              }}
+              onChangeDefault={(val) => {
+                const newVars = [...game.globalVariables];
+                newVars[idx] = { ...variable, defaultValue: val };
+                setGame({ ...game, globalVariables: newVars });
+              }}
+              onDelete={isOptionVar ? undefined : () => setGame({ ...game, globalVariables: game.globalVariables.filter(v => v.id !== variable.id) })}
+            />
+          );
+        })}
         <Button
           size="xs"
           variant="light"
@@ -2118,6 +2123,62 @@ export function Inspector() {
           }}
         >
           Add Variable
+        </Button>
+      </Stack>
+
+      <Divider />
+
+      <Title order={5}>Options Menu</Title>
+      <Stack gap="xs">
+        {(game.settings.options || []).map((opt, idx) => (
+          <Card key={opt.id} withBorder shadow="sm" radius="md" p="sm" style={{ borderLeft: `3px solid var(--mantine-color-violet-6)` }}>
+            <Group justify="space-between" mb="xs">
+              <Group gap="xs">
+                <IconSettings size={14} color="var(--mantine-color-violet-6)" />
+                <Text size="sm" fw={600}>{opt.label || 'Option'}</Text>
+              </Group>
+              <ActionIcon size="sm" color="red" variant="subtle" onClick={() => removeGameOption(opt.id)}>
+                <IconTrash size={14} />
+              </ActionIcon>
+            </Group>
+            
+            <TextInput 
+              size="xs"
+              label="Option Label"
+              value={opt.label}
+              onChange={(e) => updateGameOption(opt.id, { label: e.currentTarget.value })}
+              mb="xs"
+            />
+            
+            <Text size="xs" fw={500} mb={4}>Choices</Text>
+            <Stack gap={4}>
+              {opt.choices.map((choice, cIdx) => (
+                <Group key={choice.id} gap="xs" wrap="nowrap">
+                  <TextInput
+                    size="xs"
+                    value={choice.label}
+                    onChange={(e) => {
+                      const newChoices = [...opt.choices];
+                      newChoices[cIdx] = { ...choice, label: e.currentTarget.value };
+                      updateGameOption(opt.id, { choices: newChoices });
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <ActionIcon size="sm" color="red" variant="subtle" disabled={opt.choices.length <= 1} onClick={() => {
+                    updateGameOption(opt.id, { choices: opt.choices.filter(c => c.id !== choice.id) });
+                  }}>
+                    <IconTrash size={14} />
+                  </ActionIcon>
+                </Group>
+              ))}
+              <Button size="xs" variant="light" color="violet" onClick={() => {
+                updateGameOption(opt.id, { choices: [...opt.choices, { id: crypto.randomUUID(), label: 'New Choice' }] });
+              }}>Add Choice</Button>
+            </Stack>
+          </Card>
+        ))}
+        <Button size="xs" variant="light" color="violet" leftSection={<IconPlus size={12} />} onClick={() => addGameOption()}>
+          Add Option
         </Button>
       </Stack>
 

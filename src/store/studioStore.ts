@@ -31,6 +31,11 @@ export interface GameState {
   removeBlock: (sceneId: string, blockId: string) => void;
   moveBlock: (sceneId: string, blockId: string, sourceContainerId: string, targetContainerId: string, sourceIndex: number, targetIndex: number) => void;
   
+  // Options actions
+  addGameOption: () => void;
+  updateGameOption: (id: string, updates: Partial<any>) => void;
+  removeGameOption: (id: string) => void;
+
   // Add other mutations later as needed (update scene, update block, etc.)
   setGame: (game: Game) => void;
 }
@@ -148,6 +153,68 @@ export const useStudioStore = create<StudioStore>()(
   game: initialGame,
   
   setGame: (game) => set({ game: sanitizeGame(game) }),
+
+  addGameOption: () => set((state) => {
+    const newOptionId = uuidv4();
+    const newVariableId = `opt_${newOptionId}`;
+    return {
+      game: {
+        ...state.game,
+        settings: {
+          ...state.game.settings,
+          options: [
+            ...(state.game.settings.options || []),
+            {
+              id: newOptionId,
+              variableId: newVariableId,
+              label: 'New Option',
+              choices: [{ id: uuidv4(), label: 'Default' }]
+            }
+          ]
+        },
+        globalVariables: [
+          ...state.game.globalVariables,
+          {
+            id: newVariableId,
+            name: 'new_option_var',
+            type: 'string',
+            defaultValue: 'Default'
+          }
+        ]
+      }
+    };
+  }),
+
+  updateGameOption: (id, updates) => set((state) => {
+    const options = state.game.settings.options || [];
+    return {
+      game: {
+        ...state.game,
+        settings: {
+          ...state.game.settings,
+          options: options.map(o => o.id === id ? { ...o, ...updates } : o)
+        }
+      }
+    };
+  }),
+
+  removeGameOption: (id) => set((state) => {
+    const options = state.game.settings.options || [];
+    const optionToRemove = options.find(o => o.id === id);
+    if (!optionToRemove) return state;
+
+    return {
+      game: {
+        ...state.game,
+        settings: {
+          ...state.game.settings,
+          options: options.filter(o => o.id !== id)
+        },
+        // We'll also remove the associated global variable
+        globalVariables: state.game.globalVariables.filter(v => v.id !== optionToRemove.variableId)
+      }
+    };
+  }),
   
   addScene: (x, y) => set((state) => {
     const continueBlockId = uuidv4();

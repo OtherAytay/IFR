@@ -27,9 +27,17 @@ export interface RerollPolicy {
   defaultAllowance?: number; // E.g., 1 for per-task, or starting value for shared-pool
 }
 
+export interface GameOption {
+  id: string;
+  variableId: string;
+  label: string;
+  choices: InteractionChoice[];
+}
+
 export interface GameSettings {
   theme: ThemeSettings;
   rerollPolicy: RerollPolicy;
+  options?: GameOption[];
 }
 
 // ----------------------------------------------------------------------------

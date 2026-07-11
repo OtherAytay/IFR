@@ -647,6 +647,43 @@ export function PlayerEngine({ initialSaveData, saveId }: { initialSaveData: any
               );
             })()}
 
+            {/* Options Menu */}
+            {gameData.settings?.options && gameData.settings.options.length > 0 && (
+              <Box>
+                <Text size="xs" fw={700} tt="uppercase" lts={1} c="dimmed" mb={4}>Options</Text>
+                <Stack gap={4}>
+                  {gameData.settings.options.map(opt => (
+                    <Box key={opt.id} px="xs" py={4} style={{ borderRadius: 'var(--mantine-radius-sm)', background: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))' }}>
+                      <Text size="sm" fw={500} mb={2}>{opt.label}</Text>
+                      <Group gap={4}>
+                        {opt.choices.map(choice => (
+                          <Button
+                            key={choice.id}
+                            size="compact-xs"
+                            variant={playerState.globalVariables[opt.variableId] === choice.label ? 'filled' : 'light'}
+                            color={primaryColorKey}
+                            onClick={() => {
+                              setPlayerState(prev => {
+                                const nextState = { ...prev };
+                                nextState.globalVariables = { 
+                                  ...nextState.globalVariables, 
+                                  [opt.variableId]: choice.label 
+                                };
+                                saveState(nextState);
+                                return nextState;
+                              });
+                            }}
+                          >
+                            {choice.label}
+                          </Button>
+                        ))}
+                      </Group>
+                    </Box>
+                  ))}
+                </Stack>
+              </Box>
+            )}
+
             {/* Actions */}
             <Box mt="auto" pt="xs" style={{ borderTop: '1px solid light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5))' }}>
               <Text size="xs" fw={700} tt="uppercase" lts={1} c="dimmed" mb={6}>Actions</Text>
