@@ -148,7 +148,12 @@ export default function Home() {
           onDrop={handleDrop}
           onReject={(files) => alert('File rejected. Must be a .ifr map or .json save file.')}
           maxSize={100 * 1024 ** 2}
-          accept={['application/json', 'application/zip', '.ifr', 'application/x-zip-compressed']}
+          accept={{
+            'application/json': ['.json'],
+            'application/zip': ['.zip', '.ifr'],
+            'application/x-zip-compressed': ['.zip', '.ifr'],
+            'application/octet-stream': ['.ifr']
+          }}
           radius="md"
           styles={{ inner: { pointerEvents: 'all' } }}
         >
