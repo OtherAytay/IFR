@@ -73,6 +73,7 @@ export interface LookupVariableContext {
   scene: Scene;
   localVariables?: Record<string, any>;
   globalVariables?: Record<string, any>;
+  tags?: string[];
 }
 
 export const lookupVariable = (name: string, ctx: LookupVariableContext) => {
@@ -127,9 +128,12 @@ export const lookupVariable = (name: string, ctx: LookupVariableContext) => {
   return undefined;
 };
 
+const unescapeHtml = (str: string) => str.replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+
 export const evaluateExpression = (expression: string, rawMatch: string, ctx: LookupVariableContext): { value: string; resolved: boolean } => {
-  if (!expression.includes('[')) {
-    const val = lookupVariable(expression.trim(), ctx);
+  const unescapedExpression = unescapeHtml(expression);
+  if (!unescapedExpression.includes('[') && !unescapedExpression.includes('#[')) {
+    const val = lookupVariable(unescapedExpression.trim(), ctx);
     if (val !== undefined) return { value: String(val), resolved: true };
     return { value: rawMatch, resolved: false };
   }
@@ -138,7 +142,19 @@ export const evaluateExpression = (expression: string, rawMatch: string, ctx: Lo
   let values: any[] = [];
   let hasUnresolvable = false;
 
-  let safeExpr = expression.replace(/\[([^\]]+)\]/g, (bracketMatch: string, varName: string) => {
+  let safeExpr = unescapedExpression;
+
+  safeExpr = safeExpr.replace(/#\[([^\]]+)\]/g, (bracketMatch: string, tagName: string) => {
+    const tagDef = ctx.game?.tags?.find(t => t.name === tagName.trim() || t.id === tagName.trim());
+    const hasTag = ctx.tags ? (ctx.tags.includes(tagName.trim()) || (tagDef && ctx.tags.includes(tagDef.id))) : false;
+    
+    const varId = `var_${vars.length}`;
+    vars.push(varId);
+    values.push(hasTag ? 1 : 0);
+    return varId;
+  });
+
+  safeExpr = safeExpr.replace(/\[([^\]]+)\]/g, (bracketMatch: string, varName: string) => {
     const val = lookupVariable(varName.trim(), ctx);
     if (val === undefined) {
       hasUnresolvable = true;
@@ -158,7 +174,7 @@ export const evaluateExpression = (expression: string, rawMatch: string, ctx: Lo
   if (hasUnresolvable) return { value: rawMatch, resolved: false };
 
   let checkStr = safeExpr.replace(/var_\d+/g, '');
-  if (!/^[\d\s\+\-\*\/\(\)\.]*$/.test(checkStr)) {
+  if (!/^[\d\s\+\-\*\/\(\)\.\>\<\=\!\|\&]*$/.test(checkStr)) {
     return { value: rawMatch, resolved: false };
   }
 
@@ -176,15 +192,119 @@ export const evaluateExpression = (expression: string, rawMatch: string, ctx: Lo
   }
 };
 
+export const processConditionals = (text: string, ctx: LookupVariableContext): string => {
+  if (!text || !text.includes('{{')) return text;
+
+  const regex = /(\{\{\s*if\s+[^}]+\}\}|\{\{\s*else\s*\}\}|\{\{\s*endif\s*\}\})/g;
+  let match;
+  let lastIndex = 0;
+  
+  type Node = { type: 'text', content: string } | { type: 'if', expression: string, trueBranch: Node[], falseBranch: Node[], currentBranch: 'true' | 'false' };
+  
+  const root: Node[] = [];
+  const stack: Node[][] = [root];
+  const ifStack: Node[] = [];
+
+  while ((match = regex.exec(text)) !== null) {
+    const textPart = text.substring(lastIndex, match.index);
+    if (textPart) {
+      stack[stack.length - 1].push({ type: 'text', content: textPart });
+    }
+    
+    const tag = match[0];
+    if (/\{\{\s*if\s+/.test(tag)) {
+      const expression = tag.replace(/\{\{\s*if\s+/, '').replace(/\s*\}\}$/, '').trim();
+      const ifNode: Node = { type: 'if', expression, trueBranch: [], falseBranch: [], currentBranch: 'true' };
+      stack[stack.length - 1].push(ifNode);
+      ifStack.push(ifNode);
+      stack.push(ifNode.trueBranch);
+    } else if (/\{\{\s*else\s*\}\}/.test(tag)) {
+      if (ifStack.length > 0) {
+        const ifNode = ifStack[ifStack.length - 1];
+        if (ifNode.type === 'if') {
+          ifNode.currentBranch = 'false';
+          stack.pop();
+          stack.push(ifNode.falseBranch);
+        }
+      } else {
+        stack[stack.length - 1].push({ type: 'text', content: tag });
+      }
+    } else if (/\{\{\s*endif\s*\}\}/.test(tag)) {
+      if (ifStack.length > 0) {
+        ifStack.pop();
+        stack.pop();
+      } else {
+        stack[stack.length - 1].push({ type: 'text', content: tag });
+      }
+    }
+    
+    lastIndex = regex.lastIndex;
+  }
+  
+  const remainingText = text.substring(lastIndex);
+  if (remainingText) stack[stack.length - 1].push({ type: 'text', content: remainingText });
+  
+  const evaluateAst = (nodes: Node[]): string => {
+    let result = '';
+    for (const node of nodes) {
+      if (node.type === 'text') {
+        result += node.content;
+      } else if (node.type === 'if') {
+        const { value, resolved } = evaluateExpression(node.expression, `{{if ${node.expression}}}`, ctx);
+        const isTruthy = resolved && value !== '0' && value !== 'false' && value !== '' && value !== 'undefined' && value !== 'null';
+        if (isTruthy) {
+          result += evaluateAst(node.trueBranch);
+        } else {
+          result += evaluateAst(node.falseBranch);
+        }
+      }
+    }
+    return result;
+  };
+  
+  return evaluateAst(root);
+};
+
 export const interpolateTextHelper = (text: string, ctx: LookupVariableContext): string => {
   if (!text) return '';
-  return text.replace(/\{\{([^}]+)\}\}/g, (match, expression) => {
+  text = processConditionals(text, ctx);
+  
+  // Replace {{...}} math/logic blocks
+  text = text.replace(/\{\{([^}]+)\}\}/g, (match, expression) => {
     return evaluateExpression(expression, match, ctx).value;
   });
+  
+  // Replace standalone #[Tag]
+  text = text.replace(/#\[([^\]]+)\]/g, (match, tagName) => {
+    const tagDef = ctx.game?.tags?.find(t => t.name === tagName.trim() || t.id === tagName.trim());
+    return (ctx.tags && (ctx.tags.includes(tagName.trim()) || (tagDef && ctx.tags.includes(tagDef.id)))) ? '1' : '0';
+  });
+  
+  // Replace standalone [Variable]
+  text = text.replace(/(?<!#)\[([^\]]+)\]/g, (match, varName) => {
+    const val = lookupVariable(varName.trim(), ctx);
+    return val !== undefined ? String(val) : match;
+  });
+  
+  return text;
 };
 
 export const interpolateTextNodeHelper = (text: string, ctx: LookupVariableContext): ReactNode => {
   if (!text) return '';
+  text = processConditionals(text, ctx);
+  
+  // Replace standalone tags
+  text = text.replace(/#\[([^\]]+)\]/g, (match, tagName) => {
+    const tagDef = ctx.game?.tags?.find(t => t.name === tagName.trim() || t.id === tagName.trim());
+    return (ctx.tags && (ctx.tags.includes(tagName.trim()) || (tagDef && ctx.tags.includes(tagDef.id)))) ? '1' : '0';
+  });
+  
+  // Replace standalone variables
+  text = text.replace(/(?<!#)\[([^\]]+)\]/g, (match, varName) => {
+    const val = lookupVariable(varName.trim(), ctx);
+    return val !== undefined ? String(val) : match;
+  });
+
   const parts = text.split(/(\{\{[^}]+\}\})/g);
   return parts.map((part, index) => {
     if (part.startsWith('{{') && part.endsWith('}}')) {
@@ -205,6 +325,7 @@ export function SceneRenderer({
   onLocalUpdate, 
   localVariables,
   globalVariables,
+  tags,
   game,
   rerollPolicy,
   blockRerolls,
@@ -217,6 +338,7 @@ export function SceneRenderer({
   onLocalUpdate: (mutations: any[]) => void,
   localVariables?: Record<string, number | string | boolean>,
   globalVariables?: Record<string, number | string | boolean>,
+  tags?: string[],
   game?: Game,
   rerollPolicy?: RerollPolicy,
   blockRerolls?: Record<string, number>,
@@ -234,7 +356,7 @@ export function SceneRenderer({
   const isLastNode = edges.length === 0;
 
 
-  const ctx: LookupVariableContext = { game, scene, localVariables, globalVariables };
+  const ctx: LookupVariableContext = { game, scene, localVariables, globalVariables, tags };
   const interpolateText = (text: string) => interpolateTextHelper(text, ctx);
   const interpolateTextNode = (text: string) => interpolateTextNodeHelper(text, ctx);
 
@@ -268,7 +390,17 @@ export function SceneRenderer({
       return <MediaRenderer key={b.id} block={b} />;
     }
     if (b.type === 'text') {
-      return <Text key={b.id} size="lg" style={{ whiteSpace: 'pre-wrap' }}>{interpolateTextNode(b.text)}</Text>;
+      const htmlContent = interpolateText(b.text || '');
+      return (
+        <Box 
+          key={b.id} 
+          dangerouslySetInnerHTML={{ __html: htmlContent }} 
+          style={{ 
+            whiteSpace: htmlContent.includes('<p>') ? 'normal' : 'pre-wrap',
+            fontSize: 'var(--mantine-font-size-lg)'
+          }} 
+        />
+      );
     }
     if (b.type === 'task') {
       return (
