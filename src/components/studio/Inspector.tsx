@@ -2364,7 +2364,8 @@ export function Inspector() {
             
             zip.file("map.json", JSON.stringify(gameClone, null, 2));
             const blob = await zip.generateAsync({ type: "blob" });
-            saveAs(blob, "game.ifr");
+            const fileName = `${game.title || 'game'} - v${game.version || '1.0.0'}.ifr`;
+            saveAs(blob, fileName);
           }}
         >
           Export game.ifr
